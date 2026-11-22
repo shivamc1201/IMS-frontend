@@ -630,8 +630,8 @@
 
           <!-- Transaction Type -->
           <div>
-            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">TRANSACTION TYPE <span style="color: #334155; font-weight: 500;">(optional)</span></p>
-            <div class="grid grid-cols-5 gap-2">
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">TRANSACTION TYPE *</p>
+            <div class="grid grid-cols-3 gap-2">
               <button type="button" *ngFor="let pm of paymentMethods"
                 (click)="paymentForm.paymentMethod === pm.value ? paymentForm.paymentMethod = '' : paymentForm.paymentMethod = $any(pm.value)"
                 class="rounded-xl px-1 py-2.5 flex flex-col items-center justify-center gap-1 font-semibold text-[9px] transition-all"

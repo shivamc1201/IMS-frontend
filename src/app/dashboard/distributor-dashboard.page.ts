@@ -29,7 +29,7 @@ import {
 } from 'ionicons/icons';
 import { DistributorService, DistributorOrder, DistributorStock } from '../services/distributor.service';
 import { Auth } from '../services/auth';
-import { LedgerService } from '../services/accountsLedger.service';
+import { LedgerService, PaymentSubmissionPayload } from '../services/accountsLedger.service';
 import { HapticService } from '../services/haptic.service';
 import { InvoiceService } from '../services/invoice.service';
 import { DownloadService } from '../services/download.service';
@@ -858,6 +858,11 @@ export class DistributorDashboardPage implements OnInit {
       return;
     }
 
+    if (!paymentMethod) {
+      this.showToast('Please select a transaction type (RTGS, NEFT, Cheque, IMPS or UPI)', 'danger');
+      return;
+    }
+
     if ((paymentMethod === 'rtgs' || paymentMethod === 'neft') && !utrNumber) {
       this.showToast('Please enter UTR Number', 'danger');
       return;
@@ -880,13 +885,21 @@ export class DistributorDashboardPage implements OnInit {
     }
 
     this.isSubmittingPayment = true;
-    this.ledgerService.updateBalanceDirect(
-      this.distributorId,
-      parsedAmount,
-      description,
-      balanceType.toUpperCase(),
-      date ? `${date}T00:00:00` : undefined
-    ).subscribe({
+    const mode = paymentMethod.toUpperCase() as PaymentSubmissionPayload['paymentMode'];
+    const payload: PaymentSubmissionPayload = {
+      distributorId: this.distributorId,
+      amount: parsedAmount,
+      transactionType: balanceType.toUpperCase() as 'CREDIT' | 'DEBIT',
+      description: description.trim(),
+      date: `${date}T00:00:00`,
+      paymentMode: mode,
+      // salespersonId intentionally omitted: distributor is adding their own payment
+      ...(mode === 'RTGS' || mode === 'NEFT' ? { utrNumber: utrNumber.trim() } : {}),
+      ...(mode === 'CHEQUE' ? { chequeNumber: chequeNumber.trim(), bankName: bankName.trim() } : {}),
+      ...(mode === 'IMPS' || mode === 'UPI' ? { transactionNumber: transactionNumber.trim() } : {}),
+    };
+
+    this.ledgerService.updateBalanceDirect(payload).subscribe({
       next: (response) => {
         this.transactions.unshift({
           date: new Date(date).toLocaleDateString('en-US', {
@@ -909,7 +922,12 @@ export class DistributorDashboardPage implements OnInit {
       error: (error) => {
         console.error('Error adding payment:', error);
         this.isSubmittingPayment = false;
-        this.showToast(error?.error?.message || 'Failed to add payment', 'danger');
+        // Validation errors come back as { field: message, ... }; other errors as { message }.
+        const body = error?.error;
+        const detail = body && typeof body === 'object'
+          ? (body.message || Object.values(body).filter(v => typeof v === 'string').join(', '))
+          : (typeof body === 'string' ? body : '');
+        this.showToast(detail || 'Failed to add payment', 'danger');
       }
     });
   }

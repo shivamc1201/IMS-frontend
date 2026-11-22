@@ -195,10 +195,12 @@ export class SalesDashboardPage implements OnInit, OnDestroy {
   };
 
   paymentMethods: PaymentMethod[] = [
+    // Values map 1:1 to the backend PaymentMode enum (RTGS, NEFT, IMPS, UPI, CHEQUE, CASH)
     { label: 'Cash', value: 'cash', icon: 'wallet-outline' },
-    { label: 'Check', value: 'cheque', icon: 'document-text-outline' },
-    { label: 'Bank', value: 'bank', icon: 'card-outline' },
+    { label: 'Cheque', value: 'cheque', icon: 'document-text-outline' },
+    { label: 'NEFT', value: 'neft', icon: 'card-outline' },
     { label: 'RTGS', value: 'rtgs', icon: 'send-outline' },
+    { label: 'IMPS', value: 'imps', icon: 'cash-outline' },
     { label: 'UPI', value: 'upi', icon: 'phone-portrait-outline' }
   ];
 
@@ -800,7 +802,12 @@ export class SalesDashboardPage implements OnInit, OnDestroy {
         error: (error) => {
           console.error('Error submitting payment:', error);
           this.isSubmittingPayment = false;
-          this.showToast('Failed to submit payment. Please try again.', 'danger');
+          // Validation errors come back as { field: message, ... }; other errors as { message }.
+          const body = error?.error;
+          const detail = body && typeof body === 'object'
+            ? (body.message || Object.values(body).filter(v => typeof v === 'string').join(', '))
+            : (typeof body === 'string' ? body : '');
+          this.showToast(detail || 'Failed to submit payment. Please try again.', 'danger');
         }
       });
   }
@@ -809,6 +816,11 @@ export class SalesDashboardPage implements OnInit, OnDestroy {
     const { balanceType, date, amount, reference, description, selectedDistributorId } = this.paymentForm;
     
     if (!selectedDistributorId || !balanceType || !date || amount <= 0 || !reference.trim() || !description.trim()) {
+      return false;
+    }
+
+    // Backend requires a payment mode
+    if (!this.paymentForm.paymentMethod) {
       return false;
     }
 
