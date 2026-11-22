@@ -23,6 +23,21 @@ export interface LedgerDto {
     version: number;
 }
 
+/** Body of POST /api/accounts/update-balance (backend: PaymentSubmissionRequest). */
+export interface PaymentSubmissionPayload {
+    distributorId: number;
+    salespersonId?: number | null;      // omit when the distributor adds their own payment
+    amount: number;
+    transactionType: 'CREDIT' | 'DEBIT';
+    description: string;
+    date: string;                        // yyyy-MM-dd'T'HH:mm:ss
+    paymentMode: 'RTGS' | 'NEFT' | 'IMPS' | 'UPI' | 'CHEQUE' | 'CASH';
+    utrNumber?: string;                  // RTGS / NEFT
+    chequeNumber?: string;               // CHEQUE
+    bankName?: string;                   // CHEQUE
+    transactionNumber?: string;          // IMPS / UPI
+}
+
 export interface ApiResponse<T> {
     success: boolean;
     message: string;
@@ -116,29 +131,15 @@ export class LedgerService {
         );
     }
 
-    updateBalanceDirect(
-        distributorId: number,
-        amount: number,
-        description: string,
-        transactionType?: string,
-        date?: string
-    ): Observable<ApiResponse<any>> {
-        let url = `${this.apiUrl}/accounts/update-balance?distributorId=${distributorId}&amount=${amount}&description=${encodeURIComponent(description)}`;
-        if (transactionType) {
-            url += `&transactionType=${transactionType}`;
-        }
-        if (date) {
-            url += `&date=${encodeURIComponent(date)}`;
-        }
-        return this.http.post<ApiResponse<any>>(url, {}).pipe(
-            catchError(error => {
-                console.error('Update Balance Direct Error:', error);
-                return of({
-                    success: true,
-                    message: error.statusText || 'Balance updated successfully',
-                    data: null
-                });
-            })
+    /**
+     * POST /api/accounts/update-balance — submits a payment for approval.
+     * The backend expects a JSON body (PaymentSubmissionRequest), not query params.
+     * Errors are NOT swallowed: callers must handle them so a failed save is never shown as success.
+     */
+    updateBalanceDirect(payload: PaymentSubmissionPayload): Observable<{ paymentId?: number; message?: string; status?: string }> {
+        return this.http.post<{ paymentId?: number; message?: string; status?: string }>(
+            `${this.apiUrl}/accounts/update-balance`,
+            payload
         );
     }
 
