@@ -37,6 +37,8 @@ import { UserService } from '../services/user.service';
 import { DistributorDto, DistributorService } from '../services/distributor.service';
 import { SalesHierarchyService } from '../services/sales-hierarchy.service';
 import { Toast } from '../services/toast';
+import { DownloadService } from '../services/download.service';
+import * as XLSX from 'xlsx';
 import { HapticService } from '../services/haptic.service';
 import { KeyboardService } from '../services/keyboard.service';
 import { User } from '../models/user.model';
@@ -220,6 +222,7 @@ export class OutwardInventoryPage implements OnInit {
   private distributorService = inject(DistributorService);
   private salesHierarchyService = inject(SalesHierarchyService);
   private toast = inject(Toast);
+  private downloadService = inject(DownloadService);
   private http = inject(HttpClient);
   private auth = inject(Auth);
   private haptic = inject(HapticService);
@@ -1609,6 +1612,68 @@ export class OutwardInventoryPage implements OnInit {
   }
 
   trackByIssuedTo(_: number, g: OutwardIssuedGroup) { return g.issuedTo; }
+
+  /**
+   * Download one promotional-issue card as an Excel sheet laid out like the Promotional Slip
+   * (promotional.html): company/title block, recipient + reference, then the item table with a
+   * total row and blank receiver/deliverer signature lines. Covers every date on the card.
+   */
+  async downloadGroupExcel(g: OutwardIssuedGroup): Promise<void> {
+    try {
+      const fmt = (iso?: string): string => {
+        const d = (iso || '').slice(0, 10).split('-');
+        return d.length === 3 ? `${d[2]}-${d[1]}-${d[0]}` : '';
+      };
+      const dates = this.getGroupDates(g);
+      const lastDate = fmt(g.createdAt);
+      const remarks = Array.from(new Set(g.items.map(i => (i.comments || '').trim()).filter(Boolean))).join('; ');
+
+      const rows: (string | number)[][] = [
+        ['Nectar Origin Private Limited'],
+        ['360 K, Shiv Parwati Nagar, Block Road No-2, Ward No 16, Kahalgaon, Bhagalpur Bihar-813203'],
+        ['PROMOTIONAL SLIP'],
+        [],
+        ['Issued To :', g.issuedTo, '', 'Reference No :', g.referenceNumber || ''],
+        ['Dispatch From :', '360 K, Shiv Parwati Nagar, Block Road No-2, Ward No 16, Kahalgaon, Bhagalpur Bihar-813203'],
+        ['Last Issued On :', lastDate, '', 'Total Items :', g.items.length],
+        [],
+        ['Sr No', 'Date Issued', 'Item Code', 'Item Description', 'Unit', 'Qty Issued', 'Remark']
+      ];
+
+      let sr = 1;
+      let totalQty = 0;
+      for (const d of dates) {
+        for (const item of d.items) {
+          rows.push([sr++, fmt(item.createdAt), item.matCode, item.matName, this.getUnitLabel(item.unit), item.quantity, item.comments || '']);
+          totalQty += Number(item.quantity) || 0;
+        }
+      }
+
+      rows.push(['', '', '', 'Total', '', totalQty, '']);
+      rows.push([]);
+      rows.push(['Remark :', remarks]);
+      rows.push([]);
+      rows.push(['Name of Person Receiving :', '', '', 'Signature of Person Receiving :', '']);
+      rows.push(['Name of Person Delivering :', '', '', 'Signature of Person Delivering :', '']);
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      ws['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 18 }, { wch: 38 }, { wch: 30 }, { wch: 12 }, { wch: 30 }];
+      ws['!merges'] = [0, 1, 2].map(r => ({ s: { r, c: 0 }, e: { r, c: 6 } }));
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Promotional Slip');
+      const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+      const safe = (s: string) => s.replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const name = `Promotional-Slip-${safe(g.issuedTo) || 'issue'}${g.referenceNumber ? '-' + safe(g.referenceNumber) : ''}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+      await this.downloadService.downloadBlob(blob, name);
+      this.toast.present('Excel downloaded successfully', 'success');
+    } catch (err) {
+      console.error('Promotional Excel export failed', err);
+      this.toast.present('Failed to export Excel', 'danger');
+    }
+  }
 }
 
 
