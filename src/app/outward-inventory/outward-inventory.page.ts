@@ -1614,11 +1614,32 @@ export class OutwardInventoryPage implements OnInit {
 
   trackByIssuedTo(_: number, g: OutwardIssuedGroup) { return g.issuedTo; }
 
+  /** Loads an image URL and returns it as a PNG data URI with its pixel size (null if it fails to load). */
+  private loadImageAsDataUrl(url: string): Promise<{ data: string; w: number; h: number } | null> {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          canvas.getContext('2d')!.drawImage(img, 0, 0);
+          resolve({ data: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight });
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  }
+
   /**
    * Download one promotional-issue card as a PDF laid out like the Promotional Slip
-   * (promotional.html / GDN style): company header, title, recipient + reference fields,
-   * bordered item table with a total, remark and blank receiver/deliverer signature lines.
-   * Covers every date on the card.
+   * (promotional.html / GDN): logo + address header, title, delivery note no / date, dispatch
+   * and shipping address, transport box, bordered item table, remark and signature lines.
+   * Covers every date on the card. Transport details are not captured for promo issues, so
+   * Delivery Method is "By company" and the other transport boxes are left blank to fill by hand.
    */
   async downloadGroupPdf(g: OutwardIssuedGroup): Promise<void> {
     try {
@@ -1628,85 +1649,153 @@ export class OutwardInventoryPage implements OnInit {
       };
       const address = '360 K, Shiv Parwati Nagar, Block Road No-2, Ward No 16, Kahalgaon, Bhagalpur Bihar-813203';
       const remarks = Array.from(new Set(g.items.map(i => (i.comments || '').trim()).filter(Boolean))).join('; ');
+      const logo = await this.loadImageAsDataUrl('assets/images/nectar-logo.png');
 
       const body: (string | number)[][] = [];
+      const units = new Set<string>();
       let totalQty = 0;
       let sr = 1;
       for (const d of this.getGroupDates(g)) {
         for (const item of d.items) {
-          body.push([sr++, fmt(item.createdAt), `${item.matName}\n${item.matCode}`, this.getUnitLabel(item.unit), item.quantity]);
+          const unit = this.getUnitLabel(item.unit);
+          units.add(unit);
+          body.push([sr++, unit, `${item.matName}\n${item.matCode}  |  Issued: ${fmt(item.createdAt)}`, item.quantity]);
           totalQty += Number(item.quantity) || 0;
         }
       }
+      // A grand total only makes sense when every row uses the same unit.
+      const hasTotal = units.size === 1;
+      if (hasTotal) body.push(['', '', 'Total', totalQty]);
 
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
       const pageW = doc.internal.pageSize.getWidth();
       const left = 10;
       const right = pageW - 10;
+      const width = right - left;
+      const half = width / 2;
 
+      // Header
       doc.setTextColor(0);
-      doc.setFont('helvetica', 'bolditalic');
-      doc.setFontSize(16);
-      doc.text('Nectar Origin Private Limited', pageW / 2, 14, { align: 'center' });
+      if (logo) {
+        const lw = 22;
+        doc.addImage(logo.data, 'PNG', left, 8, lw, (lw * logo.h) / logo.w);
+      }
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(address, pageW / 2, 20, { align: 'center', maxWidth: 140 });
+      doc.text(address, pageW / 2, 13, { align: 'center', maxWidth: 120 });
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(8);
-      doc.text('CHALLAN / ACCOUNT /', right, 14, { align: 'right' });
-      doc.text('SITE / VENDOR', right, 18, { align: 'right' });
+      doc.text('CHALLAN / ACCOUNT /', right, 12, { align: 'right' });
+      doc.text('SITE / VENDOR', right, 16, { align: 'right' });
 
+      // Title
       doc.setFontSize(13);
       const title = 'PROMOTIONAL SLIP';
-      doc.text(title, pageW / 2, 32, { align: 'center' });
+      doc.text(title, pageW / 2, 38, { align: 'center' });
       const tw = doc.getTextWidth(title);
-      doc.line(pageW / 2 - tw / 2, 33.2, pageW / 2 + tw / 2, 33.2);
+      doc.line(pageW / 2 - tw / 2, 39.2, pageW / 2 + tw / 2, 39.2);
 
-      const field = (label: string, value: string, x: number, y: number, maxWidth: number) => {
+      const field = (label: string, value: string, x: number, y: number, w: number) => {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
         doc.text(label, x, y);
         const lw = doc.getTextWidth(label) + 2;
         doc.setFont('helvetica', 'normal');
-        doc.text((value || '').toUpperCase(), x + lw, y, { maxWidth: maxWidth - lw });
+        doc.text((value || '').toUpperCase(), x + lw, y, { maxWidth: w - lw });
         doc.setLineDashPattern([0.4, 0.8], 0);
-        doc.line(x + lw, y + 1.5, x + maxWidth, y + 1.5);
+        doc.line(x + lw, y + 1.5, x + w, y + 1.5);
         doc.setLineDashPattern([], 0);
       };
 
-      const half = (right - left) / 2;
-      field('Reference No :', g.referenceNumber || '', left, 42, half - 4);
-      field('Date :', fmt(g.createdAt), left + half + 4, 42, half - 4);
-      field('Issued To :', g.issuedTo, left, 50, right - left);
-      field('Dispatch From :', address, left, 58, right - left);
+      field('Delivery Note No :', g.referenceNumber || '', left, 48, half - 4);
+      field('Date :', fmt(g.createdAt), left + half + 4, 48, half - 4);
+      field('Dispatch From :', address, left, 56, width);
+      field('Shipping Address :', '', left, 64, width);
 
+      // Transport box
+      const boxY = 70;
+      const rowH = 8;
+      const cell = (label: string, value: string, x: number, y: number, w: number) => {
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.2);
+        doc.rect(x, y, w, rowH);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(68);
+        doc.text(label, x + 2, y + 5);
+        const lw = doc.getTextWidth(label) + 3;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(0);
+        doc.text(value, x + 2 + lw, y + 5, { maxWidth: w - lw - 4 });
+      };
+      cell('Delivery Method :', 'By company', left, boxY, half);
+      cell('Vehicle No :', '', left + half, boxY, half);
+      const third = width / 3;
+      cell('Transport Name :', '', left, boxY + rowH, third);
+      cell('Driver Name :', '', left + third, boxY + rowH, third);
+      cell('Mobile No :', '', left + 2 * third, boxY + rowH, third);
+      cell('Total No. of Package :', '', left, boxY + 2 * rowH, half);
+      cell('Total Weight :', '', left + half, boxY + 2 * rowH, half);
+
+      // Item table, inside a tall bordered box like the template
+      const tableY = boxY + 3 * rowH + 4;
+      const colW = [16, 34, 100, 40];
       autoTable(doc, {
-        startY: 64,
-        head: [['Sr No', 'Date Issued', 'Item Description', 'Unit', 'No of Units Issued']],
+        startY: tableY,
+        head: [['SrNo', 'Unit Type\n(Caton,Place etc)', 'Item Description', 'No of Units Dispatch']],
         body,
-        foot: [['', '', 'Total', '', totalQty]],
         theme: 'grid',
+        rowPageBreak: 'avoid',
         styles: { textColor: 0, lineColor: 0, lineWidth: 0.2, fontSize: 9, cellPadding: 2.5, valign: 'middle' },
         headStyles: { fillColor: [249, 249, 249], textColor: 0, fontStyle: 'bold', halign: 'center' },
-        footStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold', halign: 'center' },
         columnStyles: {
-          0: { halign: 'center', cellWidth: 16 },
-          1: { halign: 'center', cellWidth: 28 },
-          2: { halign: 'left' },
-          3: { halign: 'center', cellWidth: 24 },
-          4: { halign: 'center', cellWidth: 36 }
+          0: { halign: 'center', cellWidth: colW[0] },
+          1: { halign: 'center', cellWidth: colW[1] },
+          2: { halign: 'left', cellWidth: colW[2] },
+          3: { halign: 'center', cellWidth: colW[3] }
         },
-        margin: { left, right: 10, bottom: 50 }
+        didParseCell: data => {
+          if (data.section === 'body' && hasTotal && data.row.index === body.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
+        margin: { left, right: 10, top: 15, bottom: 15 }
       });
 
-      let y = ((doc as any).lastAutoTable?.finalY ?? 70) + 8;
-      // keep the remark + signature block together on one page
-      if (y > doc.internal.pageSize.getHeight() - 50) {
+      let y = (doc as any).lastAutoTable?.finalY ?? tableY + 10;
+      const pageH = doc.internal.pageSize.getHeight();
+      // Single-page slip: stretch the item box down to a fixed height so the vertical column
+      // lines run through the empty area, like the template.
+      if (doc.getNumberOfPages() === 1) {
+        const boxBottom = Math.max(y, tableY + 130);
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.2);
+        let x = left;
+        for (const w of colW) {
+          doc.line(x, y, x, boxBottom);
+          x += w;
+        }
+        doc.line(right, y, right, boxBottom);
+        doc.line(left, boxBottom, right, boxBottom);
+        y = boxBottom;
+      }
+
+      // Remark + signatures must stay together on one page
+      if (y + 45 > pageH - 10) {
         doc.addPage();
         y = 20;
       }
-      field('Remark :', remarks, left, y, right - left);
-      y += 18;
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.2);
+      doc.rect(left, y, width, 10);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(0);
+      doc.text('Remark :', left + 3, y + 6);
+      doc.setFont('helvetica', 'normal');
+      doc.text(remarks, left + 3 + doc.getTextWidth('Remark :') + 3, y + 6, { maxWidth: width - 30 });
+      y += 22;
       field('Name of Person Receiving :', '', left, y, half - 4);
       field('Signature of Person Receiving :', '', left + half + 4, y, half - 4);
       y += 12;
