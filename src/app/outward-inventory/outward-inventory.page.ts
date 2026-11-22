@@ -1614,6 +1614,22 @@ export class OutwardInventoryPage implements OnInit {
 
   trackByIssuedTo(_: number, g: OutwardIssuedGroup) { return g.issuedTo; }
 
+  /** Single promo cards that can print a slip: items given out (not returns). Legacy records have no recipient. */
+  canDownloadRecordPdf(r: OutwardRecord): boolean {
+    return r.itemType === 'promotional_items' && r.section === 'outward_giving';
+  }
+
+  /** Download the Promotional Slip for a single outward-giving record (same layout as a recipient card). */
+  downloadRecordPdf(r: OutwardRecord): Promise<void> {
+    return this.downloadGroupPdf({
+      issuedTo: r.issuedTo || '',
+      referenceNumber: r.referenceNumber,
+      createdAt: r.createdAt,
+      comments: r.comments,
+      items: [r]
+    });
+  }
+
   /** Loads an image URL and returns it as a PNG data URI with its pixel size (null if it fails to load). */
   private loadImageAsDataUrl(url: string): Promise<{ data: string; w: number; h: number } | null> {
     return new Promise(resolve => {
@@ -1803,7 +1819,8 @@ export class OutwardInventoryPage implements OnInit {
       field('Signature of Person Delivering :', '', left + half + 4, y, half - 4);
 
       const safe = (s: string) => s.replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      const name = `Promotional-Slip-${safe(g.issuedTo) || 'issue'}${g.referenceNumber ? '-' + safe(g.referenceNumber) : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const who = safe(g.issuedTo) || (g.items.length === 1 ? `record-${g.items[0].id}` : 'issue');
+      const name = `Promotional-Slip-${who}${g.referenceNumber ? '-' + safe(g.referenceNumber) : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
       await this.downloadService.downloadBlob(doc.output('blob'), name);
       this.toast.present('PDF downloaded successfully', 'success');
     } catch (err) {
