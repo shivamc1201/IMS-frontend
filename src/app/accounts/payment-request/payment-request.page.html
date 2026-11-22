@@ -125,7 +125,7 @@
 
       <!-- ── Tabs ────────────────────────────────────────────────────────── -->
       <div class="flex items-center gap-1 bg-white border border-slate-100 rounded-2xl shadow-sm p-1.5 mb-5 overflow-x-auto">
-        <button *ngFor="let tab of ['ALL','PENDING','APPROVED','REJECTED']"
+        <button *ngFor="let tab of ['ALL','PENDING','APPROVED','REJECTED','LOGS']"
           (click)="selectTab(tab)"
           [class.pr-tab-active]="activeTab === tab"
           [ngClass]="{
@@ -139,6 +139,7 @@
               'bg-amber-400': tab === 'PENDING' && activeTab !== tab,
               'bg-emerald-400': tab === 'APPROVED' && activeTab !== tab,
               'bg-red-400': tab === 'REJECTED' && activeTab !== tab,
+              'bg-sky-400': tab === 'LOGS' && activeTab !== tab,
               'bg-white': activeTab === tab
             }">
           </span>
@@ -154,13 +155,13 @@
       </div>
 
       <!-- ── Loading State ───────────────────────────────────────────────── -->
-      <div *ngIf="isLoading" class="flex flex-col items-center justify-center py-16">
+      <div *ngIf="isLoading && activeTab !== 'LOGS'" class="flex flex-col items-center justify-center py-16">
         <ion-spinner name="crescent" class="text-emerald-500 w-10 h-10"></ion-spinner>
         <p class="text-slate-500 text-sm mt-3 font-medium">Loading payment requests...</p>
       </div>
 
       <!-- ── Empty State ─────────────────────────────────────────────────── -->
-      <div *ngIf="!isLoading && filteredPayments.length === 0"
+      <div *ngIf="activeTab !== 'LOGS' && !isLoading && filteredPayments.length === 0"
         class="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
         <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5">
           <ion-icon name="wallet-outline" class="text-4xl text-slate-400"></ion-icon>
@@ -172,7 +173,7 @@
       </div>
 
       <!-- ── Payment Request Cards ───────────────────────────────────────── -->
-      <div *ngIf="!isLoading && filteredPayments.length > 0" class="space-y-5">
+      <div *ngIf="activeTab !== 'LOGS' && !isLoading && filteredPayments.length > 0" class="space-y-5">
         <div *ngFor="let payment of paginatedPayments"
           class="pr-card group relative bg-white rounded-2xl overflow-hidden cursor-pointer transition-all duration-200"
           [ngClass]="{
@@ -350,8 +351,110 @@
         </div>
       </div>
 
+      <!-- ── Payment Logs (tab: LOGS) ────────────────────────────────────── -->
+      <ng-container *ngIf="activeTab === 'LOGS'">
+
+        <div *ngIf="isLogsLoading" class="flex flex-col items-center justify-center py-16">
+          <ion-spinner name="crescent" class="text-emerald-500 w-10 h-10"></ion-spinner>
+          <p class="text-slate-500 text-sm mt-3 font-medium">Loading payment logs...</p>
+        </div>
+
+        <div *ngIf="!isLogsLoading && logsErrorMessage"
+          class="bg-red-50 border border-red-200 rounded-2xl p-5 text-center text-sm text-red-600">
+          {{ logsErrorMessage }}
+          <button (click)="loadLogs()" class="ml-2 underline font-semibold">Retry</button>
+        </div>
+
+        <div *ngIf="!isLogsLoading && !logsErrorMessage && filteredLogs.length === 0"
+          class="bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
+          <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-5">
+            <ion-icon name="wallet-outline" class="text-4xl text-slate-400"></ion-icon>
+          </div>
+          <h3 class="text-lg font-bold text-slate-700 mb-2">No Payment Logs Found</h3>
+          <p class="text-slate-400 text-sm max-w-xs mx-auto">
+            {{ searchQuery || methodFilter !== 'ALL' ? 'Try adjusting your search or filters.' : 'No payments have been logged yet.' }}
+          </p>
+        </div>
+
+        <div *ngIf="!isLogsLoading && filteredLogs.length > 0"
+          class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left">
+              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th class="px-4 py-3 font-semibold">Party</th>
+                  <th class="px-4 py-3 font-semibold">Amount</th>
+                  <th class="px-4 py-3 font-semibold">Mode</th>
+                  <th class="px-4 py-3 font-semibold">Reference</th>
+                  <th class="px-4 py-3 font-semibold">Status</th>
+                  <th class="px-4 py-3 font-semibold">Added By</th>
+                  <th class="px-4 py-3 font-semibold">Date</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr *ngFor="let log of paginatedLogs" class="hover:bg-slate-50/70">
+                  <td class="px-4 py-3">
+                    <p class="font-bold text-slate-800">{{ log.partyName || '-' }}</p>
+                    <p *ngIf="getLogNote(log)" class="text-xs text-slate-400 line-clamp-2 max-w-[220px]">{{ getLogNote(log) }}</p>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <p class="font-bold text-slate-900">{{ formatCurrency(log.amount) }}</p>
+                    <p class="text-[11px] font-semibold"
+                      [ngClass]="log.transactionType === 'DEBIT' ? 'text-red-500' : 'text-emerald-600'">{{ log.transactionType }}</p>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span *ngIf="log.paymentMode" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border"
+                      [ngStyle]="{ 'background': getMethodConfig((log.paymentMode || '').toUpperCase()).bg, 'color': getMethodConfig((log.paymentMode || '').toUpperCase()).color, 'border-color': getMethodConfig((log.paymentMode || '').toUpperCase()).color + '40' }">
+                      <ion-icon [name]="getMethodConfig((log.paymentMode || '').toUpperCase()).icon" class="text-sm"></ion-icon>
+                      {{ log.paymentMode }}
+                    </span>
+                    <span *ngIf="!log.paymentMode" class="text-slate-400">-</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <ng-container *ngIf="getLogReference(log) as ref; else noRef">
+                      <p class="text-[11px] text-slate-400">{{ ref.label }}</p>
+                      <p class="font-mono text-xs font-semibold text-slate-700 break-all">{{ ref.value }}</p>
+                      <p *ngIf="log.chequeNumber && log.bankName" class="text-[11px] text-slate-500 flex items-center gap-1">
+                        <ion-icon name="business-outline" class="text-[11px]"></ion-icon>{{ log.bankName }}
+                      </p>
+                    </ng-container>
+                    <ng-template #noRef><span class="text-slate-400">-</span></ng-template>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap">
+                    <span class="inline-flex px-2.5 py-1 rounded-lg text-xs font-bold border" [ngClass]="getLogStatusClass(log.status)">
+                      {{ getLogStatusLabel(log.status) }}
+                    </span>
+                  </td>
+                  <td class="px-4 py-3 whitespace-nowrap text-slate-700">{{ log.addedByName || '-' }}</td>
+                  <td class="px-4 py-3 whitespace-nowrap text-slate-600">{{ formatDate(log.createdAt) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div *ngIf="!isLogsLoading && logsTotalPages > 1"
+          class="flex items-center justify-between mt-6 bg-white rounded-2xl shadow-sm border border-slate-100 px-5 py-3">
+          <span class="text-sm text-slate-500 font-medium">
+            Page {{ logsPage }} of {{ logsTotalPages }}
+            &nbsp;·&nbsp; {{ filteredLogs.length }} records
+          </span>
+          <div class="flex items-center gap-2">
+            <button (click)="prevLogsPage()" [disabled]="logsPage === 1"
+              class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+              <ion-icon name="arrow-back-outline" class="text-slate-600"></ion-icon>
+            </button>
+            <button (click)="nextLogsPage()" [disabled]="logsPage === logsTotalPages"
+              class="w-9 h-9 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-all">
+              <ion-icon name="arrow-forward-outline" class="text-slate-600"></ion-icon>
+            </button>
+          </div>
+        </div>
+
+      </ng-container>
+
       <!-- ── Pagination ──────────────────────────────────────────────────── -->
-      <div *ngIf="!isLoading && totalPages > 1"
+      <div *ngIf="activeTab !== 'LOGS' && !isLoading && totalPages > 1"
         class="flex items-center justify-between mt-6 bg-white rounded-2xl shadow-sm border border-slate-100 px-5 py-3">
         <span class="text-sm text-slate-500 font-medium">
           Page {{ currentPage }} of {{ totalPages }}

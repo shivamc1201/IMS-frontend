@@ -68,6 +68,25 @@ export interface PaymentRequest {
   receiptUrl?: string;
 }
 
+/** One row of GET /api/accounts/payment-received-logs */
+export interface PaymentLog {
+  paymentId: number;
+  distributorId: number;
+  partyName: string;
+  amount: number;
+  transactionType: string;
+  paymentMode: string;
+  utrNumber?: string | null;
+  chequeNumber?: string | null;
+  bankName?: string | null;
+  transactionNumber?: string | null;
+  description?: string | null;
+  status: string;
+  addedByName?: string | null;
+  createdAt: string;
+  approvedAt?: string | null;
+}
+
 @Component({
   selector: 'app-payment-request',
   templateUrl: './payment-request.page.html',
@@ -105,7 +124,15 @@ export class PaymentRequestPage implements OnInit {
   searchQuery = '';
   statusFilter: 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' = 'ALL';
   methodFilter = 'ALL';
-  activeTab: 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' = 'ALL';
+  activeTab: 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'LOGS' = 'ALL';
+
+  // ── Payment Logs (separate tab, loaded on demand) ────────────────────────
+  allLogs: PaymentLog[] = [];
+  filteredLogs: PaymentLog[] = [];
+  isLogsLoading = false;
+  logsLoaded = false;
+  logsErrorMessage = '';
+  logsPage = 1;
 
   // ── Pagination ────────────────────────────────────────────────────────────
   currentPage = 1;
@@ -139,6 +166,8 @@ export class PaymentRequestPage implements OnInit {
   loadPayments() {
     this.isLoading = true;
     this.errorMessage = '';
+    // Logs hold every payment with its status; they also feed the top summary cards.
+    this.loadLogs();
     this.accountsService.getAllPendingPayments().subscribe({
       next: (data) => {
         this.allPayments = (Array.isArray(data) ? data : (data as any)?.data ?? []).map(
@@ -191,6 +220,95 @@ export class PaymentRequestPage implements OnInit {
     };
   }
 
+  // ── Payment Logs ──────────────────────────────────────────────────────────
+
+  loadLogs() {
+    this.isLogsLoading = true;
+    this.logsErrorMessage = '';
+    this.accountsService.getPaymentReceivedLogs().subscribe({
+      next: (data) => {
+        const list = Array.isArray(data) ? data : (data as any)?.data ?? [];
+        this.allLogs = list as PaymentLog[];
+        this.logsLoaded = true;
+        this.isLogsLoading = false;
+        this.applyLogFilters();
+      },
+      error: (err) => {
+        console.error('Failed to load payment logs:', err);
+        this.logsErrorMessage = err?.error?.message || 'Failed to load payment logs. Please try again.';
+        this.isLogsLoading = false;
+      },
+    });
+  }
+
+  applyLogFilters() {
+    let result = [...this.allLogs];
+
+    if (this.methodFilter !== 'ALL') {
+      result = result.filter(l => (l.paymentMode || '').toUpperCase() === this.methodFilter);
+    }
+    if (this.searchQuery.trim()) {
+      const q = this.searchQuery.toLowerCase();
+      result = result.filter(l =>
+        (l.partyName || '').toLowerCase().includes(q) ||
+        (l.utrNumber || '').toLowerCase().includes(q) ||
+        (l.chequeNumber || '').toLowerCase().includes(q) ||
+        (l.transactionNumber || '').toLowerCase().includes(q) ||
+        (l.addedByName || '').toLowerCase().includes(q)
+      );
+    }
+    this.filteredLogs = result;
+    this.logsPage = 1;
+  }
+
+  /** Each log carries exactly one of UTR / cheque / transaction no. — show only what exists. */
+  getLogReference(log: PaymentLog): { label: string; value: string } | null {
+    if (log.utrNumber)         return { label: 'UTR No.',         value: log.utrNumber };
+    if (log.chequeNumber)      return { label: 'Cheque No.',      value: log.chequeNumber };
+    if (log.transactionNumber) return { label: 'Transaction No.', value: log.transactionNumber };
+    return null;
+  }
+
+  /** Description is hidden when it just repeats the reference number. */
+  getLogNote(log: PaymentLog): string {
+    const ref = this.getLogReference(log)?.value;
+    const desc = (log.description || '').trim();
+    return desc && desc !== ref ? desc : '';
+  }
+
+  getLogStatusLabel(status: string): string {
+    const s = (status || '').toUpperCase();
+    const labels: Record<string, string> = {
+      LEDGER_UPDATED: 'Ledger Updated',
+      PAYMENT_ADDED: 'Payment Added',
+      PENDING: 'Payment Added',
+      PAYMENT_APPROVED: 'Payment Approved',
+      APPROVED: 'Payment Approved',
+      PAYMENT_REJECTED: 'Payment Rejected',
+      REJECTED: 'Payment Rejected',
+    };
+    return labels[s] ?? (status || '-').replace(/_/g, ' ');
+  }
+
+  getLogStatusClass(status: string): string {
+    const s = (status || '').toUpperCase();
+    if (s.includes('REJECT')) return 'bg-red-50 text-red-600 border-red-200';
+    if (s.includes('APPROV') || s === 'LEDGER_UPDATED') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    return 'bg-amber-50 text-amber-700 border-amber-200';
+  }
+
+  get paginatedLogs(): PaymentLog[] {
+    const start = (this.logsPage - 1) * this.pageSize;
+    return this.filteredLogs.slice(start, start + this.pageSize);
+  }
+
+  get logsTotalPages(): number {
+    return Math.ceil(this.filteredLogs.length / this.pageSize);
+  }
+
+  prevLogsPage() { if (this.logsPage > 1) this.logsPage--; }
+  nextLogsPage() { if (this.logsPage < this.logsTotalPages) this.logsPage++; }
+
   handleRefresh() {
     this.loadPayments();
     this.showToast('Payment requests refreshed', 'success');
@@ -203,6 +321,15 @@ export class PaymentRequestPage implements OnInit {
 
   selectTab(tab: string) {
     this.haptic.selectionChanged();
+    if (tab === 'LOGS') {
+      this.activeTab = 'LOGS';
+      if (!this.logsLoaded) {
+        this.loadLogs();
+      } else {
+        this.applyLogFilters();
+      }
+      return;
+    }
     this.activeTab = tab as 'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED';
     this.statusFilter = this.activeTab;
     this.currentPage = 1;
@@ -228,6 +355,7 @@ export class PaymentRequestPage implements OnInit {
       );
     }
     this.filteredPayments = result;
+    if (this.logsLoaded) this.applyLogFilters();
   }
 
   clearFilters() {
@@ -278,6 +406,7 @@ export class PaymentRequestPage implements OnInit {
         this.approvalNote = '';
         this.selectedPayment = null;
         this.isLoading = true;
+        this.loadLogs();
         this.accountsService.getAllPendingPayments().subscribe({
           next: (data) => {
             this.allPayments = (Array.isArray(data) ? data : (data as any)?.data ?? []).map(
@@ -352,6 +481,27 @@ export class PaymentRequestPage implements OnInit {
   // ── Computed Stats ────────────────────────────────────────────────────────
 
   get stats() {
+    // Prefer the logs (all payments, all statuses). Fall back to the pending list until they load.
+    if (this.logsLoaded) {
+      const bucket = (l: PaymentLog) => {
+        const s = (l.status || '').toUpperCase();
+        if (s.includes('REJECT')) return 'REJECTED';
+        if (s.includes('APPROV') || s === 'LEDGER_UPDATED') return 'APPROVED';
+        return 'PENDING'; // PAYMENT_ADDED / PENDING
+      };
+      const sum = (list: PaymentLog[]) => list.reduce((t, l) => t + (Number(l.amount) || 0), 0);
+      const lp = this.allLogs.filter(l => bucket(l) === 'PENDING');
+      const la = this.allLogs.filter(l => bucket(l) === 'APPROVED');
+      const lr = this.allLogs.filter(l => bucket(l) === 'REJECTED');
+      return {
+        total:         this.allLogs.length,
+        pendingCount:  lp.length,
+        approvedCount: la.length,
+        rejectedCount: lr.length,
+        pendingAmount:  sum(lp),
+        approvedAmount: sum(la),
+      };
+    }
     const pending  = this.allPayments.filter(p => p.status === 'PENDING');
     const approved = this.allPayments.filter(p => p.status === 'APPROVED');
     const rejected = this.allPayments.filter(p => p.status === 'REJECTED');
@@ -383,6 +533,7 @@ export class PaymentRequestPage implements OnInit {
 
   getTabCount(tab: string): number {
     if (tab === 'ALL') return this.allPayments.length;
+    if (tab === 'LOGS') return this.allLogs.length;
     return this.allPayments.filter(p => p.status === tab).length;
   }
 
@@ -392,6 +543,7 @@ export class PaymentRequestPage implements OnInit {
       PENDING: 'Payment Added',
       APPROVED: 'Payment Approved',
       REJECTED: 'Payment Rejected',
+      LOGS: 'Payment Logs',
     };
     return labels[tab] ?? tab;
   }
