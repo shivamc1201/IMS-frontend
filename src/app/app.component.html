@@ -1,0 +1,42 @@
+<ion-app>
+
+  <!-- Global logo loader — shown automatically for every API request -->
+  <app-logo-loader></app-logo-loader>
+
+  @if (!isAuthPage) {
+
+    <!-- ========== MOBILE MENU ========== -->
+    <ion-menu
+      *ngIf="!isDesktop"
+      contentId="main"
+      type="overlay"
+      [class.sales-dark-menu]="isSalesRole">
+      <app-sidebar
+        (toggleSidebar)="toggleMobileMenu()">
+      </app-sidebar>
+    </ion-menu>
+
+    <!-- ========== DESKTOP LAYOUT ========== -->
+    <div class="app-layout" [class.sidebar-collapsed]="sidebarCollapsed" [class.sales-dark-layout]="isSalesRole">
+
+      <!-- Desktop Sidebar -->
+      <app-sidebar
+        *ngIf="isDesktop"
+        [collapsed]="sidebarCollapsed"
+        (toggleSidebar)="onSidebarToggle()">
+      </app-sidebar>
+
+      <!-- Main Content -->
+      <div class="ion-page main-content" id="main">
+        <ion-router-outlet></ion-router-outlet>
+      </div>
+
+    </div>
+
+  } @else {
+
+    <ion-router-outlet></ion-router-outlet>
+
+  }
+
+</ion-app>

@@ -1,0 +1,396 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+
+/* Optional CSS utils that can be commented out */
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+/**
+ * Ionic Dark Mode
+ * -----------------------------------------------------
+ * For more info, please see:
+ * https://ionicframework.com/docs/theming/dark-mode
+ */
+
+/* @import "@ionic/angular/css/palettes/dark.always.css"; */
+@import "@ionic/angular/css/palettes/dark.class.css";
+/* @import "@ionic/angular/css/palettes/dark.system.css"; */
+
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+// ============================================================
+// Shared Animations (used by order-details and other pages)
+// ============================================================
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(#3b82f6, 0.4); }
+  50%      { box-shadow: 0 0 0 8px rgba(#3b82f6, 0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes expandTimeline {
+  from { opacity: 0; max-height: 0; transform: scaleY(0.95); }
+  to   { opacity: 1; max-height: 2000px; transform: scaleY(1); }
+}
+@keyframes cardPop {
+  0%   { transform: scale(0.98); opacity: 0.8; }
+  60%  { transform: scale(1.005); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes progressFill {
+  from { width: 0%; }
+}
+
+// ============================================================
+// Global Scrollbar — Hidden for mobile app feel
+// ============================================================
+::-webkit-scrollbar { width: 0; height: 0; display: none; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: transparent; }
+
+// Also hide scrollbars on scroll containers (Firefox + standard)
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+// ============================================================
+// Modern Toast — Global Styles
+// ============================================================
+
+@keyframes toastFlyInRight {
+  0% {
+    opacity: 0;
+    transform: translateX(120%) scale(0.88);
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(-10px) scale(1.02);
+  }
+  75% {
+    transform: translateX(5px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+// ---- Host positioning & size ----
+ion-toast.modern-toast {
+  --width: 380px;
+  --min-width: 300px;
+  --max-width: 400px;
+  --border-radius: 16px;
+  --box-shadow: 0 16px 48px rgba(0, 0, 0, 0.22), 0 4px 16px rgba(0, 0, 0, 0.12);
+  position: fixed !important;
+  top: calc(20px + var(--ion-safe-area-top, 0px)) !important;
+  right: 16px !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: 380px !important;
+  max-width: calc(100vw - 32px) !important;
+  inset-inline-start: auto !important;
+  inset-inline-end: 16px !important;
+  animation: toastFlyInRight 0.5s cubic-bezier(0.22, 1, 0.36, 1) both !important;
+}
+
+// ---- Container (shadow part) ----
+ion-toast.modern-toast::part(container) {
+  padding: 14px 4px 14px 16px;
+  gap: 10px;
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+// ---- Icon ----
+ion-toast.modern-toast::part(icon) {
+  font-size: 26px;
+  flex-shrink: 0;
+}
+
+// ---- Message ----
+ion-toast.modern-toast::part(message) {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.1px;
+  flex: 1;
+}
+
+// ---- Close button ----
+ion-toast.modern-toast::part(button) {
+  font-size: 20px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+  margin-right: 6px;
+  transition: background 0.2s ease, opacity 0.2s ease;
+  opacity: 0.75;
+}
+ion-toast.modern-toast::part(button):hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.18);
+}
+ion-toast.modern-toast::part(button):active {
+  opacity: 0.9;
+  transform: scale(0.92);
+}
+
+// ---- Success ----
+ion-toast.modern-toast-success {
+  --background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  --color: #ecfdf5;
+}
+ion-toast.modern-toast-success::part(container) {
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.97) 0%, rgba(16, 185, 129, 0.97) 100%);
+  border-left: 4px solid #34d399;
+  color: #ecfdf5;
+}
+ion-toast.modern-toast-success::part(button) {
+  color: #a7f3d0;
+}
+
+// ---- Danger ----
+ion-toast.modern-toast-danger {
+  --background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  --color: #fef2f2;
+}
+ion-toast.modern-toast-danger::part(container) {
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.97) 0%, rgba(239, 68, 68, 0.97) 100%);
+  border-left: 4px solid #fca5a5;
+  color: #fef2f2;
+}
+ion-toast.modern-toast-danger::part(button) {
+  color: #fecaca;
+}
+
+// ---- Warning ----
+ion-toast.modern-toast-warning {
+  --background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  --color: #fffbeb;
+}
+ion-toast.modern-toast-warning::part(container) {
+  background: linear-gradient(135deg, rgba(217, 119, 6, 0.97) 0%, rgba(245, 158, 11, 0.97) 100%);
+  border-left: 4px solid #fde68a;
+  color: #fffbeb;
+}
+ion-toast.modern-toast-warning::part(button) {
+  color: #fde68a;
+}
+
+// ============================================================
+// Dark Date Picker Popover (Distributor Dashboard)
+// ============================================================
+
+.dark-date-popover {
+  --background: #161b22;
+  --border-radius: 16px;
+  --box-shadow: 0 16px 48px rgba(0, 0, 0, 0.75);
+}
+
+// Popover content wrapper background
+.dark-date-popover .popover-viewport,
+.dark-date-popover .popover-content {
+  background: #161b22 !important;
+  border-radius: 16px;
+}
+
+// ion-datetime inside the dark popover — calendar grid text
+.dark-date-popover ion-datetime {
+  --background: #161b22;
+  --background-rgb: 22, 27, 34;
+  --color: #e2e8f0;
+  --ion-color-primary: #10b981;
+  --ion-color-primary-contrast: #ffffff;
+  color: #e2e8f0;
+}
+
+// Calendar day numbers
+.dark-date-popover ion-datetime::part(calendar-day) {
+  color: #e2e8f0;
+}
+
+// Today's date highlight
+.dark-date-popover ion-datetime::part(calendar-day today) {
+  color: #10b981;
+  font-weight: 700;
+}
+
+// Selected / active day
+.dark-date-popover ion-datetime::part(calendar-day active),
+.dark-date-popover ion-datetime::part(calendar-day active focused) {
+  background: rgba(16, 185, 129, 0.25);
+  color: #ffffff;
+}
+
+// Month/Year header button text
+.dark-date-popover ion-datetime::part(month-year-button) {
+  color: #e2e8f0;
+  font-weight: 700;
+}
+
+// Prev / Next navigation arrows
+.dark-date-popover ion-datetime::part(prev-next-button) {
+  color: #94a3b8;
+}
+
+// Day-of-week header labels (Sun Mon Tue …)
+.dark-date-popover ion-datetime::part(calendar-day-of-week) {
+  color: #64748b;
+  font-weight: 600;
+}
+
+// ---- Mobile tweaks ----
+@media (max-width: 480px) {
+  ion-toast.modern-toast {
+    right: 10px !important;
+    inset-inline-end: 10px !important;
+    top: calc(12px + var(--ion-safe-area-top, 0px)) !important;
+    width: calc(100vw - 20px) !important;
+    --width: calc(100vw - 20px);
+    --min-width: unset;
+    --max-width: calc(100vw - 20px);
+  }
+}
+
+@import "@ionic/angular/css/core.css";
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+// ============================================================
+// Distributor balance select
+// ============================================================
+// Wrapper provides the visual box; ion-select fills it transparently
+.dist-select-box {
+  width: 100%;
+  height: 52px;
+  background: #161b22;
+  border: 1.5px solid #30363d;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+ion-select.dist-balance-select {
+  width: 100%;
+  height: 100%;
+  --background: transparent;
+  --color: #e6edf3;
+  --placeholder-color: rgba(230, 237, 243, 0.45);
+  --padding-start: 14px;
+  --padding-end: 10px;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+ion-select.dist-balance-select::part(container) {
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+ion-select.dist-balance-select::part(text) {
+  color: #e6edf3;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+ion-select.dist-balance-select::part(placeholder) {
+  color: rgba(230, 237, 243, 0.45);
+  font-weight: 500;
+}
+ion-select.dist-balance-select::part(icon) {
+  color: rgba(230, 237, 243, 0.6);
+}
+
+// ============================================================
+// Dark Action Sheet — distributor picker
+// ============================================================
+.dark-action-sheet {
+  --background: #161b22;
+  --color: #e6edf3;
+}
+.dark-action-sheet .action-sheet-wrapper {
+  background: transparent !important;
+}
+.dark-action-sheet .action-sheet-wrapper .action-sheet-container {
+  background: #161b22 !important;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+}
+.dark-action-sheet .action-sheet-group {
+  background: #161b22 !important;
+}
+.dark-action-sheet .action-sheet-title {
+  color: #e6edf3 !important;
+  background: #161b22 !important;
+  font-weight: 700;
+  font-size: 15px;
+  border-bottom: 1px solid #30363d;
+}
+.dark-action-sheet .action-sheet-button {
+  color: #e6edf3 !important;
+  background: #161b22 !important;
+  font-size: 14px;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+}
+.dark-action-sheet .action-sheet-button.ion-activated {
+  background: #21262d !important;
+}
+// Cancel button — the button itself carries .action-sheet-cancel class
+.dark-action-sheet .action-sheet-button.action-sheet-cancel,
+.dark-action-sheet .action-sheet-group-cancel .action-sheet-button {
+  color: #f85149 !important;
+  background: #161b22 !important;
+  font-weight: 700;
+  border-top: 1px solid #30363d;
+}

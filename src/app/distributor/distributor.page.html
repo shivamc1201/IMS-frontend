@@ -1,0 +1,1842 @@
+<!-- Main Container with Gradient Theme -->
+<ion-header class="ion-no-border">
+  <ion-toolbar style="--background: #000000; --border-width: 0;">
+    <ion-buttons slot="start">
+      <ion-menu-button style="color: #ffffff;"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="text-white font-bold tracking-tight text-xl">
+      <span class="text-emerald-400">Distributor</span> Master
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-refresher slot="fixed" (ionRefresh)="handlePullRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+  <div class="flex flex-col bg-gradient-to-br from-gray-50 to-blue-50 min-h-full pb-20 sm:pb-8">
+    <!-- Fixed Header Section -->
+    <div class="flex-shrink-0 px-3 sm:px-5 pt-3 sm:pt-5">
+      <div class="max-w-7xl mx-auto">
+        <!-- Gradient Banner Container -->
+        <div class="animate-banner bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-500 rounded-2xl sm:rounded-3xl shadow-2xl p-5 sm:p-8 lg:p-10">
+          <!-- Top Section: Title and Buttons -->
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+            <!-- Left: Title with Badge -->
+            <div>
+              <h1 class="text-lg sm:text-2xl font-bold mb-2 sm:mb-4">
+                <span class="text-emerald-600">Distributor</span>
+                <span class="text-white">Management</span>
+              </h1>
+              <div class="inline-flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30">
+                <ion-icon class="text-white text-xs sm:text-sm" name="shield-checkmark-outline"></ion-icon>
+                <span class="text-white text-xs sm:text-sm font-medium">Manage and track all distributor records</span>
+              </div>
+            </div>
+            <!-- Right: Action Buttons (hidden on mobile — use FAB) -->
+            <div class="hidden sm:flex items-center gap-3">
+              <button *appAcl="{ feature: FEATURE, action: 'create' }" (click)="openAddModal()" class="flex items-center gap-2 px-6 py-3 bg-white text-emerald-600 rounded-xl hover:bg-gray-50 transition-all font-semibold shadow-lg hover:shadow-xl">
+                <ion-icon class="text-xl" name="add-outline"></ion-icon>
+                <span>Add Distributor</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search and Stats Section -->
+        <div class="mb-8">
+          <div class="animate-search flex gap-3 sm:gap-4 mt-4 sm:mt-6 mb-3 sm:mb-4">
+            <!-- Search Input -->
+            <div class="flex-1 relative">
+              <ion-icon class="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg sm:text-xl pointer-events-none z-10" name="search-outline"></ion-icon>
+              <input
+                (input)="onSearchChange($event)"
+                [value]="searchQuery"
+                class="w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-3.5 bg-white/95 backdrop-blur-sm border-0 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 shadow-md placeholder:text-gray-400 text-gray-700 font-medium text-sm sm:text-base"
+                placeholder="Search distributors..."
+                type="text"
+              />
+
+              <!-- Search Results Dropdown -->
+              <div *ngIf="searchQuery && getSearchResults().length > 0" class="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-slate-100 z-50 max-h-64 overflow-y-auto">
+                <div *ngFor="let result of getSearchResults()"
+                     (click)="selectSearchResult(result)"
+                     class="px-4 py-3 hover:bg-emerald-50 cursor-pointer border-b border-slate-50 last:border-b-0 transition-colors">
+                  <div class="font-medium text-slate-700">{{ result.name }}</div>
+                  <div class="text-xs text-slate-500 mt-0.5">{{ result.contact }} • {{ result.address }}</div>
+                </div>
+              </div>
+
+              <!-- No results message -->
+              <div *ngIf="searchQuery && getSearchResults().length === 0 && filteredDistributors.length === 0" class="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-lg border border-slate-100 z-50 p-4 text-center">
+                <p class="text-sm text-slate-500">No distributors found</p>
+              </div>
+            </div>
+
+            <!-- Export: PDF / Excel (icon-only on phones) -->
+            <div class="flex gap-2 flex-shrink-0">
+              <button type="button" (click)="exportExcel()" [disabled]="!canExport" aria-label="Export distributors to Excel"
+                      class="flex items-center justify-center gap-2 px-3.5 sm:px-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-md text-sm font-semibold text-slate-700 hover:bg-white transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                <ion-icon name="grid-outline" class="text-lg text-green-600"></ion-icon>
+                <span class="hidden sm:inline">Excel</span>
+              </button>
+              <button type="button" (click)="exportPdf()" [disabled]="!canExport" aria-label="Export distributors to PDF"
+                      class="flex items-center justify-center gap-2 px-3.5 sm:px-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-md text-sm font-semibold text-slate-700 hover:bg-white transition-all disabled:opacity-60 disabled:cursor-not-allowed">
+                <ion-icon name="document-text-outline" class="text-lg text-red-600"></ion-icon>
+                <span class="hidden sm:inline">PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Filter Tabs -->
+          <div class="flex gap-2 mb-4 sm:mb-6">
+            <button (click)="setStatusFilter('ALL')"
+              [class.bg-emerald-500]="statusFilter === 'ALL'"
+              [class.text-white]="statusFilter === 'ALL'"
+              [class.bg-white]="statusFilter !== 'ALL'"
+              [class.text-slate-600]="statusFilter !== 'ALL'"
+              class="px-4 py-2 rounded-xl text-sm font-semibold shadow-sm border border-slate-200 transition-all">
+              All
+            </button>
+            <button (click)="setStatusFilter('ACTIVE')"
+              [class.bg-emerald-500]="statusFilter === 'ACTIVE'"
+              [class.text-white]="statusFilter === 'ACTIVE'"
+              [class.bg-white]="statusFilter !== 'ACTIVE'"
+              [class.text-slate-600]="statusFilter !== 'ACTIVE'"
+              class="px-4 py-2 rounded-xl text-sm font-semibold shadow-sm border border-slate-200 transition-all">
+              Active
+            </button>
+            <button (click)="setStatusFilter('INACTIVE')"
+              [class.bg-red-500]="statusFilter === 'INACTIVE'"
+              [class.text-white]="statusFilter === 'INACTIVE'"
+              [class.bg-white]="statusFilter !== 'INACTIVE'"
+              [class.text-slate-600]="statusFilter !== 'INACTIVE'"
+              class="px-4 py-2 rounded-xl text-sm font-semibold shadow-sm border border-slate-200 transition-all">
+              Inactive
+            </button>
+            <button (click)="setStatusFilter('CREDITED')"
+              [class.text-white]="statusFilter === 'CREDITED'"
+              [class.bg-white]="statusFilter !== 'CREDITED'"
+              [class.text-slate-600]="statusFilter !== 'CREDITED'"
+              [style.background]="statusFilter === 'CREDITED' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : ''"
+              [style.border-color]="statusFilter === 'CREDITED' ? '#f59e0b' : ''"
+              class="px-4 py-2 rounded-xl text-sm font-semibold shadow-sm border border-slate-200 transition-all flex items-center gap-1.5">
+              <span>💳</span> Credited
+            </button>
+          </div>
+
+          <!-- Stats Cards -->
+          <div class="stats-grid grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
+            <!-- Card: Total Distributors -->
+            <div class="stat-animate bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm border border-blue-100 hover:shadow-md transition-all">
+              <div class="flex items-center justify-between mb-1 sm:mb-2">
+                <span class="text-blue-500 font-medium text-xs sm:text-sm">Total Distributors</span>
+                <div class="p-1.5 sm:p-2 bg-blue-50 rounded-lg text-blue-600">
+                  <ion-icon class="text-sm sm:text-lg" name="business-outline"></ion-icon>
+                </div>
+              </div>
+              <div class="text-xl sm:text-3xl font-bold text-slate-800">{{ totalDistributors }}</div>
+            </div>
+
+            <!-- Card: Assigned Persons -->
+            <div class="stat-animate bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm border border-emerald-100 hover:shadow-md transition-all">
+              <div class="flex items-center justify-between mb-1 sm:mb-2">
+                <span class="text-emerald-500 font-medium text-xs sm:text-sm">Sales Persons</span>
+                <div class="p-1.5 sm:p-2 bg-emerald-50 rounded-lg text-emerald-600">
+                  <ion-icon class="text-sm sm:text-lg" name="person-outline"></ion-icon>
+                </div>
+              </div>
+              <div class="text-xl sm:text-3xl font-bold text-slate-800">{{ totalAssignedPersons }}</div>
+            </div>
+
+            <!-- Card: Distributor Types -->
+            <div class="stat-animate bg-white p-3 sm:p-5 rounded-xl sm:rounded-2xl shadow-sm border border-orange-100 hover:shadow-md transition-all">
+              <div class="flex items-center justify-between mb-1 sm:mb-2">
+                <span class="text-orange-500 font-medium text-xs sm:text-sm">Distributor Types</span>
+                <div class="p-1.5 sm:p-2 bg-orange-50 rounded-lg text-orange-600">
+                  <ion-icon class="text-sm sm:text-lg" name="layers-outline"></ion-icon>
+                </div>
+              </div>
+              <div class="text-xl sm:text-3xl font-bold text-slate-800">{{ totalDistributorTypes }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scrollable Distributor Cards Section -->
+    <div class="flex-1 overflow-auto px-3 sm:px-5">
+      <div class="max-w-7xl mx-auto">
+        <!-- Distributor Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div *ngFor="let distributor of filteredDistributors" 
+               class="card-stagger touch-card bg-white rounded-xl sm:rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:border-emerald-200 transition-all cursor-pointer overflow-hidden"
+               (click)="openDetailsModal(distributor)">
+            <!-- Card Header with Gradient -->
+            <div class="bg-gradient-to-r from-emerald-400 to-teal-400 p-3 sm:p-4">
+              <div class="flex items-center gap-2.5 sm:gap-3">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <ion-icon name="business-outline" class="text-white text-xl sm:text-2xl"></ion-icon>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <h3 class="text-white font-bold truncate text-sm sm:text-base">{{ distributor.name }}</h3>
+                  <div class="flex items-center gap-1.5 flex-wrap mt-0.5">
+                    <span class="inline-block px-2 py-0.5 bg-white/20 rounded-full text-white text-[0.65rem] sm:text-xs">{{ distributor.distributorType }}</span>
+                    <span *ngIf="distributor.distributorCode" class="inline-block px-2 py-0.5 bg-white/30 rounded-full text-white/90 text-[0.65rem] sm:text-xs font-mono">{{ distributor.distributorCode }}</span>
+                    <span *ngIf="distributor.creditAmount && distributor.creditAmount > 0"
+                          class="credited-badge">
+                      <ion-icon name="card-outline" style="font-size:9px;"></ion-icon>
+                      Credited
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Card Body -->
+            <div class="p-3 sm:p-4 space-y-2 sm:space-y-3">
+              <div class="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                <ion-icon name="person-outline" class="text-emerald-500 text-sm sm:text-base"></ion-icon>
+                <span class="truncate">{{ getDistributorKeyPersonName(distributor) }}</span>
+              </div>
+              
+              <div class="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
+                <ion-icon name="call-outline" class="text-emerald-500 text-sm sm:text-base"></ion-icon>
+                <span>{{ distributor.contact }}</span>
+              </div>
+              
+              <div class="flex items-start gap-2 text-xs sm:text-sm text-gray-600">
+                <ion-icon name="location-outline" class="text-emerald-500 mt-0.5 text-sm sm:text-base"></ion-icon>
+                <span class="line-clamp-2">{{ distributor.address }}</span>
+              </div>
+            </div>
+
+            <!-- Card Footer -->
+            <div class="px-3 sm:px-4 pb-3 sm:pb-4">
+              <button class="w-full py-2 bg-slate-50 hover:bg-emerald-50 text-slate-600 hover:text-emerald-600 rounded-lg text-xs sm:text-sm font-medium transition-colors">
+                View Details
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="filteredDistributors.length === 0" class="text-center py-10 sm:py-16 px-4 bg-white rounded-xl sm:rounded-2xl shadow-sm border border-slate-100">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 rounded-full bg-slate-100 flex items-center justify-center">
+            <ion-icon name="business-outline" class="text-3xl sm:text-4xl text-slate-400"></ion-icon>
+          </div>
+          <p class="text-slate-500 mb-4">
+            {{ searchQuery ? 'No distributors match your search' : statusFilter !== 'ALL' ? 'No ' + statusFilter.toLowerCase() + ' distributors found' : 'No distributors found' }}
+          </p>
+          <ng-container *appAcl="{ feature: FEATURE, action: 'create' }">
+            <button *ngIf="!searchQuery && statusFilter === 'ALL'" (click)="openAddModal()" class="inline-flex items-center gap-2 px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all font-semibold">
+              <ion-icon name="add-outline"></ion-icon>
+              Add Distributor
+            </button>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile FAB: Add Distributor -->
+  <button *appAcl="{ feature: FEATURE, action: 'create' }" class="mobile-fab" (click)="openAddModal()">
+    <ion-icon name="add-outline"></ion-icon>
+    <span>New Distributor</span>
+  </button>
+
+  <!-- Legal Footer -->
+  <div class="dist-legal-footer">
+    <button (click)="openLegalDoc('privacy', 'Privacy Policy')">Privacy Policy</button>
+    <span>·</span>
+    <button (click)="openLegalDoc('terms', 'Terms &amp; Conditions')">Terms &amp; Conditions</button>
+  </div>
+</ion-content>
+
+<!-- Add/Edit Modal -->
+<ion-modal [isOpen]="showAddModal" (didDismiss)="closeAddModal()" [backdropDismiss]="false">
+  <ng-template>
+    <ion-header class="ion-no-border">
+      <ion-toolbar class="bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-500">
+        <ion-title class="text-white font-bold">Add New Distributor</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeAddModal()" class="text-white">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding bg-slate-50">
+      <form [formGroup]="distributorForm" (ngSubmit)="onSubmitForm()" class="max-w-7xl mx-auto">
+        <!-- Basic Information -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="business-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Basic Information</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-600 mb-1">Firm / Company Name *</label>
+              <ion-input
+                formControlName="companyName"
+                placeholder="Enter firm or company name"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('companyName')?.invalid && distributorForm.get('companyName')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('companyName') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Type of Distributor *</label>
+              <ion-select
+                formControlName="distributorType"
+                placeholder="Select distributor type"
+                class="custom-select black-select"
+              >
+                <ion-select-option value="Distributor">Distributor</ion-select-option>
+                <ion-select-option value="Dealer">Dealer</ion-select-option>
+                <ion-select-option value="Retailer">Retailer</ion-select-option>
+                <ion-select-option value="Super Stockist">Super Stockist</ion-select-option>
+                <ion-select-option value="C&F Agent">C&amp;F Agent</ion-select-option>
+              </ion-select>
+              <div *ngIf="distributorForm.get('distributorType')?.invalid && distributorForm.get('distributorType')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('distributorType') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Type of Company *</label>
+              <ion-select
+                formControlName="companyType"
+                placeholder="Select company type"
+                class="custom-select black-select"
+              >
+                <ion-select-option value="Private Limited">Private Limited</ion-select-option>
+                <ion-select-option value="LLP">LLP</ion-select-option>
+                <ion-select-option value="Partnership">Partnership</ion-select-option>
+                <ion-select-option value="Proprietorship">Proprietorship</ion-select-option>
+              </ion-select>
+              <div *ngIf="distributorForm.get('companyType')?.invalid && distributorForm.get('companyType')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('companyType') }}
+              </div>
+            </div>
+
+            <!-- Active / Inactive Status Segment -->
+            <div class="md:col-span-2">
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Status</label>
+              <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                <button type="button"
+                  (click)="distributorForm.get('isActive')?.setValue(true)"
+                  class="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all"
+                  [ngClass]="distributorForm.get('isActive')?.value
+                    ? 'bg-white text-emerald-600 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'">
+                  <ion-icon name="checkmark-circle-outline" class="text-base"></ion-icon>
+                  Active
+                </button>
+                <button type="button"
+                  (click)="distributorForm.get('isActive')?.setValue(false)"
+                  class="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all"
+                  [ngClass]="!distributorForm.get('isActive')?.value
+                    ? 'bg-red-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'">
+                  <ion-icon name="close-circle-outline" class="text-base"></ion-icon>
+                  Inactive
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sales & Assignment -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="person-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Sales &amp; Assignment</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Assigned Person *</label>
+              <div *ngIf="isLoadingRoles" class="flex items-center gap-2 text-slate-500 text-sm py-2">
+                <ion-spinner name="dots"></ion-spinner>
+                <span>Loading roles...</span>
+              </div>
+              <ion-select
+                *ngIf="!isLoadingRoles"
+                formControlName="assignedPerson"
+                placeholder="Select assigned person"
+                class="custom-select black-select"
+              >
+                <ion-select-option *ngFor="let role of roleOptions" [value]="role.value">{{ role.label }}</ion-select-option>
+              </ion-select>
+              <div *ngIf="distributorForm.get('assignedPerson')?.invalid && distributorForm.get('assignedPerson')?.touched" class="text-xs text-red-500 mt-1">
+                Assigned person is required
+              </div>
+            </div>
+
+            <div *ngIf="distributorForm.get('assignedPerson')?.value">
+              <label class="block text-sm font-medium text-slate-600 mb-1">Sales Person</label>
+              <div *ngIf="isLoadingKeyPersons" class="flex items-center gap-2 text-slate-500 text-sm">
+                <ion-spinner name="dots"></ion-spinner>
+                <span>Loading key persons...</span>
+              </div>
+              <ion-select
+                *ngIf="!isLoadingKeyPersons"
+                formControlName="keyPerson"
+                placeholder="Select sales person"
+                class="custom-select black-select"
+              >
+                <ion-select-option *ngFor="let person of keyPersonsList" [value]="person.id || person">{{ person.name || person }}</ion-select-option>
+              </ion-select>
+              <div *ngIf="getSelectedKeyPersonName()" class="mt-2 text-sm text-emerald-600 font-medium">
+                Selected: {{ getSelectedKeyPersonName() }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="call-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Contact Information</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Email Address *</label>
+              <ion-input
+                formControlName="email"
+                type="email"
+                placeholder="email@example.com"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('email')?.invalid && distributorForm.get('email')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('email') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Contact Number *</label>
+              <ion-input
+                formControlName="contact"
+                type="tel"
+                placeholder="Enter contact number"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('contact')?.invalid && distributorForm.get('contact')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('contact') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Alternate Contact</label>
+              <ion-input
+                formControlName="alternateContact"
+                type="tel"
+                placeholder="Enter alternate contact"
+                class="custom-input"
+              ></ion-input>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Key Person</label>
+              <ion-input
+                formControlName="keyPersonName"
+                type="text"
+                placeholder="Enter key person name"
+                class="custom-input"
+              ></ion-input>
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-600 mb-1">Address *</label>
+              <ion-textarea
+                formControlName="address"
+                placeholder="Enter full address"
+                rows="3"
+                class="custom-textarea"
+              ></ion-textarea>
+              <div *ngIf="distributorForm.get('address')?.invalid && distributorForm.get('address')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('address') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">State</label>
+              <ion-select
+                formControlName="state"
+                placeholder="Select State"
+                interface="popover"
+                class="custom-select"
+              >
+                <ion-select-option *ngFor="let s of stateOptions" [value]="s">{{ s }}</ion-select-option>
+              </ion-select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">District</label>
+              <ion-select
+                formControlName="district"
+                placeholder="Select District"
+                interface="popover"
+                class="custom-select"
+                [disabled]="!distributorForm.get('state')?.value"
+              >
+                <ion-select-option *ngFor="let d of filteredDistricts" [value]="d.district">{{ d.district }}</ion-select-option>
+              </ion-select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Pincode</label>
+              <ion-input
+                formControlName="pincode"
+                type="text"
+                placeholder="Enter 6-digit pincode"
+                maxlength="6"
+                (ionInput)="onPincodeInput($event)"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="isLookingUpPincode" class="text-xs text-slate-400 mt-1">Looking up location…</div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">City</label>
+              <ion-select
+                formControlName="city"
+                placeholder="Select City"
+                interface="popover"
+                class="custom-select"
+                [disabled]="!cityOptions.length"
+                (ionChange)="onCityChange($event)"
+              >
+                <ion-select-option *ngFor="let c of cityOptions" [value]="c">{{ c }}</ion-select-option>
+              </ion-select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legal Documents -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="document-text-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Legal Documents</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Aadhar Number *</label>
+              <ion-input
+                formControlName="aadhaarNumber"
+                placeholder="XXXX XXXX XXXX"
+                maxlength="12"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('aadhaarNumber')?.invalid && distributorForm.get('aadhaarNumber')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('aadhaarNumber') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">PAN Number *</label>
+              <ion-input
+                formControlName="panNumber"
+                placeholder="ABCDE1234F"
+                maxlength="10"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('panNumber')?.invalid && distributorForm.get('panNumber')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('panNumber') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">GST Number</label>
+              <ion-input
+                formControlName="gstNumber"
+                placeholder="22AAAAA0000A1Z5"
+                maxlength="15"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('gstNumber')?.invalid && distributorForm.get('gstNumber')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('gstNumber') }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Account Credentials -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="lock-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Account Credentials</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Username</label>
+              <ion-input
+                formControlName="username"
+                type="text"
+                placeholder="Enter username"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('username')?.invalid && distributorForm.get('username')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('username') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
+              <ion-input
+                formControlName="password"
+                [type]="showPassword ? 'text' : 'password'"
+                placeholder="Enter password"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('password')?.invalid && distributorForm.get('password')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('password') }}
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Bank Details -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="card-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Bank Details</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Account Number</label>
+              <ion-input
+                formControlName="accountNumber"
+                type="text"
+                placeholder="Enter account number"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('accountNumber')?.invalid && distributorForm.get('accountNumber')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('accountNumber') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">IFSC Code</label>
+              <ion-input
+                formControlName="ifsc"
+                type="text"
+                placeholder="Enter IFSC code"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('ifsc')?.invalid && distributorForm.get('ifsc')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('ifsc') }}
+              </div>
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-600 mb-1">Account Holder Name</label>
+              <ion-input
+                formControlName="accountName"
+                type="text"
+                placeholder="Enter account holder name"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="distributorForm.get('accountName')?.invalid && distributorForm.get('accountName')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('accountName') }}
+              </div>
+            </div>
+
+            <!-- Credit Limit Toggle -->
+            <div class="md:col-span-2">
+              <div class="flex items-center gap-3 py-2">
+                <input 
+                  type="checkbox" 
+                  formControlName="creditLimit"
+                  id="creditLimit"
+                  class="w-4 h-4 rounded text-emerald-500"
+                />
+                <label for="creditLimit" class="text-sm font-medium text-slate-600 cursor-pointer">
+                  Enable Credit Limit
+                </label>
+              </div>
+            </div>
+
+            <!-- Credit Limit Fields (shown when checkbox is enabled) -->
+            <ng-container *ngIf="distributorForm.get('creditLimit')?.value">
+              <!-- Credit Balance Read-Only (edit mode only) -->
+              <div class="md:col-span-2" *ngIf="selectedDistributor?.creditBalance != null">
+                <div class="credit-balance-readout">
+                  <div class="credit-balance-readout-row">
+                    <div class="credit-balance-readout-item">
+                      <ion-icon name="trending-up-outline" class="text-amber-500"></ion-icon>
+                      <div>
+                        <p class="credit-balance-readout-label">Credit Limit</p>
+                        <p class="credit-balance-readout-val">₹{{ selectedDistributor?.creditAmount | number:'1.0-0' }}</p>
+                      </div>
+                    </div>
+                    <div class="credit-balance-readout-item">
+                      <ion-icon name="wallet-outline" class="text-emerald-500"></ion-icon>
+                      <div>
+                        <p class="credit-balance-readout-label">Available Balance</p>
+                        <p class="credit-balance-readout-val credit-balance-readout-avail">₹{{ selectedDistributor?.creditBalance | number:'1.0-0' }}</p>
+                      </div>
+                    </div>
+                    <div class="credit-balance-readout-item">
+                      <ion-icon name="arrow-down-circle-outline" class="text-red-400"></ion-icon>
+                      <div>
+                        <p class="credit-balance-readout-label">Amount Used</p>
+                        <p class="credit-balance-readout-val credit-balance-readout-used">₹{{ ((selectedDistributor?.creditAmount || 0) - (selectedDistributor?.creditBalance || 0)) | number:'1.0-0' }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Bank Guarantee Number</label>
+                <ion-input
+                  formControlName="bankGuaranteeNumber"
+                  type="text"
+                  placeholder="Enter bank guarantee number"
+                  class="custom-input"
+                ></ion-input>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Credit Amount</label>
+                <ion-input
+                  formControlName="creditAmount"
+                  type="number"
+                  placeholder="Enter credit amount"
+                  class="custom-input"
+                ></ion-input>
+              </div>
+
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-slate-600 mb-1">Bank Guarantee Expiry Date</label>
+                <ion-input
+                  formControlName="bankGuaranteeExpiryDate"
+                  type="date"
+                  class="custom-input"
+                ></ion-input>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
+          <button type="button" (click)="closeAddModal()" class="w-full sm:w-auto px-6 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all font-medium text-center">
+            Cancel
+          </button>
+          <button type="submit" class="w-full sm:w-auto px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all font-semibold shadow-lg text-center">
+            Add Distributor
+          </button>
+        </div>
+      </form>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Details Modal -->
+<ion-modal [isOpen]="showDetailsModal" (didDismiss)="closeDetailsModal()" [backdropDismiss]="false">
+  <ng-template>
+    <ion-header class="ion-no-border">
+      <ion-toolbar class="bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-500">
+        <ion-title class="text-white font-bold">Distributor Details</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeDetailsModal()" class="text-white">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding bg-slate-50" *ngIf="selectedDistributor && !isEditing">
+      <div class="max-w-7xl mx-auto">
+        <!-- Header Card -->
+        <div class="detail-header-card">
+          <div class="detail-header-top">
+            <div class="detail-header-info">
+              <div class="detail-avatar">
+                <ion-icon name="business-outline"></ion-icon>
+              </div>
+              <div class="detail-header-text">
+                <h2 class="detail-name">{{ selectedDistributor.name }}</h2>
+                <div class="text-sm text-slate-200 mb-2">
+                  <span *ngIf="selectedDistributor.companyName">Firm / Company: <strong>{{ selectedDistributor.companyName }}</strong></span>
+                </div>
+                <div class="detail-badges">
+                  <span class="detail-badge">{{ selectedDistributor.distributorType }}</span>
+                  <span class="detail-badge">{{ selectedDistributor.companyType }}</span>
+                  <span *ngIf="selectedDistributor.creditAmount && selectedDistributor.creditAmount > 0"
+                        class="detail-credited-badge">
+                    <ion-icon name="card-outline"></ion-icon>
+                    Credited
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="detail-actions">
+            <button *appAcl="{ feature: FEATURE, action: 'update' }" (click)="onEditDistributor()" class="detail-btn detail-btn-edit">
+              <ion-icon name="create-outline"></ion-icon>
+              <span>Edit</span>
+            </button>
+            <button *appAcl="{ feature: FEATURE, action: 'delete' }" (click)="openDeleteConfirmModal()" class="detail-btn detail-btn-delete">
+              <ion-icon name="trash-outline"></ion-icon>
+              <span>Delete</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="detail-section">
+          <div class="detail-section-header">
+            <ion-icon name="call-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3>Contact Information</h3>
+          </div>
+          
+          <div class="detail-grid">
+            <div class="detail-field">
+              <div class="detail-field-label">
+                <ion-icon name="pricetag-outline" class="text-emerald-500"></ion-icon>
+                <span>Distributor Code</span>
+              </div>
+              <p class="detail-field-value font-mono font-semibold">{{ selectedDistributor.distributorCode || 'N/A' }}</p>
+            </div>
+
+            <div class="detail-field">
+              <div class="detail-field-label">
+                <ion-icon name="person-outline" class="text-emerald-500"></ion-icon>
+                <span>Key Person Name</span>
+              </div>
+              <p class="detail-field-value">{{ getDistributorKeyPersonName(selectedDistributor) }}</p>
+            </div>
+
+            <div class="detail-field">
+              <div class="detail-field-label">
+                <ion-icon name="business-outline" class="text-emerald-500"></ion-icon>
+                <span>Firm / Company Name</span>
+              </div>
+              <p class="detail-field-value">{{ selectedDistributor.companyName || selectedDistributor.name || 'N/A' }}</p>
+            </div>
+
+            <div class="detail-field">
+              <div class="detail-field-label">
+                <ion-icon name="briefcase-outline" class="text-emerald-500"></ion-icon>
+                <span>Sales Person Role</span>
+              </div>
+              <p class="detail-field-value">{{ selectedDistributor.salesPersonRoleType || 'N/A' }}</p>
+            </div>
+
+            <div class="detail-field">
+              <div class="detail-field-label">
+                <ion-icon name="mail-outline" class="text-emerald-500"></ion-icon>
+                <span>Email Address</span>
+              </div>
+              <p class="detail-field-value">{{ selectedDistributor.email }}</p>
+            </div>
+
+            <div class="detail-field">
+              <div class="detail-field-label">
+                <ion-icon name="call-outline" class="text-emerald-500"></ion-icon>
+                <span>Contact Number</span>
+              </div>
+              <p class="detail-field-value">{{ selectedDistributor.contact }}</p>
+            </div>
+
+            <div class="detail-field">
+              <div class="detail-field-label">
+                <ion-icon name="call-outline" class="text-emerald-500"></ion-icon>
+                <span>Alternate Contact</span>
+              </div>
+              <p class="detail-field-value">{{ selectedDistributor.alternateContact || 'N/A' }}</p>
+            </div>
+
+            <div class="detail-field detail-field-full">
+              <div class="detail-field-label">
+                <ion-icon name="location-outline" class="text-emerald-500"></ion-icon>
+                <span>Address</span>
+              </div>
+              <p class="detail-field-value">{{ selectedDistributor.address }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legal Documents -->
+        <div class="detail-section">
+          <div class="detail-section-header">
+            <ion-icon name="document-text-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3>Legal Documents</h3>
+          </div>
+          
+          <div class="detail-docs-grid">
+            <div class="detail-doc-card detail-doc-blue">
+              <div class="detail-field-label">
+                <ion-icon name="card-outline"></ion-icon>
+                <span>Aadhar Number</span>
+              </div>
+              <p class="detail-field-value font-bold">{{ selectedDistributor.aadhaarNumber }}</p>
+            </div>
+
+            <div class="detail-doc-card detail-doc-green">
+              <div class="detail-field-label">
+                <ion-icon name="document-text-outline"></ion-icon>
+                <span>PAN Number</span>
+              </div>
+              <p class="detail-field-value font-bold">{{ selectedDistributor.panNumber }}</p>
+            </div>
+
+            <div class="detail-doc-card detail-doc-orange">
+              <div class="detail-field-label">
+                <ion-icon name="document-text-outline"></ion-icon>
+                <span>GST Number</span>
+              </div>
+              <p class="detail-field-value font-bold">{{ selectedDistributor.gstNumber }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bank Account Details -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="card-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Bank Account Details</h3>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="detail-doc-card detail-doc-blue">
+              <div class="detail-field-label">
+                <ion-icon name="card-outline"></ion-icon>
+                <span>Account Number</span>
+              </div>
+              <p class="detail-field-value font-bold">{{ selectedDistributor.accountNumber || 'N/A' }}</p>
+            </div>
+
+            <div class="detail-doc-card detail-doc-purple">
+              <div class="detail-field-label">
+                <ion-icon name="card-outline"></ion-icon>
+                <span>IFSC Code</span>
+              </div>
+              <p class="detail-field-value font-bold">{{ selectedDistributor.ifsc || 'N/A' }}</p>
+            </div>
+
+            <div class="detail-doc-card detail-doc-indigo">
+              <div class="detail-field-label">
+                <ion-icon name="person-outline"></ion-icon>
+                <span>Account Holder Name</span>
+              </div>
+              <p class="detail-field-value font-bold">{{ selectedDistributor.accountName || 'N/A' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Credit Information -->
+        <div *ngIf="selectedDistributor.creditAmount && selectedDistributor.creditAmount > 0"
+             class="credit-info-section mb-4">
+          <div class="credit-info-header">
+            <div class="credit-info-header-left">
+              <div class="credit-icon-wrap">
+                <ion-icon name="card-outline"></ion-icon>
+              </div>
+              <div>
+                <h3 class="credit-section-title">Credit Facility</h3>
+                <p class="credit-section-sub">Active credit line for this distributor</p>
+              </div>
+            </div>
+            <span class="credit-active-pill">
+              <span class="credit-pulse-dot"></span>
+              Active
+            </span>
+          </div>
+
+          <!-- Credit Utilisation Bar -->
+          <div class="credit-utilisation-wrap">
+            <div class="credit-util-labels">
+              <span class="credit-util-label-text">Credit Utilisation</span>
+              <span class="credit-util-pct" *ngIf="selectedDistributor.creditBalance != null">
+                {{ ((selectedDistributor.creditAmount - selectedDistributor.creditBalance) / selectedDistributor.creditAmount * 100) | number:'1.0-0' }}% used
+              </span>
+            </div>
+            <div class="credit-util-bar-bg" *ngIf="selectedDistributor.creditBalance != null">
+              <div class="credit-util-bar-fill"
+                   [style.width.%]="(selectedDistributor.creditAmount - selectedDistributor.creditBalance) / selectedDistributor.creditAmount * 100">
+              </div>
+            </div>
+          </div>
+
+          <!-- Credit Stats Grid -->
+          <div class="credit-stats-grid">
+            <div class="credit-stat-card credit-stat-total">
+              <div class="credit-stat-icon">
+                <ion-icon name="trending-up-outline"></ion-icon>
+              </div>
+              <div>
+                <p class="credit-stat-label">Credit Limit</p>
+                <p class="credit-stat-value">₹{{ selectedDistributor.creditAmount | number:'1.0-0' }}</p>
+              </div>
+            </div>
+
+            <div class="credit-stat-card credit-stat-balance" *ngIf="selectedDistributor.creditBalance != null">
+              <div class="credit-stat-icon">
+                <ion-icon name="wallet-outline"></ion-icon>
+              </div>
+              <div>
+                <p class="credit-stat-label">Available Balance</p>
+                <p class="credit-stat-value">₹{{ selectedDistributor.creditBalance | number:'1.0-0' }}</p>
+              </div>
+            </div>
+
+            <div class="credit-stat-card credit-stat-used" *ngIf="selectedDistributor.creditBalance != null">
+              <div class="credit-stat-icon">
+                <ion-icon name="arrow-down-circle-outline"></ion-icon>
+              </div>
+              <div>
+                <p class="credit-stat-label">Amount Used</p>
+                <p class="credit-stat-value">₹{{ (selectedDistributor.creditAmount - selectedDistributor.creditBalance) | number:'1.0-0' }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- BG Details -->
+          <div class="credit-bg-row" *ngIf="selectedDistributor.bankGuaranteeNumber">
+            <div class="credit-bg-item">
+              <span class="credit-bg-label">
+                <ion-icon name="document-text-outline"></ion-icon>
+                BG Number
+              </span>
+              <span class="credit-bg-value">{{ selectedDistributor.bankGuaranteeNumber }}</span>
+            </div>
+            <div class="credit-bg-item" *ngIf="selectedDistributor.bgExpiryDate">
+              <span class="credit-bg-label">
+                <ion-icon name="calendar-outline"></ion-icon>
+                BG Expiry
+              </span>
+              <span class="credit-bg-value">{{ selectedDistributor.bgExpiryDate }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stock Section -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="cube-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Stock Summary</h3>
+          </div>
+
+          <!-- Loading state -->
+          <div *ngIf="isLoadingStock" class="flex items-center justify-center py-6">
+            <ion-spinner name="crescent" style="color: #10b981;"></ion-spinner>
+            <span class="ml-2 text-slate-500 text-sm">Loading stock...</span>
+          </div>
+
+          <!-- No stock data -->
+          <div *ngIf="!isLoadingStock && !distributorStock" class="text-center py-4 text-slate-400 text-sm">
+            No stock data available
+          </div>
+
+          <!-- Stock data -->
+          <ng-container *ngIf="!isLoadingStock && distributorStock">
+            <!-- Summary cards -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
+              <div class="detail-doc-card detail-doc-blue text-center">
+                <p class="text-xs text-slate-500 mb-1">Unique Items</p>
+                <p class="text-xl font-bold text-slate-800">{{ distributorStock.totalUniqueItems }}</p>
+              </div>
+              <div class="detail-doc-card detail-doc-green text-center">
+                <p class="text-xs text-slate-500 mb-1">Total Qty</p>
+                <p class="text-xl font-bold text-slate-800">{{ distributorStock.totalQuantity }}</p>
+              </div>
+              <div class="detail-doc-card detail-doc-orange text-center">
+                <p class="text-xs text-slate-500 mb-1">Stock Value</p>
+                <p class="text-lg font-bold text-slate-800">₹{{ distributorStock.totalStockValue | number:'1.0-0' }}</p>
+              </div>
+            </div>
+
+            <!-- Stock items table -->
+            <div class="overflow-x-auto rounded-xl border border-slate-100">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                    <th class="px-3 py-2 text-left font-semibold">Item</th>
+                    <th class="px-3 py-2 text-left font-semibold">SKU</th>
+                    <th class="px-3 py-2 text-right font-semibold">Qty</th>
+                    <th class="px-3 py-2 text-right font-semibold">Unit Price</th>
+                    <th class="px-3 py-2 text-right font-semibold">Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let item of distributorStock.stockItems; let i = index"
+                      [class]="i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'">
+                    <td class="px-3 py-2.5 font-medium text-slate-700">{{ item.itemName }}</td>
+                    <td class="px-3 py-2.5 text-slate-500">{{ item.itemSku }}</td>
+                    <td class="px-3 py-2.5 text-right text-slate-700">{{ item.totalQuantity }} <span class="text-xs text-slate-400">{{ item.unitType }}</span></td>
+                    <td class="px-3 py-2.5 text-right text-slate-700">₹{{ item.unitPrice | number:'1.0-2' }}</td>
+                    <td class="px-3 py-2.5 text-right font-semibold text-emerald-600">₹{{ item.totalValue | number:'1.0-0' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p class="text-xs text-slate-400 mt-2 text-right">Last updated: {{ distributorStock.lastUpdated | date:'dd MMM yyyy, hh:mm a' }}</p>
+          </ng-container>
+        </div>
+
+        <!-- Metadata -->
+        <div class="flex items-center gap-2 text-sm text-slate-500 mb-4 justify-center">
+          <ion-icon name="calendar-outline"></ion-icon>
+          <span>Added on {{ formatDate(selectedDistributor.createdAt) }}</span>
+        </div>
+
+        <!-- Close Button -->
+        <div class="flex justify-center">
+          <button (click)="closeDetailsModal()" class="px-8 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all font-medium">
+            Close
+          </button>
+        </div>
+      </div>
+    </ion-content>
+
+    <!-- Edit Form in Details Modal -->
+    <ion-content class="ion-padding bg-slate-50" *ngIf="isEditing">
+      <form [formGroup]="distributorForm" (ngSubmit)="onSubmitForm()" class="max-w-7xl mx-auto">
+        <!-- Basic Information -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="business-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Basic Information</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-600 mb-1">Firm / Company Name *</label>
+              <ion-input formControlName="companyName" placeholder="Enter firm or company name" class="custom-input"></ion-input>
+              <div *ngIf="distributorForm.get('companyName')?.invalid && distributorForm.get('companyName')?.touched" class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('companyName') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Type of Distributor *</label>
+              <select formControlName="distributorType"
+                      class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                <option value="" disabled>Select distributor type</option>
+                <option value="Distributor">Distributor</option>
+                <option value="Dealer">Dealer</option>
+                <option value="Retailer">Retailer</option>
+                <option value="Super Stockist">Super Stockist</option>
+                <option value="C&F Agent">C&amp;F Agent</option>
+              </select>
+              <div *ngIf="distributorForm.get('distributorType')?.invalid && distributorForm.get('distributorType')?.touched" class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('distributorType') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Type of Company *</label>
+              <select formControlName="companyType"
+                      class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                <option value="" disabled>Select company type</option>
+                <option value="Private Limited">Private Limited</option>
+                <option value="LLP">LLP</option>
+                <option value="Partnership">Partnership</option>
+                <option value="Proprietorship">Proprietorship</option>
+              </select>
+              <div *ngIf="distributorForm.get('companyType')?.invalid && distributorForm.get('companyType')?.touched" class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('companyType') }}
+              </div>
+            </div>
+
+            <!-- Active / Inactive Status Segment -->
+            <div class="md:col-span-2">
+              <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Status</label>
+              <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-2xl">
+                <button type="button"
+                  (click)="distributorForm.get('isActive')?.setValue(true)"
+                  class="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all"
+                  [ngClass]="distributorForm.get('isActive')?.value
+                    ? 'bg-white text-emerald-600 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'">
+                  <ion-icon name="checkmark-circle-outline" class="text-base"></ion-icon>
+                  Active
+                </button>
+                <button type="button"
+                  (click)="distributorForm.get('isActive')?.setValue(false)"
+                  class="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold transition-all"
+                  [ngClass]="!distributorForm.get('isActive')?.value
+                    ? 'bg-red-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:text-slate-600'">
+                  <ion-icon name="close-circle-outline" class="text-base"></ion-icon>
+                  Inactive
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sales & Assignment -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="person-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Sales &amp; Assignment</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Assigned Person *</label>
+              <div *ngIf="isLoadingRoles" class="flex items-center gap-2 text-slate-500 text-sm py-2">
+                <ion-spinner name="dots"></ion-spinner>
+                <span>Loading roles...</span>
+              </div>
+              <ion-select
+                *ngIf="!isLoadingRoles"
+                formControlName="assignedPerson"
+                placeholder="Select assigned person"
+                class="custom-select black-select"
+              >
+                <ion-select-option *ngFor="let role of roleOptions" [value]="role.value">{{ role.label }}</ion-select-option>
+              </ion-select>
+              <div *ngIf="distributorForm.get('assignedPerson')?.invalid && distributorForm.get('assignedPerson')?.touched" class="text-xs text-red-500 mt-1">
+                Assigned person is required
+              </div>
+            </div>
+
+            <div *ngIf="distributorForm.get('assignedPerson')?.value">
+              <label class="block text-sm font-medium text-slate-600 mb-1">Sales Person</label>
+              <div *ngIf="isLoadingKeyPersons" class="flex items-center gap-2 text-slate-500 text-sm">
+                <ion-spinner name="dots"></ion-spinner>
+                <span>Loading key persons...</span>
+              </div>
+              <ion-select
+                *ngIf="!isLoadingKeyPersons"
+                formControlName="keyPerson"
+                placeholder="Select sales person"
+                class="custom-select black-select"
+              >
+                <ion-select-option *ngFor="let person of keyPersonsList" [value]="person.id || person">{{ person.name || person }}</ion-select-option>
+              </ion-select>
+              <div *ngIf="getSelectedKeyPersonName()" class="mt-2 text-sm text-emerald-600 font-medium">
+                Selected: {{ getSelectedKeyPersonName() }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Information -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="call-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Contact Information</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Email Address *</label>
+              <ion-input formControlName="email" type="email" placeholder="email@example.com" class="custom-input"></ion-input>
+              <div *ngIf="distributorForm.get('email')?.invalid && distributorForm.get('email')?.touched" class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('email') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Contact Number *</label>
+              <ion-input formControlName="contact" type="tel" placeholder="Enter contact number" class="custom-input"></ion-input>
+              <div *ngIf="distributorForm.get('contact')?.invalid && distributorForm.get('contact')?.touched" class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('contact') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Alternate Contact</label>
+              <ion-input formControlName="alternateContact" type="tel" placeholder="Enter alternate contact" class="custom-input"></ion-input>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Key Person</label>
+              <ion-input formControlName="keyPersonName" type="text" placeholder="Enter key person name" class="custom-input"></ion-input>
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-600 mb-1">Address *</label>
+              <ion-textarea formControlName="address" placeholder="Enter full address" rows="3" class="custom-textarea"></ion-textarea>
+              <div *ngIf="distributorForm.get('address')?.invalid && distributorForm.get('address')?.touched" class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('address') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">State</label>
+              <ion-select
+                formControlName="state"
+                placeholder="Select State"
+                interface="popover"
+                class="custom-select"
+              >
+                <ion-select-option *ngFor="let s of stateOptions" [value]="s">{{ s }}</ion-select-option>
+              </ion-select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">District</label>
+              <ion-select
+                formControlName="district"
+                placeholder="Select District"
+                interface="popover"
+                class="custom-select"
+                [disabled]="!distributorForm.get('state')?.value"
+              >
+                <ion-select-option *ngFor="let d of filteredDistricts" [value]="d.district">{{ d.district }}</ion-select-option>
+              </ion-select>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Pincode</label>
+              <ion-input
+                formControlName="pincode"
+                type="text"
+                placeholder="Enter 6-digit pincode"
+                maxlength="6"
+                (ionInput)="onPincodeInput($event)"
+                class="custom-input"
+              ></ion-input>
+              <div *ngIf="isLookingUpPincode" class="text-xs text-slate-400 mt-1">Looking up location…</div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">City</label>
+              <ion-select
+                formControlName="city"
+                placeholder="Select City"
+                interface="popover"
+                class="custom-select"
+                [disabled]="!cityOptions.length"
+                (ionChange)="onCityChange($event)"
+              >
+                <ion-select-option *ngFor="let c of cityOptions" [value]="c">{{ c }}</ion-select-option>
+              </ion-select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legal Documents -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="document-text-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Legal Documents</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Aadhar Number *</label>
+              <ion-input formControlName="aadhaarNumber" placeholder="XXXX XXXX XXXX" maxlength="12" class="custom-input"></ion-input>
+              <div *ngIf="distributorForm.get('aadhaarNumber')?.invalid && distributorForm.get('aadhaarNumber')?.touched" class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('aadhaarNumber') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">PAN Number *</label>
+              <ion-input formControlName="panNumber" placeholder="ABCDE1234F" maxlength="10" class="custom-input"></ion-input>
+              <div *ngIf="distributorForm.get('panNumber')?.invalid && distributorForm.get('panNumber')?.touched" class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('panNumber') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">GST Number</label>
+              <ion-input formControlName="gstNumber" placeholder="22AAAAA0000A1Z5" maxlength="15" class="custom-input"></ion-input>
+              <div *ngIf="distributorForm.get('gstNumber')?.invalid && distributorForm.get('gstNumber')?.touched" class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('gstNumber') }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bank Account Details -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="card-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Bank Details</h3>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Account Number</label>
+              <ion-input
+                formControlName="accountNumber"
+                type="text"
+                placeholder="Enter account number"
+                class="custom-input">
+              </ion-input>
+              <div *ngIf="distributorForm.get('accountNumber')?.invalid && distributorForm.get('accountNumber')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('accountNumber') }}
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">IFSC Code</label>
+              <ion-input 
+                formControlName="ifsc" 
+                type="text" 
+                placeholder="Enter IFSC code" 
+                class="custom-input"
+                style="text-transform: uppercase">
+              </ion-input>
+              <div *ngIf="distributorForm.get('ifsc')?.invalid && distributorForm.get('ifsc')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('ifsc') }}
+              </div>
+            </div>
+
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-600 mb-1">Account Name</label>
+              <ion-input
+                formControlName="accountName"
+                type="text"
+                placeholder="Enter account holder name"
+                class="custom-input">
+              </ion-input>
+              <div *ngIf="distributorForm.get('accountName')?.invalid && distributorForm.get('accountName')?.touched" 
+                   class="text-xs text-red-500 mt-1">
+                {{ getErrorMessage('accountName') }}
+              </div>
+            </div>
+
+            <!-- Credit Limit Toggle -->
+            <div class="md:col-span-2">
+              <div class="flex items-center gap-3 py-2">
+                <input 
+                  type="checkbox" 
+                  formControlName="creditLimit"
+                  id="creditLimitEdit"
+                  class="w-4 h-4 rounded text-emerald-500"
+                />
+                <label for="creditLimitEdit" class="text-sm font-medium text-slate-600 cursor-pointer">
+                  Enable Credit Limit
+                </label>
+              </div>
+            </div>
+
+            <!-- Credit Limit Fields (shown when checkbox is enabled) -->
+            <ng-container *ngIf="distributorForm.get('creditLimit')?.value">
+              <!-- Credit Balance Read-Only (edit mode only) -->
+              <div class="md:col-span-2" *ngIf="selectedDistributor?.creditBalance != null">
+                <div class="credit-balance-readout">
+                  <div class="credit-balance-readout-row">
+                    <div class="credit-balance-readout-item">
+                      <ion-icon name="trending-up-outline" class="text-amber-500"></ion-icon>
+                      <div>
+                        <p class="credit-balance-readout-label">Credit Limit</p>
+                        <p class="credit-balance-readout-val">₹{{ selectedDistributor?.creditAmount | number:'1.0-0' }}</p>
+                      </div>
+                    </div>
+                    <div class="credit-balance-readout-item">
+                      <ion-icon name="wallet-outline" class="text-emerald-500"></ion-icon>
+                      <div>
+                        <p class="credit-balance-readout-label">Available Balance</p>
+                        <p class="credit-balance-readout-val credit-balance-readout-avail">₹{{ selectedDistributor?.creditBalance | number:'1.0-0' }}</p>
+                      </div>
+                    </div>
+                    <div class="credit-balance-readout-item">
+                      <ion-icon name="arrow-down-circle-outline" class="text-red-400"></ion-icon>
+                      <div>
+                        <p class="credit-balance-readout-label">Amount Used</p>
+                        <p class="credit-balance-readout-val credit-balance-readout-used">₹{{ ((selectedDistributor?.creditAmount || 0) - (selectedDistributor?.creditBalance || 0)) | number:'1.0-0' }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Bank Guarantee Number</label>
+                <ion-input
+                  formControlName="bankGuaranteeNumber"
+                  type="text"
+                  placeholder="Enter bank guarantee number"
+                  class="custom-input"
+                ></ion-input>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Credit Amount</label>
+                <ion-input
+                  formControlName="creditAmount"
+                  type="number"
+                  placeholder="Enter credit amount"
+                  class="custom-input"
+                ></ion-input>
+              </div>
+
+              <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-slate-600 mb-1">Bank Guarantee Expiry Date</label>
+                <ion-input
+                  formControlName="bankGuaranteeExpiryDate"
+                  type="date"
+                  class="custom-input"
+                ></ion-input>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+
+        <!-- Login Credentials -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 mb-4">
+          <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
+            <ion-icon name="lock-closed-outline" class="text-emerald-500 text-xl"></ion-icon>
+            <h3 class="text-base font-semibold text-slate-700 m-0">Login Credentials</h3>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Username</label>
+              <ion-input formControlName="username" type="text" placeholder="Enter username" class="custom-input"></ion-input>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
+              <ion-input formControlName="password" [type]="showPassword ? 'text' : 'password'" placeholder="Enter password" class="custom-input">
+                <ion-button slot="end" fill="clear" (click)="showPassword = !showPassword">
+                  <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'" class="text-slate-400"></ion-icon>
+                </ion-button>
+              </ion-input>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 sm:justify-end">
+          <button type="button" (click)="cancelEdit()" class="w-full sm:w-auto px-6 py-3 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition-all font-medium text-center">
+            Cancel
+          </button>
+          <button type="submit" class="w-full sm:w-auto px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition-all font-semibold shadow-lg text-center">
+            Update Distributor
+          </button>
+        </div>
+      </form>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- ==================== LEGAL DOCUMENT MODAL ==================== -->
+<ion-modal [isOpen]="showLegalModal" (didDismiss)="closeLegalDoc()" [backdropDismiss]="true">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar style="--background:#0f1d32;--color:#fff;">
+        <ion-buttons slot="start">
+          <ion-button (click)="closeLegalDoc()" fill="clear" style="color:#94a3b8;">
+            <ion-icon name="arrow-back-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+        <ion-title style="font-size:16px;font-weight:700;">{{ legalModalTitle }}</ion-title>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content style="--background:#0a1628;">
+      <div class="legal-doc-wrap">
+
+        <!-- TERMS & CONDITIONS -->
+        <ng-container *ngIf="legalDocType === 'terms'">
+          <div class="legal-doc-content">
+            <h1>TERMS &amp; CONDITIONS</h1>
+            <p class="legal-subtitle">NAYLA Application &nbsp;|&nbsp; By Nectar Origin Private Limited</p>
+            <p class="legal-meta">Effective Date: 09 May 2026 &nbsp;|&nbsp; Version: 1.0</p>
+            <hr/>
+
+            <h2>1. LEGAL AGREEMENT</h2>
+            <p>These Terms &amp; Conditions ("Terms") constitute a legally binding agreement between the user ("User", "you", or "your") and Nectar Origin Private Limited ("Company", "Nectar Origin", "we", "our", or "us") governing access to and use of the NAYLA Application ("Application", "App", "Platform", or "Services").</p>
+            <p>By downloading, installing, registering, accessing, or using the NAYLA Application, you acknowledge that you have read, understood, and agreed to be legally bound by these Terms.</p>
+            <p>If you do not agree with any provision of these Terms, you must immediately discontinue use of the Application.</p>
+
+            <h2>2. COMPANY INFORMATION</h2>
+            <table class="legal-table">
+              <tr><td>Company Name</td><td>Nectar Origin Private Limited</td></tr>
+              <tr><td>Product Name</td><td>NAYLA</td></tr>
+              <tr><td>Business Nature</td><td>Business Management Software | Inventory Management | Sales &amp; Distribution Automation</td></tr>
+              <tr><td>Contact</td><td>care&#64;nectarorigin.com &nbsp;|&nbsp; www.nectarorigin.com</td></tr>
+            </table>
+
+            <h2>3. ELIGIBILITY</h2>
+            <p>By using the Application, you represent and warrant that:</p>
+            <ul>
+              <li>You are at least 18 years of age;</li>
+              <li>You possess the legal authority to enter into binding agreements;</li>
+              <li>You are using the Application for lawful commercial or authorized purposes;</li>
+              <li>All information provided by you is accurate, complete, and current.</li>
+            </ul>
+            <p>The Company reserves the right to suspend or terminate access if any information is found to be false, misleading, or unauthorized.</p>
+
+            <h2>4. APPLICATION SERVICES</h2>
+            <p>The NAYLA Application provides software-based business management services which may include:</p>
+            <ul>
+              <li>Inventory management</li>
+              <li>Sales and purchase tracking</li>
+              <li>Billing and invoicing</li>
+              <li>Distributor and retailer management</li>
+              <li>Reporting and analytics</li>
+              <li>Attendance and field activity tracking</li>
+              <li>Business automation tools</li>
+              <li>Cloud synchronization features</li>
+            </ul>
+            <p>Features may vary depending on subscription plans, updates, or operational requirements.</p>
+
+            <h2>5. USER ACCOUNT RESPONSIBILITIES</h2>
+            <p>Users are solely responsible for:</p>
+            <ul>
+              <li>Maintaining confidentiality of login credentials;</li>
+              <li>Restricting unauthorized access to their account;</li>
+              <li>Ensuring proper use of the Application;</li>
+              <li>All activities conducted under their account.</li>
+            </ul>
+            <p>Users shall immediately notify the Company regarding unauthorized access, security breaches, or suspected misuse of credentials. Nectar Origin Private Limited shall not be liable for losses arising from unauthorized use of user accounts.</p>
+
+            <h2>6. ACCEPTABLE USE POLICY</h2>
+            <p>Users agree not to:</p>
+            <ul>
+              <li>Use the Application for unlawful purposes;</li>
+              <li>Upload false, misleading, or fraudulent information;</li>
+              <li>Attempt unauthorized access to systems or databases;</li>
+              <li>Reverse engineer, copy, modify, distribute, or exploit the Application;</li>
+              <li>Interfere with Application performance or security;</li>
+              <li>Introduce viruses, malware, or harmful code;</li>
+              <li>Use the Application in violation of applicable laws or regulations.</li>
+            </ul>
+            <p>The Company reserves the absolute right to suspend, restrict, or permanently terminate access in case of violation.</p>
+
+            <h2>7. DATA &amp; CONTENT OWNERSHIP</h2>
+            <p>Users retain ownership of business data uploaded by them. However, by using the Application, users grant Nectar Origin Private Limited a limited, non-exclusive, revocable right to process, store, transmit, and use such data solely for providing services, system operations, technical support, analytics, and legal/compliance purposes. The Company does not claim ownership over user-generated business data.</p>
+
+            <h2>8. INTELLECTUAL PROPERTY RIGHTS</h2>
+            <p>All intellectual property rights related to the NAYLA Application, including software code, designs, logos, branding, graphics, features, databases, documentation, and trademarks, shall remain the exclusive property of Nectar Origin Private Limited. Users shall not copy, reproduce, modify, distribute, license, or commercially exploit any part of the Application without prior written authorization.</p>
+
+            <h2>10. THIRD-PARTY SERVICES</h2>
+            <p>The Application may integrate with third-party platforms, cloud providers, payment gateways, analytics tools, or external services. Nectar Origin Private Limited shall not be responsible for third-party service interruptions, external platform failures, independent privacy practices, or losses caused by third-party systems.</p>
+
+            <h2>11. DATA SECURITY</h2>
+            <p>The Company implements commercially reasonable security measures to safeguard information and maintain system integrity. However, the User acknowledges that no digital system is entirely secure and internet-based services may experience interruptions. Users are responsible for maintaining device and account security.</p>
+
+            <h2>12. LIMITATION OF LIABILITY</h2>
+            <p>To the maximum extent permitted under applicable law, Nectar Origin Private Limited, its directors, employees, affiliates, partners, or service providers shall not be liable for indirect or consequential losses, loss of profits, data loss, operational interruptions, unauthorized access, errors caused by user misuse, technical failures, or third-party actions. The total liability of the Company, if any, shall not exceed the amount actually paid by the User for services during the preceding three (3) months.</p>
+
+            <h2>13. INDEMNIFICATION</h2>
+            <p>Users agree to indemnify, defend, and hold harmless Nectar Origin Private Limited and its officers, employees, directors, affiliates, and partners from and against any claims, damages, liabilities, losses, costs, or legal expenses arising from violation of these Terms, misuse of the Application, violation of laws or third-party rights, or unauthorized activities conducted through user accounts.</p>
+
+            <h2>14. TERMINATION &amp; SUSPENSION</h2>
+            <p>The Company reserves the absolute right to suspend accounts, restrict access, delete data, terminate services, or remove content without prior notice if users violate these Terms, fraudulent activities are suspected, security risks arise, or legal obligations require action. Termination shall not affect accrued legal rights or obligations.</p>
+
+            <h2>15. MODIFICATION OF SERVICES</h2>
+            <p>Nectar Origin Private Limited reserves the right to modify Application features, update software, change pricing, add or discontinue services, restrict functionality, or conduct maintenance activities at any time without prior notice.</p>
+
+            <h2>16. DISCLAIMER OF WARRANTIES</h2>
+            <p>The NAYLA Application and related services are provided on an "AS IS" and "AS AVAILABLE" basis. The Company expressly disclaims all warranties including merchantability, fitness for a particular purpose, accuracy of information, non-infringement, and uninterrupted or error-free operation.</p>
+
+            <h2>17. GOVERNING LAW &amp; JURISDICTION</h2>
+            <p>These Terms shall be governed by and construed in accordance with the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the competent courts located in Bihar, India.</p>
+
+            <h2>18. FORCE MAJEURE</h2>
+            <p>Nectar Origin Private Limited shall not be liable for any delay, interruption, or failure in performance caused by circumstances beyond reasonable control including natural disasters, government restrictions, internet outages, cyberattacks, power failures, strikes, pandemic situations, or technical infrastructure failures.</p>
+
+            <h2>19. CHANGES TO TERMS</h2>
+            <p>The Company reserves the right to amend, modify, or replace these Terms at any time. Updated Terms shall become effective immediately upon publication within the Application or official communication platforms. Continued use of the Application after such updates constitutes acceptance of the revised Terms.</p>
+
+            <h2>20. CONTACT INFORMATION</h2>
+            <p>Nectar Origin Private Limited &nbsp;|&nbsp; care&#64;nectarorigin.com &nbsp;|&nbsp; www.nectarorigin.com</p>
+
+            <h2>21. USER DECLARATION</h2>
+            <p>By using the NAYLA Application, the User expressly confirms and declares that:</p>
+            <ul>
+              <li>The User has read and understood these Terms;</li>
+              <li>The User voluntarily agrees to be legally bound by them;</li>
+              <li>The User shall comply with all applicable laws while using the Application;</li>
+              <li>The User accepts all operational, technical, and legal conditions associated with the use of the Platform.</li>
+            </ul>
+
+            <p class="legal-footer-note">© 2026 Nectar Origin Private Limited. All Rights Reserved.</p>
+          </div>
+        </ng-container>
+
+        <!-- PRIVACY POLICY -->
+        <ng-container *ngIf="legalDocType === 'privacy'">
+          <div class="legal-doc-content">
+            <h1>PRIVACY POLICY</h1>
+            <p class="legal-subtitle">NAYLA – Smart Business Management Application &nbsp;|&nbsp; By Nectar Origin Private Limited</p>
+            <p class="legal-meta">Effective Date: 09 May 2026 &nbsp;|&nbsp; Version: 2.0</p>
+            <hr/>
+
+            <h2>1. PRIVACY POLICY &amp; ACCEPTANCE</h2>
+            <p>This Privacy Policy constitutes a legally binding agreement between the user ("User", "you", or "your") and Nectar Origin Private Limited ("Company", "Nectar Origin", "we", "our", or "us") governing the collection, processing, storage, disclosure, and use of information through the NAYLA Application.</p>
+            <p>By downloading, installing, registering, accessing, or using the NAYLA Application, you expressly acknowledge and agree that:</p>
+            <ul>
+              <li>You have read and understood this Privacy Policy;</li>
+              <li>You voluntarily consent to the collection and processing of information described herein;</li>
+              <li>You authorize Nectar Origin Private Limited to use such information for lawful business and operational purposes;</li>
+              <li>Your use of the Application is subject to this Privacy Policy, applicable laws, and our terms of service.</li>
+            </ul>
+            <p>If you do not agree with any provision of this Privacy Policy, you must immediately discontinue use of the Application and related services.</p>
+
+            <h2>2. COMPANY INFORMATION</h2>
+            <table class="legal-table">
+              <tr><td>Legal Entity</td><td>Nectar Origin Private Limited</td></tr>
+              <tr><td>Product Name</td><td>NAYLA</td></tr>
+              <tr><td>Business Category</td><td>Inventory Management | Sales Management | Business Automation Software</td></tr>
+              <tr><td>Email</td><td>care&#64;nectarorigin.com</td></tr>
+              <tr><td>Website</td><td>www.nectarorigin.com</td></tr>
+            </table>
+
+            <h2>3. INFORMATION WE COLLECT</h2>
+            <h2>A. User Information</h2>
+            <ul>
+              <li>Full Name</li><li>Mobile Number</li><li>Email Address</li>
+              <li>Business/Company Name</li><li>User Profile Information</li><li>Login Credentials</li>
+            </ul>
+            <h2>B. Business Operational Data</h2>
+            <ul>
+              <li>Inventory records</li><li>Product details</li><li>Purchase and sales information</li>
+              <li>Distributor/dealer records</li><li>Billing and invoice data</li>
+              <li>Customer and vendor details</li><li>Business analytics and reports</li>
+            </ul>
+            <h2>C. Technical &amp; Device Information</h2>
+            <ul>
+              <li>Device type and model</li><li>Operating system version</li><li>IP address</li>
+              <li>App version</li><li>Device identifiers</li><li>Crash reports and diagnostics</li>
+            </ul>
+            <h2>D. Location Data</h2>
+            <p>Location access may be used for attendance systems, delivery tracking, route management, field staff monitoring, and geo-verification features. Location access is optional and can be controlled through device settings.</p>
+
+            <h2>4. PURPOSE OF DATA COLLECTION</h2>
+            <ul>
+              <li>Providing application services</li><li>Managing inventory and sales operations</li>
+              <li>Generating invoices and reports</li><li>User authentication and account security</li>
+              <li>Technical troubleshooting and support</li><li>Improving software performance</li>
+              <li>Sending important service notifications</li><li>Preventing fraud and unauthorized activities</li>
+              <li>Complying with legal and regulatory obligations</li>
+            </ul>
+
+            <h2>5. DATA SECURITY &amp; LIMITATION OF LIABILITY</h2>
+            <p>Nectar Origin Private Limited implements commercially reasonable safeguards including secure cloud infrastructure, encrypted data transmission, restricted system access, authentication protocols, firewall and monitoring systems, and periodic security reviews.</p>
+            <p>The User acknowledges that no method of internet transmission is completely secure. To the maximum extent permitted by law, Nectar Origin Private Limited shall not be liable for damages arising from cyber attacks, unauthorized access, system failure, data breaches caused by third parties, or force majeure events.</p>
+
+            <h2>6. DATA DISCLOSURE &amp; SHARING POLICY</h2>
+            <p>Nectar Origin Private Limited does not sell, trade, or commercially exploit personal information. Information may only be shared with authorized service providers (cloud hosting, analytics, payment processing), under legal compliance requirements (court orders, government requests), or during corporate transactions (merger, acquisition).</p>
+
+            <h2>7. APPLICATION PERMISSIONS</h2>
+            <table class="legal-table">
+              <tr><td><strong>Camera</strong></td><td>Product images, document upload, barcode scanning</td></tr>
+              <tr><td><strong>Storage / File Access</strong></td><td>Upload/download invoices and reports</td></tr>
+              <tr><td><strong>Internet Access</strong></td><td>Cloud synchronization and online services</td></tr>
+              <tr><td><strong>Location Access</strong></td><td>Attendance, route and field activity tracking</td></tr>
+              <tr><td><strong>Notification Access</strong></td><td>Alerts, reminders, and updates</td></tr>
+            </table>
+
+            <h2>8. DATA RETENTION</h2>
+            <p>User data is retained only for service continuity, legal compliance, audit purposes, security monitoring, and operational requirements. Users may request deletion of their account subject to applicable legal obligations.</p>
+
+            <h2>9. USER RIGHTS</h2>
+            <ul>
+              <li>Access to personal data</li><li>Correction of inaccurate information</li>
+              <li>Deletion of eligible information</li><li>Withdrawal of consent</li>
+              <li>Restriction of processing</li><li>Closure of user account</li>
+            </ul>
+
+            <h2>10. THIRD-PARTY SERVICES</h2>
+            <p>The App may integrate with third-party platforms. Nectar Origin Private Limited is not responsible for the independent privacy practices of third-party services.</p>
+
+            <h2>11. CHILDREN'S PRIVACY</h2>
+            <p>NAYLA is designed for business and commercial use and is not intended for individuals below 18 years of age.</p>
+
+            <h2>12. MODIFICATION OF PRIVACY POLICY</h2>
+            <p>Nectar Origin Private Limited reserves the right to amend this Privacy Policy at any time. Continued use of the Application constitutes acceptance of the updated Privacy Policy.</p>
+
+            <h2>13. CONTACT US</h2>
+            <p>Nectar Origin Private Limited &nbsp;|&nbsp; care&#64;nectarorigin.com &nbsp;|&nbsp; www.nectarorigin.com</p>
+
+            <h2>14. GOVERNING LAW &amp; JURISDICTION</h2>
+            <p>This Privacy Policy shall be governed by the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the competent courts located in Bhagalpur, Bihar, India.</p>
+
+            <h2>15. USER DECLARATION &amp; CONSENT</h2>
+            <ul>
+              <li>All information provided by the User is accurate and lawful;</li>
+              <li>The User consents to the collection, storage, processing, and lawful use of information as described herein;</li>
+              <li>The User understands that certain services may not function properly if permissions are denied;</li>
+              <li>The User agrees to comply with all applicable laws while using the Application.</li>
+            </ul>
+
+            <p class="legal-footer-note">© 2026 Nectar Origin Private Limited. All Rights Reserved.</p>
+          </div>
+        </ng-container>
+
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Delete Confirmation Modal -->
+<ion-modal [isOpen]="showDeleteConfirmModal" (didDismiss)="closeDeleteConfirmModal()" [breakpoints]="[0, 0.42]" [initialBreakpoint]="0.42" [backdropDismiss]="false">
+  <ng-template>
+    <div class="flex flex-col bg-white rounded-t-3xl overflow-hidden" style="max-height: 90vh;">
+
+      <!-- Gradient Header -->
+      <div class="bg-gradient-to-r from-rose-500 to-red-500 px-6 py-5 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center border border-white/30">
+            <ion-icon name="trash-outline" class="text-xl text-white"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white">Delete Distributor</h2>
+            <p *ngIf="selectedDistributor" class="text-xs text-rose-100">{{ selectedDistributor.name }}</p>
+          </div>
+        </div>
+        <button (click)="closeDeleteConfirmModal()" class="p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors border border-white/30">
+          <ion-icon name="close-outline" class="text-lg text-white"></ion-icon>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="p-6 space-y-5 overflow-y-auto flex-1">
+
+        <!-- Warning block -->
+        <div class="flex items-start gap-3 bg-rose-50 border border-rose-200 rounded-xl p-4">
+          <ion-icon name="warning-outline" class="text-rose-500 text-xl flex-shrink-0 mt-0.5"></ion-icon>
+          <div>
+            <p class="text-sm font-bold text-rose-700">This action cannot be undone</p>
+            <p class="text-xs text-rose-600 mt-0.5">Deleting <strong>{{ selectedDistributor?.name }}</strong> will permanently remove all their records from the system.</p>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex gap-3 pt-2 pb-4">
+          <button type="button" (click)="closeDeleteConfirmModal()"
+            class="flex-1 flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm rounded-xl py-3.5 active:scale-95 transition-all">
+            Cancel
+          </button>
+          <button type="button" (click)="confirmDelete()"
+            class="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-rose-500 to-red-500 hover:from-rose-600 hover:to-red-600 text-white font-bold text-sm rounded-xl py-3.5 shadow-md shadow-rose-200 active:scale-95 transition-all">
+            <ion-icon name="trash-outline" class="text-base"></ion-icon>
+            Confirm Delete
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>

@@ -1,0 +1,231 @@
+<app-report-hero
+  toolbarAccent="Production"
+  toolbarTitle="Reports"
+  eyebrow="Manufacturing"
+  heroTitle="Production Reports"
+  subtitle="Output, BOM, material consumption and costing"
+  icon="cog-outline"
+  [lastUpdated]="lastUpdated"
+  [isBusy]="isLoading"
+  (refresh)="viewReport()">
+
+    <div class="report-filters">
+      <div class="report-filter-field">
+        <label for="prFrom">From Date</label>
+        <input id="prFrom" type="date" [(ngModel)]="filters.dateFrom" />
+      </div>
+      <div class="report-filter-field">
+        <label for="prTo">To Date</label>
+        <input id="prTo" type="date" [(ngModel)]="filters.dateTo" />
+      </div>
+      <div class="report-filter-actions">
+        <button class="report-btn report-btn-primary" (click)="viewReport()">
+          <ion-icon name="stats-chart-outline"></ion-icon> View Report
+        </button>
+        <button class="report-btn report-btn-outline" (click)="resetFilters()">
+          <ion-icon name="refresh-outline"></ion-icon> Reset
+        </button>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <aside class="report-type-rail">
+        <p class="report-type-rail-title">Report Type</p>
+        <button [class.active]="activeType === 'production'" (click)="switchType('production')">Production Report</button>
+        <button [class.active]="activeType === 'bom'" (click)="switchType('bom')">BOM Report</button>
+        <button [class.active]="activeType === 'consumption'" (click)="switchType('consumption')">Material Consumption</button>
+        <button [class.active]="activeType === 'cost'" (click)="switchType('cost')">Production Cost Report</button>
+        <button [class.active]="activeType === 'summary'" (click)="switchType('summary')">Production Summary</button>
+        <button [class.active]="activeType === 'daily'" (click)="switchType('daily')">Daily Summary</button>
+      </aside>
+
+      <section class="report-panel">
+        <div class="report-panel-header">
+          <h2 *ngIf="activeType === 'production'">Daily Production Summary</h2>
+          <h2 *ngIf="activeType === 'bom'">Bill of Materials</h2>
+          <h2 *ngIf="activeType === 'consumption'">Material Consumption</h2>
+          <h2 *ngIf="activeType === 'cost'">Production Cost Report</h2>
+          <h2 *ngIf="activeType === 'summary'">Production Summary (By Product)</h2>
+          <h2 *ngIf="activeType === 'daily'">Daily Summary (By Date)</h2>
+          <div class="report-filter-actions">
+            <button class="report-btn report-btn-outline report-btn-excel" (click)="exportExcel()">
+              <ion-icon name="grid-outline"></ion-icon> Export Excel
+            </button>
+            <button class="report-btn report-btn-outline report-btn-pdf" (click)="exportPdf()">
+              <ion-icon name="document-text-outline"></ion-icon> Export PDF
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="isLoading" class="report-empty">Loading…</div>
+
+        <ng-container *ngIf="!isLoading">
+          <!-- PRODUCTION REPORT -->
+          <app-date-grouped-table *ngIf="activeType === 'production'"
+            heading="Production Report"
+            [rows]="productionRows"
+            dateField="date"
+            countLabel="Runs"
+            emptyText="No production runs found for these filters"
+            [summaryColumns]="productionSummaryColumns"
+            (exportExcel)="exportGroupExcel($event)"
+            (exportPdf)="exportGroupPdf($event)">
+            <ng-template #detail let-rows>
+              <table class="report-table report-table-sticky">
+                <thead>
+                  <tr><th>Date</th><th>Product</th><th>Batch No</th><th>Quantity Produced</th><th>UOM</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of rows">
+                    <td>{{ formatDisplayDate(row.date) }}</td>
+                    <td>{{ row.product }}</td>
+                    <td>{{ row.batchNo }}</td>
+                    <td>{{ row.qtyProduced.toLocaleString('en-IN') }}</td>
+                    <td>{{ row.uom }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </ng-template>
+          </app-date-grouped-table>
+
+          <!-- BOM REPORT -->
+          <app-date-grouped-table *ngIf="activeType === 'bom'"
+            heading="Bill of Materials"
+            [rows]="bomRows"
+            groupField="product"
+            groupHeader="Product"
+            groupIcon="cube-outline"
+            countLabel="Components"
+            emptyText="No BOM entries found for these filters"
+            [summaryColumns]="bomSummaryColumns"
+            (exportExcel)="exportGroupExcel($event)"
+            (exportPdf)="exportGroupPdf($event)">
+            <ng-template #detail let-rows>
+              <table class="report-table report-table-sticky">
+                <thead>
+                  <tr><th>Product</th><th>BOM Name</th><th>Component</th><th>Qty / Unit</th><th>UOM</th><th>Rate</th><th>Amount</th><th>Contribution %</th><th>Effective Cost / Unit</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of rows">
+                    <td>{{ row.product }}</td>
+                    <td>{{ row.bomName }}</td>
+                    <td>{{ row.component }}</td>
+                    <td>{{ row.qty }}</td>
+                    <td>{{ row.uom }}</td>
+                    <td>{{ formatCurrencyFull(row.rate) }}</td>
+                    <td>{{ formatCurrencyFull(row.amount) }}</td>
+                    <td>{{ row.contributionPercent.toFixed(2) }}%</td>
+                    <td>{{ formatCurrencyFull(row.effectiveCostPerUnit) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </ng-template>
+          </app-date-grouped-table>
+
+          <!-- MATERIAL CONSUMPTION -->
+          <div *ngIf="activeType === 'consumption'" class="report-table-scroll">
+            <table class="report-table">
+              <thead>
+                <tr><th>Production No</th><th>Product</th><th>Raw Material</th><th>Qty Planned</th><th>Qty Actual</th><th>Variance</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of pagedConsumptionRows">
+                  <td>{{ row.productionNumber }}</td>
+                  <td>{{ row.product }}</td>
+                  <td>{{ row.rawMaterial }}</td>
+                  <td>{{ row.qtyPlanned.toLocaleString('en-IN') }}</td>
+                  <td>{{ row.qtyActual.toLocaleString('en-IN') }}</td>
+                  <td>{{ row.variance }}</td>
+                </tr>
+                <tr *ngIf="pagedConsumptionRows.length === 0"><td colspan="6" class="report-empty">No material consumption found for these filters</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- PRODUCTION COST REPORT -->
+          <app-date-grouped-table *ngIf="activeType === 'cost'"
+            heading="Production Cost Report"
+            [rows]="costRows"
+            dateField="date"
+            countLabel="Runs"
+            emptyText="No cost data found for these filters"
+            [summaryColumns]="costSummaryColumns"
+            (exportExcel)="exportGroupExcel($event)"
+            (exportPdf)="exportGroupPdf($event)">
+            <ng-template #detail let-rows>
+              <table class="report-table report-table-sticky">
+                <thead>
+                  <tr><th>Date</th><th>Product</th><th>Batch No</th><th>Raw Material Cost</th><th>Additional Cost</th><th>Total Cost</th><th>Cost / Unit</th></tr>
+                </thead>
+                <tbody>
+                  <tr *ngFor="let row of rows">
+                    <td>{{ formatDisplayDate(row.date) }}</td>
+                    <td>{{ row.product }}</td>
+                    <td>{{ row.batchNo }}</td>
+                    <td>{{ formatCurrencyFull(row.materialCost) }}</td>
+                    <td>{{ formatCurrencyFull(row.additionalCost) }}</td>
+                    <td>{{ formatCurrencyFull(row.totalCost) }}</td>
+                    <td>{{ formatCurrencyFull(row.costPerUnit) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </ng-template>
+          </app-date-grouped-table>
+
+          <!-- PRODUCTION SUMMARY (BY PRODUCT) -->
+          <div *ngIf="activeType === 'summary'" class="report-table-scroll">
+            <table class="report-table">
+              <thead>
+                <tr><th>Product</th><th>Total Quantity</th><th>Run Count</th><th>Total Cost</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of pagedSummaryRows">
+                  <td>{{ row.product }}</td>
+                  <td>{{ row.totalQuantity.toLocaleString('en-IN') }}</td>
+                  <td>{{ row.runCount }}</td>
+                  <td>{{ formatCurrencyFull(row.totalCost) }}</td>
+                </tr>
+                <tr *ngIf="pagedSummaryRows.length === 0"><td colspan="4" class="report-empty">No production summary found for these filters</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- DAILY SUMMARY (BY DATE) -->
+          <div *ngIf="activeType === 'daily'" class="report-table-scroll">
+            <table class="report-table">
+              <thead>
+                <tr><th>Date</th><th>Total Quantity Produced</th><th>Total Production Cost</th><th>Total Runs</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of pagedDailySummaryRows">
+                  <td>{{ formatDisplayDate(row.date) }}</td>
+                  <td>{{ row.totalQty.toLocaleString('en-IN') }}</td>
+                  <td>{{ formatCurrencyFull(row.totalCost) }}</td>
+                  <td>{{ row.totalRuns }}</td>
+                </tr>
+                <tr *ngIf="pagedDailySummaryRows.length === 0"><td colspan="4" class="report-empty">No daily summary found for these filters</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- The Production Report, BOM and Cost Report tabs are clustered (by date / product) and carry their own pager. -->
+          <div *ngIf="activeType === 'consumption' || activeType === 'summary' || activeType === 'daily'" class="report-table-footer">
+            <span>Showing {{ rowRange.start }}–{{ rowRange.end }} of {{ activeRowCount }} items</span>
+            <div class="report-pagination">
+              <button (click)="prevPage()" [disabled]="pager.page === 1">
+                <ion-icon name="chevron-back-outline"></ion-icon>
+              </button>
+              <ng-container *ngFor="let p of pageNumbers">
+                <span *ngIf="p === '...'" class="report-pagination-ellipsis">…</span>
+                <button *ngIf="p !== '...'" [class.active]="p === pager.page" (click)="goToPage(p)">{{ p }}</button>
+              </ng-container>
+              <button (click)="nextPage()" [disabled]="pager.page === totalPageCount">
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+              </button>
+            </div>
+          </div>
+        </ng-container>
+      </section>
+    </div>
+
+</app-report-hero>

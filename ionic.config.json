@@ -1,0 +1,7 @@
+{
+  "name": "nayla-inventory-tool",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular"
+}

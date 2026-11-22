@@ -1,0 +1,248 @@
+<app-report-hero
+  toolbarAccent="Sales"
+  toolbarTitle="Reports"
+  eyebrow="Revenue Intelligence"
+  heroTitle="Sales Reports"
+  subtitle="Invoices, product mix and channel performance"
+  icon="trending-up-outline"
+  [lastUpdated]="lastUpdated"
+  [isBusy]="isLoading"
+  (refresh)="applyFilters()">
+
+    <div class="report-filters">
+      <div class="report-filter-field">
+        <label for="srFrom">From Date</label>
+        <input id="srFrom" type="date" [(ngModel)]="filters.dateFrom" />
+      </div>
+      <div class="report-filter-field">
+        <label for="srTo">To Date</label>
+        <input id="srTo" type="date" [(ngModel)]="filters.dateTo" />
+      </div>
+      <div class="report-filter-field">
+        <label for="srDealer">Dealer</label>
+        <select id="srDealer" [(ngModel)]="filters.dealer">
+          <option value="all">All Dealers</option>
+          <option *ngFor="let d of dealers" [value]="d">{{ d }}</option>
+        </select>
+      </div>
+      <div class="report-filter-field">
+        <label for="srDistributor">Distributor</label>
+        <select id="srDistributor" [(ngModel)]="filters.distributor">
+          <option value="all">All Distributors</option>
+          <option *ngFor="let d of distributors" [value]="d.id">{{ d.name }}</option>
+        </select>
+      </div>
+      <div class="report-filter-field">
+        <label for="srSalesperson">Salesperson</label>
+        <select id="srSalesperson" [(ngModel)]="filters.salesperson">
+          <option value="all">All Salespersons</option>
+          <option *ngFor="let s of salespersons" [value]="s.id">{{ s.name }}</option>
+        </select>
+      </div>
+      <div class="report-filter-actions">
+        <button class="report-btn report-btn-primary" (click)="applyFilters()">
+          <ion-icon name="checkmark-circle-outline"></ion-icon> Apply
+        </button>
+        <button class="report-btn report-btn-outline" (click)="resetFilters()">
+          <ion-icon name="refresh-outline"></ion-icon> Reset
+        </button>
+      </div>
+    </div>
+
+    <div *ngIf="!isLoading" class="report-stats">
+      <div class="report-stat-card">
+        <div class="report-stat-icon report-stat-icon-blue"><ion-icon name="cash-outline"></ion-icon></div>
+        <div>
+          <p class="report-stat-label">Total Sales</p>
+          <p class="report-stat-value">{{ formatCurrencyFull(totalSales) }}</p>
+        </div>
+      </div>
+      <div class="report-stat-card">
+        <div class="report-stat-icon report-stat-icon-amber"><ion-icon name="receipt-outline"></ion-icon></div>
+        <div>
+          <p class="report-stat-label">Total Invoices</p>
+          <p class="report-stat-value">{{ totalInvoices.toLocaleString('en-IN') }}</p>
+        </div>
+      </div>
+      <div class="report-stat-card">
+        <div class="report-stat-icon report-stat-icon-green"><ion-icon name="cube-outline"></ion-icon></div>
+        <div>
+          <p class="report-stat-label">Total Qty</p>
+          <p class="report-stat-value">{{ totalQty.toLocaleString('en-IN') }}</p>
+        </div>
+      </div>
+      <div class="report-stat-card">
+        <div class="report-stat-icon report-stat-icon-violet"><ion-icon name="trending-up-outline"></ion-icon></div>
+        <div>
+          <p class="report-stat-label">Avg Invoice Value</p>
+          <p class="report-stat-value">{{ formatCurrencyFull(avgInvoiceValue) }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <aside class="report-type-rail">
+        <p class="report-type-rail-title">Report Type</p>
+        <button [class.active]="activeType === 'register'" (click)="switchType('register')">Sales Register</button>
+        <button [class.active]="activeType === 'summary'" (click)="switchType('summary')">Sales Summary</button>
+        <button [class.active]="activeType === 'product'" (click)="switchType('product')">Product Wise Sales</button>
+        <button [class.active]="activeType === 'distributor'" (click)="switchType('distributor')">Distributor Wise Sales</button>
+        <button [class.active]="activeType === 'dealer'" (click)="switchType('dealer')">Dealer Wise Sales</button>
+        <button [class.active]="activeType === 'salesman'" (click)="switchType('salesman')">Salesman Performance</button>
+      </aside>
+
+      <section class="report-panel">
+        <div class="report-panel-header">
+          <h2 *ngIf="activeType === 'register'">Sales Register</h2>
+          <h2 *ngIf="activeType === 'summary'">Sales Summary — by Period</h2>
+          <h2 *ngIf="activeType === 'product'">Product Wise Sales</h2>
+          <h2 *ngIf="activeType === 'distributor'">Distributor Wise Sales</h2>
+          <h2 *ngIf="activeType === 'dealer'">Dealer Wise Sales</h2>
+          <h2 *ngIf="activeType === 'salesman'">Salesman Performance</h2>
+          <div class="report-filter-actions">
+            <button class="report-btn report-btn-outline report-btn-excel" (click)="exportExcel()">
+              <ion-icon name="grid-outline"></ion-icon> Export Excel
+            </button>
+            <button class="report-btn report-btn-outline report-btn-pdf" (click)="exportPdf()">
+              <ion-icon name="document-text-outline"></ion-icon> Export PDF
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="isLoading" class="report-empty">Loading…</div>
+
+        <ng-container *ngIf="!isLoading">
+          <!-- SALES REGISTER -->
+          <app-date-grouped-table *ngIf="activeType === 'register'"
+            heading="Sales Register"
+            [rows]="invoiceRows"
+            dateField="date"
+            countLabel="Invoices"
+            emptyText="No invoices found for these filters"
+            [summaryColumns]="invoiceSummaryColumns"
+            (exportExcel)="exportGroupExcel($event)"
+            (exportPdf)="exportGroupPdf($event)">
+            <ng-template #detail let-rows>
+              <table class="report-table report-table-sticky">
+                <thead><tr><th>Invoice No</th><th>Date</th><th>Customer</th><th>Invoice Status</th><th>Amount</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let row of rows">
+                    <td>{{ row.invoiceNo }}</td>
+                    <td>{{ formatDisplayDate(row.date) }}</td>
+                    <td>{{ row.customer }}</td>
+                    <td><span class="report-badge" [ngClass]="statusBadgeClass(row.invoiceStatus)">{{ row.invoiceStatus }}</span></td>
+                    <td>{{ formatCurrencyFull(row.grandTotal) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </ng-template>
+          </app-date-grouped-table>
+
+          <!-- SALES SUMMARY -->
+          <div *ngIf="activeType === 'summary'" class="report-table-scroll">
+            <table class="report-table">
+              <thead><tr><th>Period</th><th>Total Sales</th><th>Total Invoices</th><th>Total Qty</th><th>Avg Invoice Value</th><th>Total Weight (Kg)</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let row of pagedSummaryRows">
+                  <td>{{ row.label }}</td>
+                  <td>{{ formatCurrencyFull(row.totalSales) }}</td>
+                  <td>{{ row.totalInvoices }}</td>
+                  <td>{{ row.totalQty.toLocaleString('en-IN') }}</td>
+                  <td>{{ formatCurrencyFull(row.avgInvoiceValue) }}</td>
+                  <td>{{ row.totalWeight.toLocaleString('en-IN') }}</td>
+                </tr>
+                <tr *ngIf="pagedSummaryRows.length === 0"><td colspan="6" class="report-empty">No sales data found for these filters</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- PRODUCT WISE SALES -->
+          <div *ngIf="activeType === 'product'" class="report-table-scroll">
+            <table class="report-table">
+              <thead><tr><th>Rank</th><th>Product</th><th>Qty Sold</th><th>Invoices</th><th>Revenue</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let row of pagedProductRows">
+                  <td>{{ row.rank }}</td>
+                  <td>{{ row.product }}</td>
+                  <td>{{ row.qtySold.toLocaleString('en-IN') }}</td>
+                  <td>{{ row.invoiceCount.toLocaleString('en-IN') }}</td>
+                  <td>{{ formatCurrencyFull(row.revenue) }}</td>
+                </tr>
+                <tr *ngIf="pagedProductRows.length === 0"><td colspan="5" class="report-empty">No product sales found for these filters</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- DISTRIBUTOR WISE SALES -->
+          <div *ngIf="activeType === 'distributor'" class="report-table-scroll">
+            <table class="report-table">
+              <thead><tr><th>Distributor</th><th>Orders</th><th>Qty</th><th>Weight (Kg)</th><th>Revenue</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let row of pagedDistributorRows">
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.orders }}</td>
+                  <td>{{ row.qty.toLocaleString('en-IN') }}</td>
+                  <td>{{ row.weightKg.toLocaleString('en-IN') }}</td>
+                  <td>{{ formatCurrencyFull(row.revenue) }}</td>
+                </tr>
+                <tr *ngIf="pagedDistributorRows.length === 0"><td colspan="5" class="report-empty">No distributor sales found for these filters</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- DEALER WISE SALES -->
+          <div *ngIf="activeType === 'dealer'" class="report-table-scroll">
+            <table class="report-table">
+              <thead><tr><th>Dealer</th><th>Distributor</th><th>Orders</th><th>Qty</th><th>Weight (Kg)</th><th>Revenue</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let row of pagedDealerRows">
+                  <td>{{ row.name }}</td>
+                  <td>{{ row.distributor }}</td>
+                  <td>{{ row.orders }}</td>
+                  <td>{{ row.qty.toLocaleString('en-IN') }}</td>
+                  <td>{{ row.weightKg.toLocaleString('en-IN') }}</td>
+                  <td>{{ formatCurrencyFull(row.revenue) }}</td>
+                </tr>
+                <tr *ngIf="pagedDealerRows.length === 0"><td colspan="6" class="report-empty">No dealer sales found for these filters</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- SALESMAN PERFORMANCE -->
+          <div *ngIf="activeType === 'salesman'" class="report-table-scroll">
+            <table class="report-table">
+              <thead><tr><th>Salesperson Name</th><th>Order Count</th><th>Total Qty (Kg)</th><th>Total Qty (Tons)</th><th>Total Value</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let row of pagedSalesmanRows">
+                  <td>{{ row.salespersonName }}</td>
+                  <td>{{ row.orderCount }}</td>
+                  <td>{{ row.totalQuantityKg.toLocaleString('en-IN') }}</td>
+                  <td>{{ row.totalQuantityTons.toLocaleString('en-IN') }}</td>
+                  <td>{{ formatCurrencyFull(row.totalValue) }}</td>
+                </tr>
+                <tr *ngIf="pagedSalesmanRows.length === 0"><td colspan="5" class="report-empty">No salesman data found for these filters</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- The Sales Register carries its own pager (it's grouped by date); this one serves the other tabs. -->
+          <div *ngIf="activeType !== 'register'" class="report-table-footer">
+            <span>Showing {{ rowRange.start }}–{{ rowRange.end }} of {{ activeRowCount.toLocaleString('en-IN') }} items</span>
+            <div class="report-pagination">
+              <button (click)="prevPage()" [disabled]="pager.page === 1">
+                <ion-icon name="chevron-back-outline"></ion-icon>
+              </button>
+              <ng-container *ngFor="let p of pageNumbers">
+                <span *ngIf="p === '...'" class="report-pagination-ellipsis">…</span>
+                <button *ngIf="p !== '...'" [class.active]="p === pager.page" (click)="goToPage(p)">{{ p }}</button>
+              </ng-container>
+              <button (click)="nextPage()" [disabled]="pager.page === totalPageCount">
+                <ion-icon name="chevron-forward-outline"></ion-icon>
+              </button>
+            </div>
+          </div>
+        </ng-container>
+      </section>
+    </div>
+
+</app-report-hero>

@@ -1,0 +1,2912 @@
+<ion-content class="ion-no-padding" style="--background: #0d1117; --overflow: hidden;">
+  <div style="height: 100%; overflow-y: auto; overflow-x: hidden;">
+
+  <!-- ===== ORDERS VIEW ===== -->
+  <div *ngIf="activeOperationView === 'orders'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">My Orders</h1>
+        <p class="text-xs text-slate-500">Track all your placed orders</p>
+      </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div *ngIf="isLoadingOrders" class="flex justify-center items-center py-12">
+      <span class="text-slate-400">Loading orders...</span>
+    </div>
+
+    <!-- Orders List -->
+    <div *ngIf="!isLoadingOrders && orders.length > 0" class="flex flex-col gap-3">
+      <div *ngFor="let order of orders" class="rounded-xl overflow-hidden transition-all" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        
+        <!-- Order Header -->
+        <button (click)="toggleOrderDetails(order.id)" class="w-full flex items-center justify-between p-4" style="background: transparent;">
+          <div class="flex items-center gap-4 flex-1">
+            <!-- Order Number -->
+            <div class="text-left flex-1">
+              <p class="font-bold text-white text-sm">Order #{{ order.id }}</p>
+              <p class="text-xs text-slate-500 mt-1">{{ formatDate(order.createdAt) }}</p>
+            </div>
+
+            <!-- Items Count -->
+            <div class="text-center">
+              <p class="text-white font-semibold">{{ order.cartItems.length }}</p>
+              <p class="text-xs text-slate-500">Items</p>
+            </div>
+
+            <!-- Status Badge -->
+            <div [class]="getStatusColorClass(order.status)" class="px-3 py-1 rounded-full text-xs font-semibold border">
+              {{ order.status === 'PAYMENT_APPROVED' ? 'Payment Approved' : order.status }}
+            </div>
+
+            <!-- Total Amount -->
+            <div class="text-right min-w-max">
+              <p class="text-white font-bold">{{ formatAmount(order.totalCartAmount) }}</p>
+            </div>
+          </div>
+          
+          <!-- Expand Icon -->
+          <ion-icon [name]="expandedOrderId === order.id ? 'chevron-up-outline' : 'chevron-down-outline'"
+                    class="text-slate-500 text-lg ml-3 flex-shrink-0"></ion-icon>
+        </button>
+
+        <!-- Order Details -->
+        <div *ngIf="expandedOrderId === order.id" class="px-4 pb-4" style="border-top: 1px solid rgba(255,255,255,0.06);">
+          
+          <!-- Order Items -->
+          <div class="mt-4 space-y-2">
+            <p class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Order Items</p>
+            <div *ngFor="let item of order.cartItems" class="rounded-lg p-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+              <div class="flex items-center justify-between">
+                <div class="flex-1">
+                  <p class="text-white font-semibold text-sm">{{ item.itemName }}</p>
+                  <p class="text-xs text-slate-500 mt-1">SKU: {{ item.itemSku }}</p>
+                </div>
+                <div class="text-right ml-4">
+                  <p class="text-white font-semibold text-sm">{{ item.quantity }}x @ {{ formatAmount(item.priceAtTime) }}</p>
+                  <p class="text-xs text-slate-400 mt-1">{{ formatAmount(item.totalPrice) }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Order Meta -->
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <div class="rounded-lg p-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+              <p class="text-xs text-slate-500">Created</p>
+              <p class="text-white font-semibold text-sm mt-1">{{ formatDate(order.createdAt) }}</p>
+            </div>
+            <div class="rounded-lg p-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+              <p class="text-xs text-slate-500">Last Updated</p>
+              <p class="text-white font-semibold text-sm mt-1">{{ formatDate(order.updatedAt) }}</p>
+            </div>
+          </div>
+
+          <!-- Salesperson Info -->
+          <div *ngIf="order.salespersonName" class="mt-3 rounded-lg p-3" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+            <p class="text-xs text-slate-500">Assigned to</p>
+            <p class="text-white font-semibold text-sm mt-1">{{ order.salespersonName }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoadingOrders && orders.length === 0" class="text-center py-12">
+      <ion-icon name="cart-outline" class="text-slate-600 text-5xl mb-3 block"></ion-icon>
+      <p class="text-slate-400 font-semibold">No orders found</p>
+      <p class="text-slate-600 text-sm mt-1">Your orders will appear here</p>
+    </div>
+  </div>
+
+  <!-- ===== OPERATION DETAIL VIEWS =====
+
+  <!-- ==================== PAYMENT REPORT VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'payment-report'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Payment Report</h1>
+        <p class="text-xs text-slate-500">Track all payments & collections</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button (click)="openAddPaymentModal()" class="px-4 h-10 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold text-white" style="background: linear-gradient(135deg, #10b981, #14b8a6); border: 1px solid rgba(16,185,129,0.35); box-shadow: 0 10px 24px rgba(16,185,129,0.16);">
+          <ion-icon name="add-outline" class="text-base"></ion-icon>
+          Add Payment
+        </button>
+        <button class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+          <ion-icon name="funnel-outline" class="text-slate-400 text-lg"></ion-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Date Range -->
+    <div class="flex items-center gap-2 mb-4 rounded-xl px-4 py-3" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <ion-icon name="calendar-outline" class="text-emerald-400 text-lg"></ion-icon>
+      <span class="text-sm text-slate-300 font-medium">{{ dateRange }}</span>
+    </div>
+
+    <!-- Filter Pills -->
+    <div class="flex gap-2 mb-5 overflow-x-auto pb-1">
+      <button class="px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap"
+              [style.background]="paymentFilter === 'all' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'"
+              [style.border]="paymentFilter === 'all' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.08)'"
+              [style.color]="paymentFilter === 'all' ? '#4ade80' : '#94a3b8'"
+              (click)="paymentFilter = 'all'">All Status</button>
+      <button class="px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap"
+              [style.background]="paymentFilter === 'cleared' ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.05)'"
+              [style.border]="paymentFilter === 'cleared' ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.08)'"
+              [style.color]="paymentFilter === 'cleared' ? '#4ade80' : '#94a3b8'"
+              (click)="paymentFilter = 'cleared'">Cleared</button>
+      <button class="px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap"
+              [style.background]="paymentFilter === 'process' ? 'rgba(245,158,11,0.2)' : 'rgba(255,255,255,0.05)'"
+              [style.border]="paymentFilter === 'process' ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(255,255,255,0.08)'"
+              [style.color]="paymentFilter === 'process' ? '#fbbf24' : '#94a3b8'"
+              (click)="paymentFilter = 'process'">In Process</button>
+      <button class="px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap"
+              [style.background]="paymentFilter === 'neft' ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)'"
+              [style.border]="paymentFilter === 'neft' ? '1px solid rgba(59,130,246,0.4)' : '1px solid rgba(255,255,255,0.08)'"
+              [style.color]="paymentFilter === 'neft' ? '#60a5fa' : '#94a3b8'"
+              (click)="paymentFilter = 'neft'">NEFT</button>
+    </div>
+
+    <!-- Total Collections Card -->
+    <div class="rounded-2xl p-5 mb-5 relative overflow-hidden"
+         style="background: rgba(16,185,129,0.08); border: 1.5px solid rgba(16,185,129,0.25); backdrop-filter: blur(16px); box-shadow: 0 0 30px rgba(16,185,129,0.08), inset 0 1px 0 rgba(255,255,255,0.05);">
+      <!-- Chart decoration -->
+      <div class="absolute bottom-0 left-0 right-0 opacity-20">
+        <svg width="100%" height="80" viewBox="0 0 400 80" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#10b981" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="M0,60 Q40,50 80,45 T160,30 T240,35 T320,20 T400,10 L400,80 L0,80 Z" fill="url(#chartGrad)"/>
+          <polyline fill="none" stroke="#10b981" stroke-width="2" points="0,60 40,50 80,45 120,38 160,30 200,33 240,35 280,25 320,20 360,15 400,10"/>
+        </svg>
+      </div>
+      <div class="relative z-10">
+        <div class="flex items-center gap-2 mb-1">
+          <ion-icon name="wallet-outline" class="text-emerald-400 text-lg"></ion-icon>
+          <p class="text-xs font-semibold text-emerald-400 uppercase tracking-widest">Total Collections</p>
+        </div>
+        <p class="text-4xl font-extrabold text-white tracking-tight mb-2">{{ totalCollections }}</p>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1 px-2 py-0.5 rounded-full" style="background: rgba(16,185,129,0.2);">
+            <ion-icon name="trending-up-outline" class="text-emerald-400 text-xs"></ion-icon>
+            <span class="text-xs font-bold text-emerald-400">{{ collectionGrowth }}</span>
+          </div>
+          <span class="text-xs text-slate-500">vs last month</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Transaction List -->
+    <div class="mb-2">
+      <h3 class="text-sm font-bold text-white mb-3">Recent Transactions</h3>
+    </div>
+    <div *ngIf="isLoadingPaymentCollections" class="rounded-2xl p-6 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <ion-spinner name="crescent" style="color: #10b981;"></ion-spinner>
+      <p class="text-xs text-slate-500 mt-2">Loading transactions...</p>
+    </div>
+    <div *ngIf="!isLoadingPaymentCollections && paymentCollections.length === 0" class="rounded-2xl p-6 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <ion-icon name="wallet-outline" class="text-slate-600 text-4xl mb-2 block"></ion-icon>
+      <p class="text-sm text-slate-400 font-semibold">No transactions found</p>
+    </div>
+    <div class="flex flex-col gap-3">
+      <ng-container *ngFor="let payment of paymentCollections | slice:0:10">
+        <div *ngIf="paymentFilter === 'all' || (paymentFilter === 'cleared' && payment.status === 'LEDGER_UPDATED') || (paymentFilter === 'process' && payment.status === 'PENDING') || (paymentFilter === 'neft' && payment.paymentMethod === 'NEFT')"
+             class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(12px);">
+          <div class="flex items-start justify-between mb-2">
+            <div>
+              <p class="text-sm font-bold text-white">{{ formatAmount(payment.amount) }}</p>
+              <p class="text-xs text-slate-500 mt-0.5">{{ payment.createdAt | date: 'MMM dd, yyyy' }}</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold"
+                  [style.background]="payment.transactionType === 'CREDIT' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)'"
+                  [style.color]="payment.transactionType === 'CREDIT' ? '#10b981' : '#ef4444'">{{ payment.transactionType }}</span>
+          </div>
+          <div class="flex items-center justify-between pt-2" style="border-top: 1px solid rgba(255,255,255,0.06);">
+            <span class="text-xs text-slate-500 font-mono">ID: {{ payment.paymentId }}</span>
+            <span class="text-xs font-medium px-2 py-0.5 rounded" style="background: rgba(255,255,255,0.06); color: #94a3b8;">{{ payment.paymentMethod || payment.status }}</span>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+  </div>
+
+  <!-- ==================== COLLECTION STATUS VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'collection-status'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Collection Status</h1>
+        <p class="text-xs text-slate-500">Track collection progress</p>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 gap-3 mb-5">
+      <div class="rounded-2xl p-4" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);">
+        <p class="text-xs text-emerald-400 font-semibold mb-1">Collected</p>
+        <p class="text-2xl font-extrabold text-white">₹{{ totalCollectionAmount | number:'1.0-0' }}</p>
+        <p class="text-xs text-slate-500 mt-1">{{ paymentCollections.length }} payment(s)</p>
+      </div>
+      <div class="rounded-2xl p-4" style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);">
+        <p class="text-xs text-amber-400 font-semibold mb-1">Pending Orders</p>
+        <p class="text-2xl font-extrabold text-white">{{ pendingOrdersCount }}</p>
+        <p class="text-xs text-slate-500 mt-1">Outstanding</p>
+      </div>
+    </div>
+
+    <!-- Collection List -->
+    <h3 class="text-sm font-bold text-white mb-3">Collection Entries</h3>
+    <div *ngIf="isLoadingPaymentCollections" class="flex justify-center py-8">
+      <ion-spinner name="crescent" color="primary"></ion-spinner>
+    </div>
+    <div *ngIf="!isLoadingPaymentCollections && paymentCollections.length === 0" class="rounded-2xl p-6 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <p class="text-slate-500 text-sm">No collection entries found</p>
+    </div>
+    <div class="flex flex-col gap-3">
+      <div *ngFor="let p of paymentCollections" class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="flex items-center justify-between mb-1">
+          <p class="text-sm font-bold text-white">₹{{ p.amount | number:'1.2-2' }}</p>
+          <span class="px-2.5 py-1 rounded-full text-xs font-semibold" [style.background]="getStatusBg(p.status)" [style.color]="getStatusColor(p.status)">{{ p.status }}</span>
+        </div>
+        <p class="text-xs text-slate-500">{{ p.paymentDate | date:'MMM d' }} · {{ p.paymentMode ?? p.mode ?? 'N/A' }} · {{ p.referenceNumber ?? p.invoiceNumber ?? '' }}</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MY PAYMENTS VIEW (Ledger Updated Payments) ==================== -->
+  <div *ngIf="activeOperationView === 'collections'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">My Payments</h1>
+        <p class="text-xs text-green-400">All cleared & settled payments</p>
+      </div>
+    </div>
+
+    <!-- Total Collections Card -->
+    <div class="rounded-2xl p-5 mb-5" style="background: rgba(34,197,94,0.08); border: 1.5px solid rgba(34,197,94,0.25);">
+      <p class="text-xs text-green-400 font-semibold uppercase tracking-widest mb-1">Total Collections</p>
+      <p class="text-4xl font-extrabold text-white tracking-tight mb-2">₹{{ totalCollectionAmount | number:'1.2-2' }}</p>
+      <p class="text-xs text-slate-500 mt-1">{{ paymentCollections.length }} payment(s) collected</p>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoadingPaymentCollections" class="rounded-2xl p-8 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <ion-spinner name="crescent" style="color: #22c55e; width: 50px; height: 50px; margin: 0 auto;"></ion-spinner>
+      <p class="text-sm text-slate-400 mt-4">Loading collections...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoadingPaymentCollections && paymentCollections.length === 0" class="rounded-2xl p-8 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <ion-icon name="wallet-outline" style="font-size: 48px; color: #64748b; opacity: 0.5;"></ion-icon>
+      <p class="text-sm font-bold text-slate-400 mt-4">No Collections</p>
+      <p class="text-xs text-slate-600 mt-1">No cleared payments found</p>
+    </div>
+
+    <!-- Collections List -->
+    <div *ngIf="!isLoadingPaymentCollections && paymentCollections.length > 0" class="space-y-3">
+      <div *ngFor="let payment of paymentCollections" class="rounded-2xl p-4 flex items-center justify-between" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(12px);">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.25);">
+            <ion-icon *ngIf="payment.transactionType === 'CREDIT'" name="arrow-down-outline" style="color: #22c55e; font-size: 20px;"></ion-icon>
+            <ion-icon *ngIf="payment.transactionType === 'DEBIT'" name="arrow-up-outline" style="color: #ef4444; font-size: 20px;"></ion-icon>
+          </div>
+          <div>
+            <p class="font-bold text-white text-sm">{{ payment.description }}</p>
+            <p class="text-xs text-slate-500 mt-0.5">{{ payment.createdAt | date: 'MMM dd, yyyy · HH:mm' }}</p>
+            <p class="text-xs text-slate-600 mt-1">
+              <span [style]="payment.transactionType === 'CREDIT' ? 'color: #22c55e' : 'color: #ef4444'">
+                <strong>{{ payment.transactionType }}</strong> · ID: {{ payment.paymentId }}
+              </span>
+            </p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-xl font-extrabold" [style]="payment.transactionType === 'CREDIT' ? 'color: #22c55e' : 'color: #ef4444'">
+            {{ payment.transactionType === 'CREDIT' ? '+' : '-' }}₹{{ payment.amount | number:'1.2-2' }}
+          </p>
+          <p class="text-xs text-slate-500 mt-1" style="color: #10b981;">
+            <strong>{{ payment.status }}</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DISPATCH REPORT VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'dispatch-report'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Dispatch Report</h1>
+        <p class="text-xs text-slate-500">View orders dispatch & delivery status</p>
+      </div>
+    </div>
+
+    <!-- Dispatch Status Summary -->
+    <div class="grid grid-cols-3 gap-3 mb-5">
+      <div class="rounded-2xl p-4 text-center" style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);">
+        <p class="text-2xl font-extrabold text-amber-400">{{ dispatchReportCounts?.pending ?? pendingOrdersCount }}</p>
+        <p class="text-xs text-slate-500">Pending</p>
+      </div>
+      <div class="rounded-2xl p-4 text-center" style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);">
+        <p class="text-2xl font-extrabold text-blue-400">{{ dispatchReportCounts?.dispatched ?? dispatchedCount }}</p>
+        <p class="text-xs text-slate-500">Dispatched</p>
+      </div>
+      <div class="rounded-2xl p-4 text-center" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);">
+        <p class="text-2xl font-extrabold text-emerald-400">{{ dispatchReportCounts?.delivered ?? deliveredCount }}</p>
+        <p class="text-xs text-slate-500">Delivered</p>
+      </div>
+    </div>
+
+    <h3 class="text-sm font-bold text-white mb-3">Orders Status</h3>
+    <div *ngIf="isLoadingOrders" class="flex justify-center py-8">
+      <ion-spinner name="crescent" color="primary"></ion-spinner>
+    </div>
+    <div *ngIf="!isLoadingOrders && orders.length === 0" class="rounded-2xl p-6 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <p class="text-slate-500 text-sm">No orders found</p>
+    </div>
+    <div class="flex flex-col gap-3">
+      <div *ngFor="let o of orders" class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-bold text-white">{{ 'ORD-' + o.id }}</p>
+          <span class="px-2.5 py-1 rounded-full text-xs font-semibold"
+            [style.background]="getDispatchBg(o.status)"
+            [style.color]="getDispatchColor(o.status)">{{ getDispatchLabel(o.status) }}</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-2">{{ o.cartItems.length }} items · ₹{{ o.totalCartAmount | number:'1.0-0' }}</p>
+        <div class="flex items-center gap-2" style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+          <ion-icon [name]="getDispatchIcon(o.status)"
+            [class]="getDispatchColor(o.status) === '#10b981' ? 'text-emerald-400 text-sm' : getDispatchColor(o.status) === '#3b82f6' ? 'text-blue-400 text-sm' : 'text-amber-400 text-sm'"></ion-icon>
+          <p class="text-xs text-slate-500">{{ o.createdAt | date:'MMM d, y' }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PENDING REPORT VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'pending-report'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Pending Report</h1>
+        <p class="text-xs text-slate-500">Pending orders summary</p>
+      </div>
+      <button class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="download-outline" class="text-slate-400 text-lg"></ion-icon>
+      </button>
+    </div>
+
+    <div class="rounded-2xl p-5 mb-5" style="background: rgba(59,130,246,0.08); border: 1.5px solid rgba(59,130,246,0.25);">
+      <p class="text-xs text-blue-400 font-semibold uppercase tracking-widest mb-1">Total Pending Orders</p>
+      <p class="text-4xl font-extrabold text-white tracking-tight">{{ pendingReportOrders.length }}</p>
+      <p class="text-xs text-slate-500 mt-1">Pending orders · Updated today</p>
+    </div>
+
+    <h3 class="text-sm font-bold text-white mb-3">Pending Orders</h3>
+    <div *ngIf="isLoadingOrders" class="flex justify-center py-8">
+      <ion-spinner name="crescent" color="primary"></ion-spinner>
+    </div>
+    <div *ngIf="!isLoadingOrders && pendingReportOrders.length === 0" class="rounded-2xl p-6 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <p class="text-slate-500 text-sm">No pending orders</p>
+    </div>
+    <div class="flex flex-col gap-3">
+      <div *ngFor="let o of pendingReportOrders" class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-sm font-bold text-white">{{ 'ORD-' + o.id }}</p>
+          <span class="px-2.5 py-1 rounded-full text-xs font-semibold"
+            [style.background]="getDispatchBg(o.status)"
+            [style.color]="getDispatchColor(o.status)">{{ getDispatchLabel(o.status) }}</span>
+        </div>
+        <p class="text-xs text-slate-500 mb-2">{{ o.cartItems.length }} items · ₹{{ o.totalCartAmount | number:'1.0-0' }}</p>
+        <div class="flex items-center gap-2" style="border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px;">
+          <ion-icon [name]="getDispatchIcon(o.status)" class="text-amber-400 text-sm"></ion-icon>
+          <p class="text-xs text-slate-500">{{ o.createdAt | date:'MMM d, y' }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SALES REPORT VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'sales-report'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Sales Report</h1>
+        <p class="text-xs text-slate-500">Monthly sales analysis</p>
+      </div>
+      <button class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="download-outline" class="text-slate-400 text-lg"></ion-icon>
+      </button>
+    </div>
+
+    <!-- Sales Overview Card -->
+    <div class="rounded-2xl p-5 mb-5 relative overflow-hidden"
+         style="background: rgba(59,130,246,0.08); border: 1.5px solid rgba(59,130,246,0.25); backdrop-filter: blur(16px);">
+      <div class="absolute bottom-0 left-0 right-0 opacity-20">
+        <svg width="100%" height="70" viewBox="0 0 400 70" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+          <path d="M0,50 Q50,45 100,35 T200,25 T300,30 T400,15 L400,70 L0,70 Z" fill="url(#salesGrad)"/>
+          <polyline fill="none" stroke="#3b82f6" stroke-width="2" points="0,50 50,45 100,35 150,30 200,25 250,28 300,30 350,20 400,15"/>
+        </svg>
+      </div>
+      <div class="relative z-10">
+        <div class="flex items-center gap-2 mb-1">
+          <ion-icon name="stats-chart-outline" class="text-blue-400 text-lg"></ion-icon>
+          <p class="text-xs font-semibold text-blue-400 uppercase tracking-widest">Total Sales MTD</p>
+        </div>
+        <p class="text-4xl font-extrabold text-white tracking-tight mb-2">₹{{ (volumeAnalytics?.totalAmount ?? 0) | number:'1.0-0' }}</p>
+        <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1 px-2 py-0.5 rounded-full" style="background: rgba(16,185,129,0.2);">
+            <ion-icon name="trending-up-outline" class="text-emerald-400 text-xs"></ion-icon>
+            <span class="text-xs font-bold text-emerald-400">{{ volumeAnalytics?.totalOrders ?? 0 }} orders</span>
+          </div>
+          <span class="text-xs text-slate-500">total orders</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-5">
+      <div class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-xs text-slate-500 mb-1">Volume MTD</p>
+        <p class="font-bold text-white" style="font-size: clamp(14px,4vw,20px); word-break:break-all;">{{ (volumeAnalytics?.monthToDate?.totalVolumeTons ?? 0) | number:'1.0-2' }} Tons</p>
+      </div>
+      <div class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-xs text-slate-500 mb-1">Volume YTD</p>
+        <p class="font-bold text-white" style="font-size: clamp(14px,4vw,20px); word-break:break-all;">{{ (volumeAnalytics?.yearToDate?.totalVolumeTons ?? 0) | number:'1.0-2' }} Tons</p>
+      </div>
+    </div>
+
+    <h3 class="text-sm font-bold text-white mb-3">Volume by Category</h3>
+    <div class="flex flex-col gap-3">
+      <ng-container *ngIf="volumeAnalytics?.volumeByCategory">
+        <div *ngFor="let cat of volumeAnalytics!.volumeByCategory | keyvalue" class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+          <div class="flex justify-between items-center mb-2">
+            <p class="text-sm font-bold text-white">{{ cat.key }}</p>
+            <p class="text-sm font-bold text-blue-400">{{ cat.value }} orders</p>
+          </div>
+        </div>
+      </ng-container>
+      <div *ngIf="!volumeAnalytics?.volumeByCategory" class="rounded-2xl p-6 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-slate-500 text-sm">No category data available</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ACCOUNT SERVICES VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'account-services'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Account Services</h1>
+        <p class="text-xs" style="color: #d4a24e;">Manage your account & settings</p>
+      </div>
+    </div>
+
+    <!-- Distributor Info Card -->
+    <div class="rounded-2xl p-5 mb-5"
+         style="background: rgba(212,162,78,0.08); border: 1.5px solid rgba(212,162,78,0.25); backdrop-filter: blur(16px);">
+      <!-- Loading skeleton -->
+      <div *ngIf="isLoadingProfile" class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl animate-pulse" style="background: rgba(212,162,78,0.15);"></div>
+        <div class="flex-1 space-y-2">
+          <div class="h-4 rounded animate-pulse" style="background: rgba(255,255,255,0.08); width: 60%;"></div>
+          <div class="h-3 rounded animate-pulse" style="background: rgba(255,255,255,0.05); width: 40%;"></div>
+        </div>
+      </div>
+      <!-- Profile data -->
+      <div *ngIf="!isLoadingProfile" class="flex items-start gap-4">
+        <div class="w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center" style="background: rgba(212,162,78,0.15); border: 1px solid rgba(212,162,78,0.3);">
+          <ion-icon name="person-circle-outline" style="font-size: 32px; color: #d4a24e;"></ion-icon>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-lg font-bold text-white truncate">{{ distributorProfile?.distributorName ?? distributorProfile?.name ?? distributorProfile?.firmName ?? distributorName }}</p>
+          <p class="text-xs font-mono mt-0.5" style="color: #d4a24e;">{{ distributorProfile?.distributorCode ?? ('ID: ' + distributorId) }}</p>
+          <p class="text-xs text-slate-500 mt-0.5">Active Distributor</p>
+          <!-- Extra fields from API -->
+          <div *ngIf="distributorProfile" class="mt-3 flex flex-col gap-1.5">
+            <div *ngIf="distributorProfile.mobileNumber || distributorProfile.phone" class="flex items-center gap-2">
+              <ion-icon name="call-outline" class="text-slate-400" style="font-size: 13px; flex-shrink: 0;"></ion-icon>
+              <p class="text-xs text-slate-300">{{ distributorProfile.mobileNumber ?? distributorProfile.phone }}</p>
+            </div>
+            <div *ngIf="distributorProfile.email" class="flex items-center gap-2">
+              <ion-icon name="mail-outline" class="text-slate-400" style="font-size: 13px; flex-shrink: 0;"></ion-icon>
+              <p class="text-xs text-slate-300 truncate">{{ distributorProfile.email }}</p>
+            </div>
+            <div *ngIf="distributorProfile.address" class="flex items-center gap-2">
+              <ion-icon name="location-outline" class="text-slate-400" style="font-size: 13px; flex-shrink: 0;"></ion-icon>
+              <p class="text-xs text-slate-300">{{ distributorProfile.address }}{{ distributorProfile.city ? ', ' + distributorProfile.city : '' }}{{ distributorProfile.state ? ', ' + distributorProfile.state : '' }}</p>
+            </div>
+            <div *ngIf="distributorProfile.gstNumber" class="flex items-center gap-2">
+              <ion-icon name="document-text-outline" class="text-slate-400" style="font-size: 13px; flex-shrink: 0;"></ion-icon>
+              <p class="text-xs text-slate-300 font-mono">GST: {{ distributorProfile.gstNumber }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Menu Items -->
+    <div class="flex flex-col gap-3">
+      <!-- Credit Limit Info -->
+      <button (click)="openOperationView('credit-limit')" class="w-full rounded-2xl p-4 flex items-center gap-4 text-left"
+              style="background: rgba(20,184,166,0.08); border: 1.5px solid rgba(20,184,166,0.2); backdrop-filter: blur(12px);">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: rgba(20,184,166,0.15); border: 1px solid rgba(20,184,166,0.25);">
+          <ion-icon name="card-outline" class="text-teal-400 text-xl"></ion-icon>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-white text-sm">Credit Limit Info</p>
+          <p class="text-xs text-slate-500">Check your credit limit & usage</p>
+        </div>
+        <ion-icon name="chevron-forward-outline" class="text-slate-500 text-lg"></ion-icon>
+      </button>
+
+      <!-- Payment Collections -->
+      <button (click)="openOperationView('payment-collections')" class="w-full rounded-2xl p-4 flex items-center gap-4 text-left"
+              style="background: rgba(34,197,94,0.08); border: 1.5px solid rgba(34,197,94,0.2); backdrop-filter: blur(12px);">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.25);">
+          <ion-icon name="cash-outline" class="text-green-400 text-xl"></ion-icon>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-white text-sm">Payment Collections</p>
+          <p class="text-xs text-slate-500">View cleared payments & transactions</p>
+        </div>
+        <ion-icon name="chevron-forward-outline" class="text-slate-500 text-lg"></ion-icon>
+      </button>
+
+      <!-- Bank Account Details -->
+      <button (click)="openOperationView('bank-details')" class="w-full rounded-2xl p-4 flex items-center gap-4 text-left"
+              style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(12px);">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.2);">
+          <ion-icon name="business-outline" class="text-blue-400 text-xl"></ion-icon>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-white text-sm">Bank Account Details</p>
+          <p class="text-xs text-slate-500">View bank & payment details</p>
+        </div>
+        <ion-icon name="chevron-forward-outline" class="text-slate-500 text-lg"></ion-icon>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- ==================== PROFILE SETTINGS VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'profile-settings'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="openOperationView('account-services')" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Profile Settings</h1>
+        <p class="text-xs text-purple-400">Your account information</p>
+      </div>
+    </div>
+    <div *ngIf="isLoadingProfile" class="flex justify-center py-10">
+      <ion-spinner name="crescent" style="color: #a855f7;"></ion-spinner>
+    </div>
+    <div *ngIf="!isLoadingProfile" class="flex flex-col gap-3">
+      <div class="rounded-2xl p-5" style="background: rgba(168,85,247,0.06); border: 1.5px solid rgba(168,85,247,0.2);">
+        <div class="flex items-center gap-4 mb-4">
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center" style="background: rgba(168,85,247,0.15); border: 1px solid rgba(168,85,247,0.3);">
+            <ion-icon name="person-circle-outline" style="font-size: 32px; color: #a855f7;"></ion-icon>
+          </div>
+          <div>
+            <p class="text-lg font-bold text-white">{{ distributorProfile?.distributorName ?? distributorProfile?.name ?? distributorProfile?.firmName ?? distributorName }}</p>
+            <p class="text-xs font-mono" style="color: #a855f7;">ID: {{ distributorId }}</p>
+          </div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div *ngIf="distributorProfile?.mobileNumber || distributorProfile?.phone" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="call-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">Mobile</p>
+              <p class="text-sm text-white font-medium">{{ distributorProfile?.mobileNumber ?? distributorProfile?.phone }}</p>
+            </div>
+          </div>
+          <div *ngIf="distributorProfile?.email" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="mail-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">Email</p>
+              <p class="text-sm text-white font-medium">{{ distributorProfile?.email }}</p>
+            </div>
+          </div>
+          <div *ngIf="distributorProfile?.address" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="location-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">Address</p>
+              <p class="text-sm text-white font-medium">{{ distributorProfile?.address }}{{ distributorProfile?.city ? ', ' + distributorProfile?.city : '' }}{{ distributorProfile?.state ? ', ' + distributorProfile?.state : '' }}</p>
+            </div>
+          </div>
+          <div *ngIf="distributorProfile?.gstNumber" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="document-text-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">GST Number</p>
+              <p class="text-sm text-white font-mono">{{ distributorProfile?.gstNumber }}</p>
+            </div>
+          </div>
+          <div *ngIf="distributorProfile?.panNumber" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="card-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">PAN Number</p>
+              <p class="text-sm text-white font-mono">{{ distributorProfile?.panNumber }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== BANK ACCOUNT DETAILS VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'bank-details'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="openOperationView('account-services')" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Bank Account Details</h1>
+        <p class="text-xs text-blue-400">Your registered bank information</p>
+      </div>
+    </div>
+    <div *ngIf="isLoadingProfile" class="flex justify-center py-10">
+      <ion-spinner name="crescent" style="color: #3b82f6;"></ion-spinner>
+    </div>
+    <div *ngIf="!isLoadingProfile" class="flex flex-col gap-3">
+      <div class="rounded-2xl p-5" style="background: rgba(59,130,246,0.06); border: 1.5px solid rgba(59,130,246,0.2);">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.25);">
+            <ion-icon name="business-outline" class="text-blue-400 text-xl"></ion-icon>
+          </div>
+          <p class="text-sm font-bold text-white">Primary Bank Account</p>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div *ngIf="distributorProfile?.accountName" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="person-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">Account Name</p>
+              <p class="text-sm text-white font-medium">{{ distributorProfile?.accountName }}</p>
+            </div>
+          </div>
+          <div *ngIf="distributorProfile?.accountNumber" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="layers-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">Account Number</p>
+              <p class="text-sm text-white font-mono tracking-widest">{{ distributorProfile?.accountNumber }}</p>
+            </div>
+          </div>
+          <div *ngIf="distributorProfile?.ifsc || distributorProfile?.IFSC" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="book-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">IFSC Code</p>
+              <p class="text-sm text-white font-mono">{{ distributorProfile?.ifsc ?? distributorProfile?.IFSC }}</p>
+            </div>
+          </div>
+          <div *ngIf="distributorProfile?.bankName" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="storefront-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">Bank Name</p>
+              <p class="text-sm text-white font-medium">{{ distributorProfile?.bankName }}</p>
+            </div>
+          </div>
+          <div *ngIf="distributorProfile?.bankBranch" class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+            <ion-icon name="location-outline" class="text-slate-400 flex-shrink-0"></ion-icon>
+            <div>
+              <p class="text-xs text-slate-500">Branch</p>
+              <p class="text-sm text-white font-medium">{{ distributorProfile?.bankBranch }}</p>
+            </div>
+          </div>
+          <div *ngIf="!distributorProfile?.accountName && !distributorProfile?.accountNumber && !distributorProfile?.ifsc && !distributorProfile?.IFSC && !distributorProfile?.bankName"
+               class="p-6 text-center">
+            <ion-icon name="business-outline" class="text-slate-600 text-4xl mb-2 block"></ion-icon>
+            <p class="text-slate-500 text-sm">No bank details on record</p>
+            <p class="text-slate-600 text-xs mt-1">Contact your sales representative to update</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== TAX DOCUMENTS VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'tax-docs'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="openOperationView('account-services')" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Tax Documents</h1>
+        <p class="text-xs text-orange-400">GST, PAN & tax certificates</p>
+      </div>
+    </div>
+    <div *ngIf="isLoadingProfile" class="flex justify-center py-10">
+      <ion-spinner name="crescent" style="color: #fb923c;"></ion-spinner>
+    </div>
+    <div *ngIf="!isLoadingProfile" class="flex flex-col gap-3">
+      <div class="rounded-2xl p-4 flex items-center gap-4" style="background: rgba(251,146,60,0.06); border: 1.5px solid rgba(251,146,60,0.2);">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(251,146,60,0.15); border: 1px solid rgba(251,146,60,0.25);">
+          <ion-icon name="document-text-outline" class="text-orange-400 text-xl"></ion-icon>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-white text-sm">GST Certificate</p>
+          <p class="text-xs font-mono mt-0.5" style="color: #fb923c;">{{ distributorProfile?.gstNumber || 'Not registered' }}</p>
+        </div>
+        <span *ngIf="distributorProfile?.gstNumber" class="px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(16,185,129,0.15); color: #10b981;">Active</span>
+      </div>
+      <div class="rounded-2xl p-4 flex items-center gap-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(251,146,60,0.12); border: 1px solid rgba(251,146,60,0.2);">
+          <ion-icon name="card-outline" class="text-orange-400 text-xl"></ion-icon>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-white text-sm">PAN Card</p>
+          <p class="text-xs font-mono mt-0.5" style="color: #fb923c;">{{ distributorProfile?.panNumber || 'Not provided' }}</p>
+        </div>
+        <span *ngIf="distributorProfile?.panNumber" class="px-2 py-0.5 rounded-full text-xs font-semibold" style="background: rgba(16,185,129,0.15); color: #10b981;">On file</span>
+      </div>
+      <div class="rounded-2xl p-4 mt-1" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-3">Registered Details</p>
+        <div class="flex flex-col gap-2">
+          <div class="flex justify-between">
+            <p class="text-xs text-slate-500">Business Name</p>
+            <p class="text-xs text-white font-medium">{{ distributorProfile?.distributorName ?? distributorProfile?.name ?? distributorProfile?.firmName ?? '—' }}</p>
+          </div>
+          <div class="flex justify-between">
+            <p class="text-xs text-slate-500">State</p>
+            <p class="text-xs text-white font-medium">{{ distributorProfile?.state ?? '—' }}</p>
+          </div>
+          <div class="flex justify-between">
+            <p class="text-xs text-slate-500">Distributor ID</p>
+            <p class="text-xs text-white font-mono">{{ distributorId }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== SUPPORT VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'support'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="openOperationView('account-services')" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Support / Help Desk</h1>
+        <p class="text-xs text-emerald-400">Get help & contact us</p>
+      </div>
+    </div>
+    <div class="rounded-2xl p-5 mb-4" style="background: rgba(16,185,129,0.06); border: 1.5px solid rgba(16,185,129,0.2);">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.25);">
+          <ion-icon name="chatbubble-ellipses-outline" class="text-emerald-400 text-xl"></ion-icon>
+        </div>
+        <div>
+          <p class="text-sm font-bold text-white">Nectar Origin Support</p>
+          <p class="text-xs text-emerald-400">We're here to help</p>
+        </div>
+      </div>
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+          <ion-icon name="call-outline" class="text-emerald-400 flex-shrink-0"></ion-icon>
+          <div>
+            <p class="text-xs text-slate-500">Call Support</p>
+            <p class="text-sm text-white font-medium">+91 99999 99999</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 p-3 rounded-xl" style="background: rgba(255,255,255,0.04);">
+          <ion-icon name="mail-outline" class="text-emerald-400 flex-shrink-0"></ion-icon>
+          <div>
+            <p class="text-xs text-slate-500">Email Support</p>
+            <p class="text-sm text-white font-medium">support&#64;nectarorigin.com</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <p class="text-xs text-slate-500 font-semibold uppercase tracking-widest mb-3">Your Account Reference</p>
+      <div class="flex flex-col gap-2">
+        <div class="flex justify-between">
+          <p class="text-xs text-slate-500">Name</p>
+          <p class="text-xs text-white">{{ distributorProfile?.distributorName ?? distributorProfile?.name ?? distributorName }}</p>
+        </div>
+        <div class="flex justify-between">
+          <p class="text-xs text-slate-500">Distributor ID</p>
+          <p class="text-xs text-white font-mono">{{ distributorId }}</p>
+        </div>
+        <div *ngIf="distributorProfile?.mobileNumber || distributorProfile?.phone" class="flex justify-between">
+          <p class="text-xs text-slate-500">Registered Mobile</p>
+          <p class="text-xs text-white">{{ distributorProfile?.mobileNumber ?? distributorProfile?.phone }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== CREDIT LIMIT VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'credit-limit'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Credit Limit Info</h1>
+        <p class="text-xs text-teal-400">Your credit details</p>
+      </div>
+    </div>
+
+    <!-- Loading spinner -->
+    <div *ngIf="isLoadingPaymentCollections" class="flex justify-center py-10">
+      <ion-spinner name="crescent" style="color: #14b8a6;"></ion-spinner>
+    </div>
+
+    <ng-container *ngIf="!isLoadingPaymentCollections">
+      <div class="rounded-2xl p-5 mb-5" style="background: rgba(20,184,166,0.08); border: 1.5px solid rgba(20,184,166,0.25);">
+        <p class="text-xs text-teal-400 font-semibold uppercase tracking-widest mb-1">Total Credit Limit</p>
+        <p class="text-4xl font-extrabold text-white tracking-tight">₹{{ displayCreditLimit | number:'1.0-0' }}</p>
+        <p class="text-xs text-slate-500 mt-1">{{ distributorProfile?.distributorName ?? distributorProfile?.name ?? distributorName }}</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-5">
+        <div class="rounded-2xl p-4" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);">
+          <p class="text-xs text-emerald-400 font-semibold mb-1">Available</p>
+          <p class="text-2xl font-extrabold text-white">₹{{ creditAvailable | number:'1.0-0' }}</p>
+          <p class="text-xs text-slate-500 mt-1">Remaining balance</p>
+        </div>
+        <div class="rounded-2xl p-4" style="background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.2);">
+          <p class="text-xs text-rose-400 font-semibold mb-1">Utilized</p>
+          <p class="text-2xl font-extrabold text-white">₹{{ creditUtilized | number:'1.0-0' }}</p>
+          <p class="text-xs text-slate-500 mt-1">CREDIT transactions</p>
+        </div>
+      </div>
+
+      <!-- Usage Bar -->
+      <div class="rounded-2xl p-4 mb-5" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="flex justify-between items-center mb-2">
+          <p class="text-sm font-bold text-white">Credit Utilization</p>
+          <p class="text-sm font-bold text-teal-400">{{ creditUtilizationPct }}%</p>
+        </div>
+        <div class="w-full h-3 rounded-full" style="background: rgba(255,255,255,0.08);">
+          <div class="h-3 rounded-full" [style.width]="creditUtilizationPct + '%'" style="background: linear-gradient(90deg, #14b8a6, #2dd4bf);"></div>
+        </div>
+        <p class="text-xs text-slate-500 mt-2">₹{{ creditUtilized | number:'1.0-0' }} utilized of ₹{{ displayCreditLimit | number:'1.0-0' }}</p>
+      </div>
+
+      <h3 class="text-sm font-bold text-white mb-3">Recent Transactions</h3>
+      <div *ngIf="paymentCollections.length === 0"
+           class="rounded-2xl p-6 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <p class="text-slate-500 text-sm">No recent transactions</p>
+      </div>
+      <div *ngIf="paymentCollections.length > 0" class="flex flex-col gap-3">
+        <div *ngFor="let p of paymentCollections | slice:0:5"
+             class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+          <div class="flex justify-between items-center mb-1">
+            <p class="text-sm font-bold text-white">{{ p.description || 'Transaction' }}</p>
+            <p class="text-sm font-bold"
+               [class.text-emerald-400]="p.transactionType === 'CREDIT'"
+               [class.text-rose-400]="p.transactionType !== 'CREDIT'">
+              {{ p.transactionType === 'CREDIT' ? '+' : '-' }}₹{{ p.amount | number:'1.0-0' }}
+            </p>
+          </div>
+          <p class="text-xs text-slate-500">{{ p.createdAt | date:'MMM d' }} · {{ p.transactionType }}</p>
+        </div>
+      </div>
+    </ng-container>
+  </div>
+
+  <!-- ==================== PAYMENT COLLECTIONS VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'payment-collections'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="openOperationView('account-services')" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Payment Collections</h1>
+        <p class="text-xs text-green-400">All cleared & ledger updated payments</p>
+      </div>
+    </div>
+
+    <!-- Total Collections Card -->
+    <div class="rounded-2xl p-5 mb-5" style="background: rgba(34,197,94,0.08); border: 1.5px solid rgba(34,197,94,0.25);">
+      <p class="text-xs text-green-400 font-semibold uppercase tracking-widest mb-1">Total Collections</p>
+      <p class="text-4xl font-extrabold text-white tracking-tight">₹{{ totalCollectionAmount | number:'1.2-2' }}</p>
+      <p class="text-xs text-slate-500 mt-1">{{ paymentCollections.length }} payment(s) collected</p>
+    </div>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoadingPaymentCollections" class="rounded-2xl p-8 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <ion-spinner name="crescent" style="color: #10b981; width: 50px; height: 50px; margin: 0 auto;"></ion-spinner>
+      <p class="text-sm text-slate-400 mt-4">Loading payment collections...</p>
+    </div>
+
+    <!-- Empty State -->
+    <div *ngIf="!isLoadingPaymentCollections && paymentCollections.length === 0" class="rounded-2xl p-8 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <ion-icon name="wallet-outline" style="font-size: 48px; color: #64748b; opacity: 0.5;"></ion-icon>
+      <p class="text-sm font-bold text-slate-400 mt-4">No Payment Collections</p>
+      <p class="text-xs text-slate-600 mt-1">No cleared payments found for this period</p>
+    </div>
+
+    <!-- Payments List -->
+    <div *ngIf="!isLoadingPaymentCollections && paymentCollections.length > 0" class="space-y-3">
+      <div *ngFor="let payment of paymentCollections" class="rounded-2xl p-4 flex items-center justify-between" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(12px);">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: rgba(34,197,94,0.15); border: 1px solid rgba(34,197,94,0.25);">
+            <ion-icon *ngIf="payment.transactionType === 'CREDIT'" name="arrow-down-outline" style="color: #22c55e; font-size: 20px;"></ion-icon>
+            <ion-icon *ngIf="payment.transactionType === 'DEBIT'" name="arrow-up-outline" style="color: #ef4444; font-size: 20px;"></ion-icon>
+          </div>
+          <div>
+            <p class="font-bold text-white text-sm">{{ payment.description }}</p>
+            <p class="text-xs text-slate-500 mt-0.5">{{ payment.createdAt | date: 'MMM dd, yyyy · HH:mm' }}</p>
+            <p class="text-xs text-slate-600 mt-1">
+              <span [style]="payment.transactionType === 'CREDIT' ? 'color: #22c55e' : 'color: #ef4444'">
+                <strong>{{ payment.transactionType }}</strong> · Payment ID: {{ payment.paymentId }}
+              </span>
+            </p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-xl font-extrabold" [style]="payment.transactionType === 'CREDIT' ? 'color: #22c55e' : 'color: #ef4444'">
+            {{ payment.transactionType === 'CREDIT' ? '+' : '-' }}₹{{ payment.amount | number:'1.2-2' }}
+          </p>
+          <p class="text-xs text-slate-500 mt-1" [style]="payment.status === 'LEDGER_UPDATED' ? 'color: #10b981' : ''">
+            <strong>{{ payment.status }}</strong>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Footer -->
+    <div *ngIf="!isLoadingPaymentCollections && paymentCollections.length > 0" class="rounded-2xl p-4 mt-5" style="background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.25);">
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-xs text-violet-400 font-semibold uppercase">Total Payments</p>
+          <p class="text-lg font-bold text-white mt-0.5">{{ paymentCollections.length }} Transactions</p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs text-violet-400 font-semibold uppercase">Total Amount</p>
+          <p class="text-xl font-extrabold text-green-400 mt-0.5">₹{{ totalCollectionAmount | number:'1.2-2' }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ACCOUNT STATEMENT VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'account-statement'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Account Statement</h1>
+        <p class="text-xs text-purple-400">View account transaction history</p>
+      </div>
+      <button (click)="downloadAccountStatement()"
+              [disabled]="isLoadingAccountStatement || isDownloadingStatement || accountStatementTxns.length === 0"
+              class="flex items-center gap-2 px-4 h-10 rounded-xl font-bold text-sm text-white transition active:scale-95 disabled:opacity-40"
+              style="background: linear-gradient(135deg, #a855f7, #7c3aed); box-shadow: 0 4px 14px rgba(168,85,247,0.45);">
+        <ion-spinner *ngIf="isDownloadingStatement" name="crescent" style="width:16px;height:16px;color:#fff;"></ion-spinner>
+        <ion-icon *ngIf="!isDownloadingStatement" name="download-outline" class="text-lg"></ion-icon>
+        <span>PDF</span>
+      </button>
+    </div>
+
+    <!-- Balance Summary -->
+    <div class="rounded-2xl p-5 mb-5" style="background: rgba(168,85,247,0.08); border: 1.5px solid rgba(168,85,247,0.25);">
+      <div class="flex justify-between items-center">
+        <div>
+          <p class="text-xs text-purple-400 font-semibold uppercase tracking-widest mb-1">Current Balance</p>
+          <p *ngIf="isLoadingAccountStatement" class="text-3xl font-extrabold text-slate-500 tracking-tight">Loading...</p>
+          <p *ngIf="!isLoadingAccountStatement" class="text-3xl font-extrabold text-white tracking-tight">{{ formatOutstandingAmount(accountStatementBalance) }}</p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs text-slate-500">As of</p>
+          <p class="text-sm text-white font-medium">{{ accountStatementDate || '—' }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Statement Entries -->
+    <h3 class="text-sm font-bold text-white mb-3">Transactions</h3>
+
+    <!-- Loading -->
+    <div *ngIf="isLoadingAccountStatement" class="flex justify-center py-10">
+      <ion-spinner name="crescent" style="color: #a855f7;"></ion-spinner>
+    </div>
+
+    <!-- Empty state -->
+    <div *ngIf="!isLoadingAccountStatement && accountStatementTxns.length === 0"
+         class="rounded-2xl p-8 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <ion-icon name="receipt-outline" class="text-slate-600 text-4xl mb-2 block"></ion-icon>
+      <p class="text-slate-500 text-sm">No transactions found</p>
+    </div>
+
+    <!-- Transaction list -->
+    <div *ngIf="!isLoadingAccountStatement && accountStatementTxns.length > 0" class="flex flex-col gap-3">
+      <div *ngFor="let txn of accountStatementTxns"
+           class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="flex justify-between items-center mb-1">
+          <p class="text-sm font-bold text-white">{{ txn.description || txn.reference || 'Transaction' }}</p>
+          <p class="text-sm font-bold"
+             [class.text-emerald-400]="isCreditType(txn.transactionType ?? txn.type ?? '')"
+             [class.text-rose-400]="!isCreditType(txn.transactionType ?? txn.type ?? '')">
+            {{ isCreditType(txn.transactionType ?? txn.type ?? '') ? '+' : '-' }}₹{{ txn.amount | number:'1.0-0' }}
+          </p>
+        </div>
+        <p class="text-xs text-slate-500">
+          {{ (txn.createdAt ?? txn.date) | date:'MMM d, yyyy' }}
+          · {{ txn.transactionType ?? txn.type ?? 'N/A' }}
+          <ng-container *ngIf="txn.paymentMethod"> · {{ txn.paymentMethod }}</ng-container>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== BALANCE CONFIRMATION VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'balance-confirmation'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Balance Confirmation</h1>
+        <p class="text-xs text-purple-400">Confirm your account balance</p>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoadingAccountStatement" class="flex justify-center py-10">
+      <ion-spinner name="crescent" style="color: #a855f7;"></ion-spinner>
+    </div>
+
+    <div *ngIf="!isLoadingAccountStatement" class="rounded-2xl p-5 mb-5" style="background: rgba(168,85,247,0.08); border: 1.5px solid rgba(168,85,247,0.25);">
+      <div class="flex items-center gap-3 mb-3">
+        <ion-icon name="shield-checkmark-outline" class="text-purple-400 text-2xl"></ion-icon>
+        <p class="text-xs text-purple-400 font-semibold uppercase tracking-widest">Confirmed Balance</p>
+      </div>
+      <p class="text-4xl font-extrabold text-white tracking-tight mb-2">{{ formatOutstandingAmount(accountStatementBalance) }}</p>
+      <p class="text-xs text-slate-500">As of: {{ accountStatementDate || '—' }}</p>
+    </div>
+
+    <div *ngIf="!isLoadingAccountStatement" class="rounded-2xl p-4 mb-5" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <div class="flex justify-between items-center mb-3">
+        <p class="text-sm font-bold text-white">Balance Breakdown</p>
+      </div>
+      <div class="flex flex-col gap-3">
+        <div class="flex justify-between">
+          <p class="text-sm text-slate-400">Total Debits</p>
+          <p class="text-sm font-medium text-rose-400">₹{{ statementTotalDebits | number:'1.0-0' }}</p>
+        </div>
+        <div class="flex justify-between">
+          <p class="text-sm text-slate-400">Total Credits</p>
+          <p class="text-sm font-medium text-emerald-400">₹{{ statementTotalCredits | number:'1.0-0' }}</p>
+        </div>
+        <div class="pt-2" style="border-top: 1px solid rgba(255,255,255,0.06);">
+          <div class="flex justify-between">
+            <p class="text-sm font-bold text-white">Net Outstanding</p>
+            <p class="text-sm font-bold text-amber-400">{{ formatOutstandingAmount(accountStatementBalance) }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== SUMMARIZED A/C VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'summarized-account'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Summarized A/C</h1>
+        <p class="text-xs text-purple-400">Account summary overview</p>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoadingAccountStatement" class="flex justify-center py-10">
+      <ion-spinner name="crescent" style="color: #a855f7;"></ion-spinner>
+    </div>
+
+    <div *ngIf="!isLoadingAccountStatement" class="flex flex-col gap-3 mb-5">
+      <div class="rounded-2xl p-4" style="background: rgba(244,63,94,0.08); border: 1px solid rgba(244,63,94,0.2);">
+        <p class="text-xs text-rose-400 font-semibold mb-1">Total Debits</p>
+        <p class="text-2xl font-extrabold text-white">₹{{ statementTotalDebits | number:'1.0-0' }}</p>
+        <p class="text-xs text-slate-500 mt-1">Invoices & Charges</p>
+      </div>
+      <div class="rounded-2xl p-4" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);">
+        <p class="text-xs text-emerald-400 font-semibold mb-1">Total Credits</p>
+        <p class="text-2xl font-extrabold text-white">₹{{ statementTotalCredits | number:'1.0-0' }}</p>
+        <p class="text-xs text-slate-500 mt-1">Payments & Adjustments</p>
+      </div>
+      <div class="rounded-2xl p-5" style="background: rgba(168,85,247,0.08); border: 1.5px solid rgba(168,85,247,0.25);">
+        <p class="text-xs text-purple-400 font-semibold uppercase tracking-widest mb-1">Closing Balance</p>
+        <p class="text-3xl font-extrabold text-white tracking-tight">{{ formatOutstandingAmount(accountStatementBalance) }}</p>
+        <p class="text-xs text-slate-500 mt-1">As of {{ accountStatementDate || '—' }}</p>
+      </div>
+      <div *ngIf="accountStatementTxns.length === 0" class="rounded-2xl p-6 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="receipt-outline" class="text-slate-600 text-4xl mb-2 block"></ion-icon>
+        <p class="text-slate-500 text-sm">No transaction history found</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== COPY OF INVOICE VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'copy-invoice'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Copy of Invoice</h1>
+        <p class="text-xs text-orange-400">Download your invoices</p>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="relative mb-4">
+      <ion-icon class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-lg pointer-events-none z-10" name="search-outline"></ion-icon>
+      <input type="text" placeholder="Search invoices..."
+             [(ngModel)]="invoiceSearchQuery" (input)="filterInvoiceList()"
+             style="background: rgba(255,255,255,0.05); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.08);"
+             class="w-full pl-11 pr-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500/30 placeholder:text-slate-600 font-medium text-sm" />
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoadingInvoices" class="flex justify-center py-12">
+      <ion-spinner name="crescent" style="color: #fb923c;"></ion-spinner>
+    </div>
+
+    <!-- Empty state -->
+    <div *ngIf="!isLoadingInvoices && filteredInvoiceList.length === 0" class="flex flex-col items-center py-14 gap-3">
+      <ion-icon name="receipt-outline" class="text-5xl text-slate-600"></ion-icon>
+      <p class="text-slate-500 text-sm font-medium">No invoices found</p>
+    </div>
+
+    <!-- Invoice cards -->
+    <div *ngIf="!isLoadingInvoices && filteredInvoiceList.length > 0" class="flex flex-col gap-3">
+      <div *ngFor="let inv of filteredInvoiceList"
+           class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-bold text-white">Invoice #{{ inv.id }}</p>
+            <p class="text-xs text-slate-500">
+              {{ inv.createdAt | date:'MMM d, yyyy' }} · ₹{{ inv.totalCartAmount | number:'1.0-0' }}
+            </p>
+            <span class="mt-1 inline-block px-2 py-0.5 rounded-full text-xs font-semibold"
+                  [class.bg-emerald-500]="inv.status?.toUpperCase() === 'DELIVERED' || inv.status?.toUpperCase() === 'COMPLETED'"
+                  [class.text-white]="inv.status?.toUpperCase() === 'DELIVERED' || inv.status?.toUpperCase() === 'COMPLETED'"
+                  [class.bg-amber-500]="inv.status?.toUpperCase() !== 'DELIVERED' && inv.status?.toUpperCase() !== 'COMPLETED'"
+                  [class.text-black]="inv.status?.toUpperCase() !== 'DELIVERED' && inv.status?.toUpperCase() !== 'COMPLETED'">
+              {{ inv.status }}
+            </span>
+          </div>
+          <button (click)="downloadInvoice(inv)"
+                  [disabled]="downloadingInvoiceId === inv.id"
+                  class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: rgba(251,146,60,0.12); border: 1px solid rgba(251,146,60,0.2);">
+            <ion-spinner *ngIf="downloadingInvoiceId === inv.id" name="crescent" class="text-orange-400" style="width:18px;height:18px;"></ion-spinner>
+            <ion-icon *ngIf="downloadingInvoiceId !== inv.id" name="download-outline" class="text-orange-400 text-lg"></ion-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== OFFICIAL DOCUMENTS VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'official-documents'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">Official Documents</h1>
+        <p class="text-xs text-orange-400">Access official documents</p>
+      </div>
+    </div>
+
+    <div class="flex flex-col gap-3">
+      <div class="rounded-2xl p-4 flex items-center gap-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: rgba(251,146,60,0.12); border: 1px solid rgba(251,146,60,0.2);">
+          <ion-icon name="document-text-outline" class="text-orange-400 text-xl"></ion-icon>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-white text-sm">GST Certificate</p>
+          <p class="text-xs text-slate-500">GSTIN: 27AABCU9603R1ZM</p>
+        </div>
+        <button class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: rgba(251,146,60,0.12);">
+          <ion-icon name="download-outline" class="text-orange-400 text-lg"></ion-icon>
+        </button>
+      </div>
+      <div class="rounded-2xl p-4 flex items-center gap-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: rgba(251,146,60,0.12); border: 1px solid rgba(251,146,60,0.2);">
+          <ion-icon name="document-attach-outline" class="text-orange-400 text-xl"></ion-icon>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-white text-sm">PAN Card</p>
+          <p class="text-xs text-slate-500">PAN: ABCDE1234F</p>
+        </div>
+        <button class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: rgba(251,146,60,0.12);">
+          <ion-icon name="download-outline" class="text-orange-400 text-lg"></ion-icon>
+        </button>
+      </div>
+      <div class="rounded-2xl p-4 flex items-center gap-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: rgba(251,146,60,0.12); border: 1px solid rgba(251,146,60,0.2);">
+          <ion-icon name="receipt-outline" class="text-orange-400 text-xl"></ion-icon>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-white text-sm">Trade License</p>
+          <p class="text-xs text-slate-500">Valid till: Mar 31, 2025</p>
+        </div>
+        <button class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: rgba(251,146,60,0.12);">
+          <ion-icon name="download-outline" class="text-orange-400 text-lg"></ion-icon>
+        </button>
+      </div>
+      <div class="rounded-2xl p-4 flex items-center gap-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background: rgba(251,146,60,0.12); border: 1px solid rgba(251,146,60,0.2);">
+          <ion-icon name="shield-checkmark-outline" class="text-orange-400 text-xl"></ion-icon>
+        </div>
+        <div class="flex-1">
+          <p class="font-bold text-white text-sm">Distribution Agreement</p>
+          <p class="text-xs text-slate-500">Signed: Apr 1, 2024</p>
+        </div>
+        <button class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: rgba(251,146,60,0.12);">
+          <ion-icon name="download-outline" class="text-orange-400 text-lg"></ion-icon>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== DEALER LEDGER VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'dealer-ledger'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white"><span class="text-emerald-400">Dealer</span> Ledger</h1>
+        <p class="text-xs text-slate-500">Track dealer transactions &amp; balances</p>
+      </div>
+    </div>
+
+    <!-- Hero Banner -->
+    <div class="relative rounded-3xl overflow-hidden mb-6 p-6" style="background: linear-gradient(135deg, #10b981 0%, #14b8a6 50%, #3b82f6 100%);">
+      <div class="absolute top-0 right-0 w-48 h-48 rounded-full" style="background: rgba(255,255,255,0.08); transform: translate(30%, -30%); filter: blur(24px);"></div>
+      <div class="absolute bottom-0 left-0 w-48 h-48 rounded-full" style="background: rgba(59,130,246,0.2); transform: translate(-30%, 30%); filter: blur(24px);"></div>
+      <div class="relative">
+        <h2 class="text-2xl font-bold text-white mb-1">Dealer Ledger</h2>
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold text-white" style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.2);">
+          <ion-icon name="book-outline" class="text-sm"></ion-icon>
+          Track Transactions, Purchases &amp; Sales
+        </div>
+      </div>
+    </div>
+
+    <!-- Dealer Selector -->
+    <div class="rounded-2xl p-4 mb-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <label class="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Select Ledger Account</label>
+      <div class="relative">
+        <button (click)="isDealerLedgerSelectorOpen = !isDealerLedgerSelectorOpen"
+                class="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all"
+                style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.2);">
+              <ion-icon name="storefront-outline" class="text-lg text-emerald-400"></ion-icon>
+            </div>
+            <div class="text-left">
+              <div class="font-semibold text-white text-sm">{{ selectedLedgerDealer ? selectedLedgerDealer.fullName : 'Select a dealer' }}</div>
+              <div *ngIf="selectedLedgerDealer" class="text-xs text-slate-500">{{ selectedLedgerDealer.phone }}</div>
+              <div *ngIf="!selectedLedgerDealer" class="text-xs text-slate-600">Tap to choose</div>
+            </div>
+          </div>
+          <ion-icon [name]="isDealerLedgerSelectorOpen ? 'chevron-up-outline' : 'chevron-down-outline'" class="text-slate-500"></ion-icon>
+        </button>
+
+        <!-- Dropdown -->
+        <div *ngIf="isDealerLedgerSelectorOpen" class="absolute top-full left-0 mt-2 w-full rounded-xl overflow-hidden z-50 flex flex-col"
+             style="background: #161b22; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 20px 40px rgba(0,0,0,0.5); max-height: 300px;">
+          <div class="p-3" style="border-bottom: 1px solid rgba(255,255,255,0.06);">
+            <div class="relative">
+              <ion-icon name="search-outline" class="absolute text-slate-500" style="left: 10px; top: 50%; transform: translateY(-50%);"></ion-icon>
+              <input type="text" [(ngModel)]="dealerLedgerSearch" placeholder="Search dealers..."
+                     class="w-full rounded-lg text-sm focus:outline-none"
+                     style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 8px 10px 8px 32px; color: #e2e8f0;" />
+            </div>
+          </div>
+          <div class="overflow-y-auto">
+            <div *ngIf="isLoadingDealers" class="px-4 py-8 text-center">
+              <ion-spinner name="crescent" style="color: #10b981;"></ion-spinner>
+              <p class="text-sm text-slate-500 mt-2">Loading dealers...</p>
+            </div>
+            <div *ngIf="!isLoadingDealers && filteredLedgerDealers.length === 0" class="px-4 py-8 text-center text-sm text-slate-500">No dealers found</div>
+            <div *ngFor="let d of filteredLedgerDealers"
+                 (click)="selectLedgerDealer(d)"
+                 class="flex items-center justify-between px-4 py-3 cursor-pointer transition-colors"
+                 style="border-bottom: 1px solid rgba(255,255,255,0.04);"
+                 [style.background]="selectedLedgerDealer?.id === d.id ? 'rgba(16,185,129,0.1)' : 'transparent'">
+              <div>
+                <div class="font-semibold text-slate-200 text-sm">{{ d.fullName }}</div>
+                <div class="text-xs text-slate-500">{{ d.phone }}</div>
+              </div>
+              <ion-icon *ngIf="selectedLedgerDealer?.id === d.id" name="checkmark-circle-outline" class="text-emerald-400 text-xl"></ion-icon>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Party Info Row -->
+    <div *ngIf="selectedLedgerDealer" class="flex flex-col gap-2.5 mb-4">
+      <!-- Distributor full card -->
+      <div class="rounded-2xl p-4" style="background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2);">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.18); border: 1px solid rgba(59,130,246,0.25);">
+            <ion-icon name="business-outline" class="text-lg text-blue-400"></ion-icon>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-0.5">
+              <p class="text-xs font-bold uppercase tracking-wide text-blue-400">Distributor</p>
+              <span class="px-1.5 py-0.5 rounded text-xs font-semibold" style="background: rgba(59,130,246,0.15); color: #93c5fd;">{{ distributorRole || 'DISTRIBUTOR' }}</span>
+            </div>
+            <p class="text-sm font-bold text-white leading-tight">{{ distributorName }}</p>
+            <div class="flex items-center gap-3 mt-1">
+              <span class="text-xs text-slate-500">@{{ distributorUsername || 'N/A' }}</span>
+              <span class="text-xs text-slate-600">·</span>
+              <span class="text-xs text-slate-500">ID: {{ distributorId }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Dealer full card -->
+      <div class="rounded-2xl p-4" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(16,185,129,0.18); border: 1px solid rgba(16,185,129,0.25);">
+            <ion-icon name="storefront-outline" class="text-lg text-emerald-400"></ion-icon>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-0.5">
+              <p class="text-xs font-bold uppercase tracking-wide text-emerald-400">Dealer</p>
+              <span class="px-1.5 py-0.5 rounded text-xs font-semibold" style="background: rgba(16,185,129,0.15); color: #6ee7b7;">Active</span>
+            </div>
+            <p class="text-sm font-bold text-white leading-tight">{{ selectedLedgerDealer.fullName }}</p>
+            <div class="flex items-center gap-3 mt-1">
+              <span class="text-xs text-slate-500">{{ selectedLedgerDealer.phone }}</span>
+              <span *ngIf="selectedLedgerDealer.address" class="text-xs text-slate-600">·</span>
+              <span *ngIf="selectedLedgerDealer.address" class="text-xs text-slate-500 truncate">{{ selectedLedgerDealer.address }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary KPIs (2×2) -->
+    <div *ngIf="selectedLedgerDealer" class="grid grid-cols-2 gap-2.5 mb-5">
+      <!-- Debits -->
+      <div class="rounded-2xl p-3.5" style="background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.18);">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(239,68,68,0.18);">
+            <ion-icon name="arrow-down-outline" class="text-xs text-red-400"></ion-icon>
+          </div>
+          <p class="text-xs font-bold uppercase tracking-wide text-red-400">Total Debits</p>
+        </div>
+        <p class="text-base font-extrabold text-red-300 leading-tight">{{ formatLedgerCurrency(dealerLedgerSummary.totalDebits) }}</p>
+        <p class="text-xs text-slate-600 mt-1">{{ dealerLedgerSummary.transactionCount }} txns</p>
+      </div>
+      <!-- Credits -->
+      <div class="rounded-2xl p-3.5" style="background: rgba(16,185,129,0.07); border: 1px solid rgba(16,185,129,0.18);">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(16,185,129,0.18);">
+            <ion-icon name="arrow-up-outline" class="text-xs text-emerald-400"></ion-icon>
+          </div>
+          <p class="text-xs font-bold uppercase tracking-wide text-emerald-400">Total Credits</p>
+        </div>
+        <p class="text-base font-extrabold text-emerald-300 leading-tight">{{ formatLedgerCurrency(dealerLedgerSummary.totalCredits) }}</p>
+        <p class="text-xs text-slate-600 mt-1">Incoming</p>
+      </div>
+      <!-- Net Balance -->
+      <div class="rounded-2xl p-3.5" style="background: rgba(139,92,246,0.07); border: 1px solid rgba(139,92,246,0.18);">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(139,92,246,0.18);">
+            <ion-icon name="swap-vertical-outline" class="text-xs text-violet-400"></ion-icon>
+          </div>
+          <p class="text-xs font-bold uppercase tracking-wide text-violet-400">Net Balance</p>
+        </div>
+        <p class="text-base font-extrabold text-white leading-tight">{{ formatLedgerCurrency(dealerLedgerSummary.netBalance) }}</p>
+        <div class="flex items-center gap-1 mt-1">
+          <ion-icon *ngIf="dealerLedgerSummary.netBalance >= 0" name="trending-up-outline" class="text-xs text-emerald-400"></ion-icon>
+          <ion-icon *ngIf="dealerLedgerSummary.netBalance < 0" name="trending-down-outline" class="text-xs text-red-400"></ion-icon>
+          <p class="text-xs text-slate-600">{{ dealerLedgerSummary.netBalance >= 0 ? 'Surplus' : 'Deficit' }}</p>
+        </div>
+      </div>
+      <!-- Closing Balance -->
+      <div class="rounded-2xl p-3.5" style="background: rgba(59,130,246,0.07); border: 1px solid rgba(59,130,246,0.18);">
+        <div class="flex items-center gap-2 mb-2">
+          <div class="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.18);">
+            <ion-icon name="analytics-outline" class="text-xs text-blue-400"></ion-icon>
+          </div>
+          <p class="text-xs font-bold uppercase tracking-wide text-blue-400">Closing Bal.</p>
+        </div>
+        <p class="text-base font-extrabold text-white leading-tight">{{ formatLedgerCurrency(dealerLedgerSummary.closingBalance) }}</p>
+        <p class="text-xs text-slate-600 mt-1">As of today</p>
+      </div>
+    </div>
+
+    <!-- Search + Filter Bar -->
+    <div *ngIf="selectedLedgerDealer" class="mb-4">
+      <div class="flex gap-2 mb-2">
+        <div class="relative flex-1">
+          <ion-icon name="search-outline" class="absolute text-slate-500" style="left: 10px; top: 50%; transform: translateY(-50%);"></ion-icon>
+          <input type="text" [(ngModel)]="dealerLedgerTxnSearch" placeholder="Search transactions..."
+                 class="w-full rounded-xl text-sm focus:outline-none"
+                 style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 10px 10px 10px 34px; color: #e2e8f0;" />
+        </div>
+        <button (click)="isDealerLedgerDateOpen = !isDealerLedgerDateOpen"
+                class="flex items-center gap-1.5 rounded-xl px-3 text-sm font-semibold flex-shrink-0"
+                [style.background]="(dealerLedgerStartDate || dealerLedgerEndDate) ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.05)'"
+                [style.border]="(dealerLedgerStartDate || dealerLedgerEndDate) ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,255,255,0.08)'"
+                [style.color]="(dealerLedgerStartDate || dealerLedgerEndDate) ? '#34d399' : '#94a3b8'">
+          <ion-icon name="calendar-outline" class="text-base"></ion-icon>
+          <span *ngIf="!dealerLedgerStartDate && !dealerLedgerEndDate">Date</span>
+          <span *ngIf="dealerLedgerStartDate || dealerLedgerEndDate" class="text-xs">Filtered</span>
+          <ion-icon *ngIf="dealerLedgerStartDate || dealerLedgerEndDate" name="close-outline" class="text-sm"
+                    (click)="$event.stopPropagation(); dealerLedgerStartDate=''; dealerLedgerEndDate=''; dealerLedgerCurrentPage=1"></ion-icon>
+        </button>
+        <button (click)="exportDealerLedger()"
+                class="flex items-center gap-1.5 rounded-xl px-3 text-sm font-semibold flex-shrink-0"
+                style="background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.25); color: #60a5fa;">
+          <ion-icon name="download-outline" class="text-base"></ion-icon>
+          <span>Report</span>
+        </button>
+        <button *ngIf="selectedLedgerDealer" (click)="isLedgerEntryOpen = !isLedgerEntryOpen"
+                class="flex items-center gap-1.5 rounded-xl px-3 text-sm font-semibold flex-shrink-0"
+                [style.background]="isLedgerEntryOpen ? 'rgba(139,92,246,0.2)' : 'rgba(139,92,246,0.1)'"
+                style="border: 1px solid rgba(139,92,246,0.3); color: #a78bfa;">
+          <ion-icon [name]="isLedgerEntryOpen ? 'close-outline' : 'add-outline'" class="text-base"></ion-icon>
+          <span>Add Entry</span>
+        </button>
+      </div>
+
+      <!-- Add Ledger Entry Form -->
+      <div *ngIf="isLedgerEntryOpen && selectedLedgerDealer" class="rounded-xl p-4 flex flex-col gap-3"
+           style="background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.2);">
+        <p class="text-xs font-bold tracking-widest" style="color: #a78bfa;">NEW LEDGER ENTRY</p>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase block mb-1">Date</label>
+            <input type="date" [(ngModel)]="ledgerEntryForm.date"
+                   class="w-full rounded-lg text-sm focus:outline-none"
+                   style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 10px; color: #e2e8f0;" />
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase block mb-1">Type</label>
+            <select [(ngModel)]="ledgerEntryForm.type"
+                    class="w-full rounded-lg text-sm focus:outline-none cursor-pointer"
+                    style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 10px; color: #e2e8f0;">
+              <option *ngFor="let t of ledgerEntryTypes" [value]="t" style="background: #161b22;">{{ t }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase block mb-1">Amount (₹)</label>
+            <input type="number" [(ngModel)]="ledgerEntryForm.amount" placeholder="0.00" min="0"
+                   class="w-full rounded-lg text-sm focus:outline-none"
+                   style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 10px; color: #e2e8f0;" />
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase block mb-1">Category</label>
+            <select [(ngModel)]="ledgerEntryForm.category"
+                    class="w-full rounded-lg text-sm focus:outline-none cursor-pointer"
+                    style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 10px; color: #e2e8f0;">
+              <option *ngFor="let c of ledgerEntryCategories" [value]="c" style="background: #161b22;">{{ c }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-slate-500 uppercase block mb-1">Description</label>
+            <input type="text" [(ngModel)]="ledgerEntryForm.description" placeholder="e.g. Cement 50kg supply"
+                   class="w-full rounded-lg text-sm focus:outline-none"
+                   style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 8px 10px; color: #e2e8f0;" />
+          </div>
+        </div>
+        <button (click)="submitLedgerEntry()" [disabled]="isSubmittingLedgerEntry"
+                class="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50"
+                style="background: rgba(139,92,246,0.2); border: 1px solid rgba(139,92,246,0.4); color: #a78bfa;">
+          <ion-spinner *ngIf="isSubmittingLedgerEntry" name="crescent" style="width:16px;height:16px;color:#a78bfa;"></ion-spinner>
+          <ion-icon *ngIf="!isSubmittingLedgerEntry" name="checkmark-done-outline" class="text-base"></ion-icon>
+          {{ isSubmittingLedgerEntry ? 'Saving...' : 'Save Entry' }}
+        </button>
+      </div>
+      <div *ngIf="isDealerLedgerDateOpen" class="rounded-xl p-3 grid grid-cols-2 gap-3" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div>
+          <label class="text-xs font-bold text-slate-500 uppercase block mb-1">From</label>
+          <input type="date" [(ngModel)]="dealerLedgerStartDate" (change)="dealerLedgerCurrentPage=1"
+                 class="w-full rounded-lg text-sm focus:outline-none"
+                 style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 8px 10px; color: #e2e8f0;" />
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-500 uppercase block mb-1">To</label>
+          <input type="date" [(ngModel)]="dealerLedgerEndDate" (change)="dealerLedgerCurrentPage=1"
+                 class="w-full rounded-lg text-sm focus:outline-none"
+                 style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); padding: 8px 10px; color: #e2e8f0;" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Transaction Cards -->
+    <!-- Loading -->
+    <div *ngIf="isLoadingLedger" class="rounded-2xl p-10 text-center mb-4"
+         style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);">
+      <ion-spinner name="crescent" style="color: #10b981; width: 36px; height: 36px;"></ion-spinner>
+      <p class="text-sm text-slate-500 mt-3">Loading transactions...</p>
+    </div>
+
+    <div *ngIf="!isLoadingLedger && selectedLedgerDealer && dealerLedgerPaginated.length > 0" class="flex flex-col gap-3 mb-4">
+      <div *ngFor="let txn of dealerLedgerPaginated"
+           class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+        <div class="flex items-start justify-between mb-3">
+          <div class="flex-1 min-w-0">
+            <h3 class="font-bold text-white text-sm">{{ txn.description }}</h3>
+            <span class="inline-block font-mono text-xs px-2 py-0.5 rounded-lg mt-1" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); color: #94a3b8;">{{ txn.reference }}</span>
+          </div>
+          <span [class]="getLedgerTxnConfig(txn.type).className"
+                class="ml-2 flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1">
+            <ion-icon [name]="getLedgerTxnConfig(txn.type).icon" class="text-xs"></ion-icon>
+            {{ getLedgerTxnConfig(txn.type).label }}
+          </span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div class="rounded-lg p-2.5" style="background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);">
+            <p class="text-xs font-bold text-red-400 uppercase">Debit</p>
+            <p class="text-sm font-bold text-red-300">{{ txn.debit > 0 ? formatLedgerCurrency(txn.debit) : '—' }}</p>
+          </div>
+          <div class="rounded-lg p-2.5" style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);">
+            <p class="text-xs font-bold text-emerald-400 uppercase">Credit</p>
+            <p class="text-sm font-bold text-emerald-300">{{ txn.credit > 0 ? formatLedgerCurrency(txn.credit) : '—' }}</p>
+          </div>
+        </div>
+        <div class="flex items-center justify-between pt-2.5" style="border-top: 1px solid rgba(255,255,255,0.06);">
+          <span class="text-xs text-slate-500">{{ formatLedgerDate(txn.date) }}</span>
+          <span class="text-xs font-bold text-slate-300">Balance: {{ formatLedgerCurrency(txn.balance) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty: no txns -->
+    <div *ngIf="!isLoadingLedger && selectedLedgerDealer && dealerLedgerTxns.length === 0"
+         class="rounded-2xl p-10 text-center mb-4" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style="background: rgba(255,255,255,0.05);">
+        <ion-icon name="search-outline" class="text-3xl text-slate-600"></ion-icon>
+      </div>
+      <h3 class="font-bold text-slate-300 mb-1">No Transactions Found</h3>
+      <p class="text-sm text-slate-600">No transactions match your current filters.</p>
+    </div>
+
+    <!-- Empty: no dealer selected -->
+    <div *ngIf="!selectedLedgerDealer"
+         class="rounded-2xl p-10 text-center mb-4" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06);">
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3" style="background: rgba(255,255,255,0.05);">
+        <ion-icon name="folder-open-outline" class="text-3xl text-slate-600"></ion-icon>
+      </div>
+      <h3 class="font-bold text-slate-300 mb-1">No Account Selected</h3>
+      <p class="text-sm text-slate-600">Please select a dealer above to view transactions.</p>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="!isLoadingLedger && selectedLedgerDealer && dealerLedgerTotalRecords > 0"
+         class="rounded-2xl p-4 flex items-center justify-between" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+      <div class="flex items-center gap-2 text-sm text-slate-400">
+        <span>Rows:</span>
+        <select [(ngModel)]="dealerLedgerRowsPerPage" (change)="dealerLedgerCurrentPage = 1; loadDealerLedger()"
+                class="rounded-lg text-sm focus:outline-none cursor-pointer"
+                style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); padding: 4px 8px; color: #e2e8f0;">
+          <option *ngFor="let o of dealerLedgerRowsOptions" [value]="o" style="background: #161b22;">{{ o }}</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-sm text-slate-400">{{ (dealerLedgerCurrentPage - 1) * dealerLedgerRowsPerPage + 1 }}–{{ Math.min(dealerLedgerCurrentPage * dealerLedgerRowsPerPage, dealerLedgerTotalRecords) }} of {{ dealerLedgerTotalRecords }}</span>
+        <div class="flex gap-1">
+          <button (click)="changeDealerLedgerPage(-1)" [disabled]="dealerLedgerCurrentPage === 1"
+                  class="p-2 rounded-lg transition-colors disabled:opacity-30 text-slate-400"
+                  style="background: rgba(255,255,255,0.05);">
+            <ion-icon name="chevron-back-outline" class="text-xl"></ion-icon>
+          </button>
+          <button (click)="changeDealerLedgerPage(1)" [disabled]="dealerLedgerCurrentPage === dealerLedgerTotalPages"
+                  class="p-2 rounded-lg transition-colors disabled:opacity-30 text-slate-400"
+                  style="background: rgba(255,255,255,0.05);">
+            <ion-icon name="chevron-forward-outline" class="text-xl"></ion-icon>
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==================== DEALER BILLING VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'dealer-orders'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+
+    <!-- ── DEALER LIST ── -->
+    <ng-container *ngIf="!selectedBillingDealer">
+
+      <!-- Header -->
+      <div class="flex items-center gap-3 mb-5">
+        <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+          <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+        </button>
+        <div class="flex-1">
+          <h1 class="text-xl font-bold text-white"><span class="text-cyan-400">Dealer</span> Billing</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Tap a dealer to view their sales</p>
+        </div>
+        <div class="text-right">
+          <p class="text-lg font-bold text-cyan-400">{{ dealers.length }}</p>
+          <p class="text-xs text-slate-500">Total Dealers</p>
+        </div>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="relative mb-4">
+        <ion-icon name="search-outline" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-base pointer-events-none"></ion-icon>
+        <input [(ngModel)]="dealerOrdersSearch" type="text" placeholder="Search by name or phone..."
+               class="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-slate-500 outline-none"
+               style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);" />
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="isLoadingDealers" class="flex flex-col items-center justify-center py-16 gap-3">
+        <div class="w-10 h-10 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin"></div>
+        <p class="text-slate-500 text-sm">Loading dealers...</p>
+      </div>
+
+      <!-- Empty -->
+      <div *ngIf="!isLoadingDealers && filteredDealerOrders.length === 0" class="flex flex-col items-center justify-center py-16 gap-3">
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center" style="background: rgba(56,189,248,0.10);">
+          <ion-icon name="receipt-outline" class="text-cyan-400 text-3xl"></ion-icon>
+        </div>
+        <p class="text-white font-semibold">No dealers found</p>
+        <p class="text-slate-500 text-sm text-center">{{ dealerOrdersSearch ? 'Try a different search term' : 'No dealers registered yet' }}</p>
+      </div>
+
+      <!-- Dealer Cards -->
+      <div *ngIf="!isLoadingDealers && filteredDealerOrders.length > 0" class="flex flex-col gap-3">
+        <button *ngFor="let dealer of filteredDealerOrders"
+                (click)="selectBillingDealer(dealer)"
+                class="w-full rounded-2xl p-4 flex items-start gap-4 text-left"
+                style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+          <!-- Avatar -->
+          <div class="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center"
+               style="background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.25);">
+            <ion-icon name="storefront-outline" style="font-size: 22px; color: #38bdf8;"></ion-icon>
+          </div>
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-white text-sm truncate">{{ dealer.fullName }}</p>
+            <div class="flex items-center gap-1.5 mt-1">
+              <ion-icon name="call-outline" class="text-slate-500" style="font-size: 12px; flex-shrink: 0;"></ion-icon>
+              <p class="text-xs text-slate-400">{{ dealer.phone }}</p>
+            </div>
+            <div class="flex items-start gap-1.5 mt-1">
+              <ion-icon name="location-outline" class="text-slate-500 mt-0.5" style="font-size: 12px; flex-shrink: 0;"></ion-icon>
+              <p class="text-xs text-slate-500 leading-snug">{{ dealer.address }}</p>
+            </div>
+          </div>
+          <!-- Status + chevron -->
+          <div class="flex flex-col items-end gap-2 flex-shrink-0">
+            <span class="px-2 py-0.5 rounded-full text-xs font-semibold"
+                  [style.background]="dealer.isActive ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)'"
+                  [style.color]="dealer.isActive ? '#4ade80' : '#f87171'"
+                  [style.border]="dealer.isActive ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(239,68,68,0.25)'">
+              {{ dealer.isActive ? 'Active' : 'Inactive' }}
+            </span>
+            <ion-icon name="chevron-forward-outline" class="text-slate-600 text-base"></ion-icon>
+          </div>
+        </button>
+      </div>
+
+    </ng-container>
+
+    <!-- ── DEALER SALES DETAIL ── -->
+    <ng-container *ngIf="selectedBillingDealer">
+
+      <!-- Header -->
+      <div class="flex items-center gap-3 mb-5">
+        <button (click)="backToBillingList()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+          <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+        </button>
+        <div class="flex-1">
+          <h1 class="text-xl font-bold text-white truncate">{{ selectedBillingDealer.fullName }}</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Sales &amp; billing history</p>
+        </div>
+      </div>
+
+      <!-- Dealer Info Card -->
+      <div class="rounded-2xl p-4 mb-5 flex items-center gap-4"
+           style="background: rgba(56,189,248,0.06); border: 1px solid rgba(56,189,248,0.2);">
+        <div class="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center"
+             style="background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.25);">
+          <ion-icon name="storefront-outline" style="font-size: 22px; color: #38bdf8;"></ion-icon>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-bold text-white text-sm">{{ selectedBillingDealer.fullName }}</p>
+          <p class="text-xs text-slate-400 mt-0.5">{{ selectedBillingDealer.phone }}</p>
+          <p class="text-xs text-slate-500 mt-0.5 truncate">{{ selectedBillingDealer.address }}</p>
+        </div>
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="isLoadingDealerSales" class="flex flex-col items-center justify-center py-16 gap-3">
+        <div class="w-10 h-10 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin"></div>
+        <p class="text-slate-500 text-sm">Loading sales...</p>
+      </div>
+
+      <!-- Empty -->
+      <div *ngIf="!isLoadingDealerSales && dealerSales.length === 0" class="flex flex-col items-center justify-center py-16 gap-3">
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center" style="background: rgba(56,189,248,0.08);">
+          <ion-icon name="receipt-outline" class="text-cyan-400 text-3xl"></ion-icon>
+        </div>
+        <p class="text-white font-semibold">No sales recorded</p>
+        <p class="text-slate-500 text-sm">This dealer has no billing history yet</p>
+      </div>
+
+      <!-- Sales List -->
+      <div *ngIf="!isLoadingDealerSales && dealerSales.length > 0" class="flex flex-col gap-2">
+
+        <div *ngFor="let sale of dealerSales; let i = index"
+             class="rounded-xl px-4 py-3"
+             style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);">
+
+          <!-- Line 1: item name + stepper -->
+          <div class="flex items-center justify-between gap-3">
+            <p class="text-white text-xs font-semibold truncate flex-1">{{ sale.itemName ?? sale.item_name ?? '—' }}</p>
+            <!-- qty stepper -->
+            <div class="flex items-center flex-shrink-0" style="gap: 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden;">
+              <button (click)="sale._qty = (sale._qty ?? 0) > 0 ? (sale._qty ?? 0) - 1 : 0; sale.amount = (sale._unitPrice ?? 0) * sale._qty"
+                      class="w-7 h-7 flex items-center justify-center"
+                      style="background: rgba(239,68,68,0.12);">
+                <ion-icon name="remove-outline" style="font-size: 13px; color: #f87171;"></ion-icon>
+              </button>
+              <span class="w-7 h-7 flex items-center justify-center text-xs font-bold text-white"
+                    style="background: rgba(255,255,255,0.05);">{{ sale._qty ?? 0 }}</span>
+              <button (click)="sale._qty = (sale._qty ?? 1) + 1; sale.amount = (sale._unitPrice ?? 0) * sale._qty"
+                      class="w-7 h-7 flex items-center justify-center"
+                      style="background: rgba(56,189,248,0.12);">
+                <ion-icon name="add-outline" style="font-size: 13px; color: #38bdf8;"></ion-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Line 2: SKU + amount + date -->
+          <div class="flex items-center justify-between mt-1.5">
+            <span class="text-slate-500 text-xs font-mono">{{ sale.sku ?? '—' }}</span>
+            <div class="flex items-center gap-3">
+              <span class="text-emerald-400 text-xs font-semibold">₹{{ (sale.amount ?? 0) | number:'1.0-0' }}</span>
+              <span class="text-slate-600 text-xs">{{ sale.date ? (sale.date | date:'dd MMM') : '—' }}</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer: count + total + place order -->
+        <div class="flex items-center justify-between px-1 pt-1 pb-2">
+          <p class="text-xs text-slate-500">{{ dealerSales.length }} item{{ dealerSales.length !== 1 ? 's' : '' }}</p>
+          <p class="text-xs font-bold text-cyan-400">Total: ₹{{ dealerSalesTotal | number:'1.0-0' }}</p>
+        </div>
+
+        <!-- Place Order -->
+        <button (click)="placeOrder()"
+                [disabled]="isPlacingOrder"
+                class="w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2"
+                style="background: linear-gradient(135deg,#0ea5e9,#6366f1); color: #fff;">
+          <div *ngIf="isPlacingOrder" class="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+          <ion-icon *ngIf="!isPlacingOrder" name="checkmark-circle-outline" style="font-size: 18px;"></ion-icon>
+          {{ isPlacingOrder ? 'Placing Order...' : 'Place Order' }}
+        </button>
+
+      </div>
+
+      <!-- ── ORDER HISTORY ── -->
+      <div class="mt-6">
+        <h2 class="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
+          <ion-icon name="receipt-outline" class="text-cyan-400"></ion-icon>
+          Order History
+        </h2>
+
+        <!-- Loading -->
+        <div *ngIf="isLoadingDealerPlacedOrders" class="flex items-center justify-center py-8 gap-2">
+          <div class="w-5 h-5 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin"></div>
+          <p class="text-slate-500 text-xs">Loading orders...</p>
+        </div>
+
+        <!-- Empty -->
+        <div *ngIf="!isLoadingDealerPlacedOrders && dealerPlacedOrders.length === 0"
+             class="text-center py-8 rounded-xl"
+             style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+          <p class="text-slate-500 text-sm">No orders placed yet</p>
+        </div>
+
+        <!-- Order Cards -->
+        <div *ngIf="!isLoadingDealerPlacedOrders && dealerPlacedOrders.length > 0" class="flex flex-col gap-2">
+          <div *ngFor="let order of dealerPlacedOrders"
+               class="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+               style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);">
+            <div class="flex-1 min-w-0">
+              <p class="text-white text-xs font-semibold truncate">{{ order.itemName ?? order.item_name ?? 'Order #' + order.id }}</p>
+              <div class="flex items-center gap-3 mt-1">
+                <span class="text-emerald-400 text-xs font-semibold">₹{{ (order.amount ?? 0) | number:'1.0-0' }}</span>
+                <span class="text-slate-500 text-xs">{{ order.date ? (order.date | date:'dd MMM yyyy') : '' }}</span>
+                <span *ngIf="order.quantity" class="text-slate-500 text-xs">Qty: {{ order.quantity }}</span>
+              </div>
+            </div>
+            <button (click)="downloadDealerInvoice(order)"
+                    [disabled]="downloadingInvoiceId === order.id"
+                    class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold"
+                    style="background: rgba(56,189,248,0.12); border: 1px solid rgba(56,189,248,0.25); color: #38bdf8;">
+              <div *ngIf="downloadingInvoiceId === order.id" class="w-3.5 h-3.5 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin"></div>
+              <ion-icon *ngIf="downloadingInvoiceId !== order.id" name="download-outline" style="font-size: 14px;"></ion-icon>
+              {{ downloadingInvoiceId === order.id ? 'Downloading...' : 'Invoice' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </ng-container>
+
+  </div>
+
+  <!-- ==================== DEALER ORDERS (read-only order history) ==================== -->
+  <div *ngIf="activeOperationView === 'dealer-order-history'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+
+    <!-- ── DEALER LIST ── -->
+    <ng-container *ngIf="!selectedOrderHistoryDealer">
+
+      <!-- Header -->
+      <div class="flex items-center gap-3 mb-5">
+        <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+          <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+        </button>
+        <div class="flex-1">
+          <h1 class="text-xl font-bold text-white"><span class="text-teal-400">Dealer</span> Orders</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Tap a dealer to view their order history</p>
+        </div>
+        <div class="text-right">
+          <p class="text-lg font-bold text-teal-400">{{ dealerOrderHistoryGroups.length }}</p>
+          <p class="text-xs text-slate-500">Dealers with Orders</p>
+        </div>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="relative mb-4">
+        <ion-icon name="search-outline" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-base pointer-events-none"></ion-icon>
+        <input [(ngModel)]="dealerOrderHistorySearch" type="text" placeholder="Search by name or phone..."
+               class="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-slate-500 outline-none"
+               style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);" />
+      </div>
+
+      <!-- Loading -->
+      <div *ngIf="isLoadingDistributorDealerOrders" class="flex flex-col items-center justify-center py-16 gap-3">
+        <div class="w-10 h-10 rounded-full border-2 border-teal-500 border-t-transparent animate-spin"></div>
+        <p class="text-slate-500 text-sm">Loading orders...</p>
+      </div>
+
+      <!-- Empty -->
+      <div *ngIf="!isLoadingDistributorDealerOrders && dealerOrderHistoryGroups.length === 0" class="flex flex-col items-center justify-center py-16 gap-3">
+        <div class="w-16 h-16 rounded-2xl flex items-center justify-center" style="background: rgba(45,212,191,0.10);">
+          <ion-icon name="receipt-outline" class="text-teal-400 text-3xl"></ion-icon>
+        </div>
+        <p class="text-white font-semibold">No orders found</p>
+        <p class="text-slate-500 text-sm text-center">{{ dealerOrderHistorySearch ? 'Try a different search term' : 'No dealer orders placed yet' }}</p>
+      </div>
+
+      <!-- Dealer Cards -->
+      <div *ngIf="!isLoadingDistributorDealerOrders && dealerOrderHistoryGroups.length > 0" class="flex flex-col gap-3">
+        <button *ngFor="let group of dealerOrderHistoryGroups"
+                (click)="selectOrderHistoryDealer(group.dealer)"
+                class="w-full rounded-2xl p-4 flex items-start gap-4 text-left"
+                style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+          <!-- Avatar -->
+          <div class="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center"
+               style="background: rgba(45,212,191,0.12); border: 1px solid rgba(45,212,191,0.25);">
+            <ion-icon name="storefront-outline" style="font-size: 22px; color: #2dd4bf;"></ion-icon>
+          </div>
+          <!-- Info -->
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-white text-sm truncate">{{ group.dealer.fullName }}</p>
+            <div class="flex items-center gap-1.5 mt-1">
+              <ion-icon name="call-outline" class="text-slate-500" style="font-size: 12px; flex-shrink: 0;"></ion-icon>
+              <p class="text-xs text-slate-400">{{ group.dealer.phone }}</p>
+            </div>
+            <div class="flex items-center gap-3 mt-1.5">
+              <span class="text-xs text-slate-400">{{ group.orders.length }} order{{ group.orders.length === 1 ? '' : 's' }}</span>
+              <span class="text-emerald-400 text-xs font-semibold">₹{{ group.totalAmount | number:'1.0-0' }}</span>
+            </div>
+          </div>
+          <ion-icon name="chevron-forward-outline" class="text-slate-600 text-base self-center"></ion-icon>
+        </button>
+      </div>
+
+    </ng-container>
+
+    <!-- ── ORDER HISTORY DETAIL ── -->
+    <ng-container *ngIf="selectedOrderHistoryDealer">
+
+      <!-- Header -->
+      <div class="flex items-center gap-3 mb-5">
+        <button (click)="backToOrderHistoryList()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+          <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+        </button>
+        <div class="flex-1">
+          <h1 class="text-xl font-bold text-white truncate">{{ selectedOrderHistoryDealer.fullName }}</h1>
+          <p class="text-xs text-slate-500 mt-0.5">Order history</p>
+        </div>
+      </div>
+
+      <!-- Dealer Info Card -->
+      <div class="rounded-2xl p-4 mb-5 flex items-center gap-4"
+           style="background: rgba(45,212,191,0.06); border: 1px solid rgba(45,212,191,0.2);">
+        <div class="w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center"
+             style="background: rgba(45,212,191,0.12); border: 1px solid rgba(45,212,191,0.25);">
+          <ion-icon name="storefront-outline" style="font-size: 22px; color: #2dd4bf;"></ion-icon>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-bold text-white text-sm">{{ selectedOrderHistoryDealer.fullName }}</p>
+          <p class="text-xs text-slate-400 mt-0.5">{{ selectedOrderHistoryDealer.phone }}</p>
+        </div>
+        <div class="text-right shrink-0">
+          <p class="text-emerald-400 font-bold text-sm">₹{{ selectedDealerOrdersTotal | number:'1.0-0' }}</p>
+          <p class="text-xs text-slate-500">{{ selectedDealerOrders.length }} order{{ selectedDealerOrders.length === 1 ? '' : 's' }}</p>
+        </div>
+      </div>
+
+      <!-- Empty -->
+      <div *ngIf="selectedDealerOrders.length === 0"
+           class="text-center py-8 rounded-xl"
+           style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+        <p class="text-slate-500 text-sm">No orders placed yet</p>
+      </div>
+
+      <!-- Order Cards -->
+      <div *ngIf="selectedDealerOrders.length > 0" class="flex flex-col gap-2">
+        <div *ngFor="let order of selectedDealerOrders"
+             class="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+             style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07);">
+          <div class="flex-1 min-w-0">
+            <p class="text-white text-xs font-semibold truncate">{{ order.itemName ?? order.item_name ?? 'Order #' + order.id }}</p>
+            <div class="flex items-center gap-3 mt-1">
+              <span class="text-emerald-400 text-xs font-semibold">₹{{ (order.amount ?? 0) | number:'1.0-0' }}</span>
+              <span class="text-slate-500 text-xs">{{ order.date ? (order.date | date:'dd MMM yyyy') : '' }}</span>
+              <span *ngIf="order.quantity" class="text-slate-500 text-xs">Qty: {{ order.quantity }}</span>
+            </div>
+          </div>
+          <button (click)="downloadDealerInvoice(order)"
+                  [disabled]="downloadingInvoiceId === order.id"
+                  class="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold"
+                  style="background: rgba(45,212,191,0.12); border: 1px solid rgba(45,212,191,0.25); color: #2dd4bf;">
+            <div *ngIf="downloadingInvoiceId === order.id" class="w-3.5 h-3.5 rounded-full border-2 border-teal-400 border-t-transparent animate-spin"></div>
+            <ion-icon *ngIf="downloadingInvoiceId !== order.id" name="download-outline" style="font-size: 14px;"></ion-icon>
+            {{ downloadingInvoiceId === order.id ? 'Downloading...' : 'Invoice' }}
+          </button>
+        </div>
+      </div>
+
+    </ng-container>
+
+  </div>
+
+  <!-- ==================== PRICE MASTER VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'price-master'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="selectedPriceMasterDealer ? backToPriceMasterList() : goBackToOperations()"
+              class="w-10 h-10 rounded-xl flex items-center justify-center"
+              style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">{{ selectedPriceMasterDealer ? selectedPriceMasterDealer.fullName : 'Price Master' }}</h1>
+        <p class="text-xs text-slate-500">{{ selectedPriceMasterDealer ? 'Manage product pricing' : 'Select a dealer to manage products' }}</p>
+      </div>
+    </div>
+
+    <!-- ── DEALER LIST (no dealer selected) ── -->
+    <ng-container *ngIf="!selectedPriceMasterDealer">
+      <div class="flex flex-col gap-3">
+
+        <!-- Loading State -->
+        <div *ngIf="isLoadingDealers" class="text-center py-12 rounded-2xl"
+             style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+          <ion-spinner name="crescent" style="color: #a78bfa;"></ion-spinner>
+          <p class="text-slate-500 text-sm mt-3">Loading dealers...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="!isLoadingDealers && dealers.length === 0" class="text-center py-12 rounded-2xl"
+             style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05);">
+          <ion-icon name="storefront-outline" class="text-slate-600 text-5xl mb-3 block"></ion-icon>
+          <p class="text-slate-400 font-semibold">No dealers registered</p>
+          <p class="text-slate-600 text-sm mt-1">Add dealers first from the Dealers section</p>
+        </div>
+
+        <!-- Dealer Cards -->
+        <button *ngFor="let dealer of dealers"
+                (click)="selectPriceMasterDealer(dealer)"
+                class="flex items-center gap-4 p-4 rounded-2xl text-left transition-all"
+                style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+               style="background: rgba(139,92,246,0.15); border: 1px solid rgba(139,92,246,0.25);">
+            <ion-icon name="storefront-outline" class="text-violet-400 text-2xl"></ion-icon>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="font-bold text-white text-sm truncate">{{ dealer.fullName }}</p>
+            <p class="text-xs text-slate-500 mt-0.5 truncate">{{ dealer.phone }}</p>
+            <p class="text-xs text-slate-600 mt-0.5 truncate">{{ dealer.address }}</p>
+          </div>
+          <div class="text-right flex-shrink-0">
+            <p class="text-xs font-semibold" style="color: #a78bfa;">{{ (dealerProducts[dealer.id] || []).length }} product{{ (dealerProducts[dealer.id] || []).length !== 1 ? 's' : '' }}</p>
+          </div>
+          <ion-icon name="chevron-forward-outline" class="text-slate-600 text-lg flex-shrink-0"></ion-icon>
+        </button>
+
+      </div>
+    </ng-container>
+
+    <!-- ── DEALER PRODUCT VIEW (dealer selected) ── -->
+    <ng-container *ngIf="selectedPriceMasterDealer">
+
+      <!-- Add Product Form (multi-row) -->
+      <div class="rounded-2xl p-4 mb-5" style="background: rgba(139,92,246,0.06); border: 1px solid rgba(139,92,246,0.2);">
+        <div class="flex items-center justify-between mb-3">
+          <p class="text-xs font-bold tracking-widest" style="color: #a78bfa;">ADD PRODUCTS</p>
+          <button (click)="addPriceMasterRow()"
+                  class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                  style="background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.25);">
+            <ion-icon name="add-outline" class="text-sm"></ion-icon>
+            Add Row
+          </button>
+        </div>
+
+        <!-- Column Labels -->
+        <div class="flex items-center gap-2 mb-1.5 px-1">
+          <div class="text-xs text-slate-500" style="flex: 5;">
+            Product
+            <span *ngIf="isLoadingFinishedProducts" class="ml-1 text-violet-400">(loading...)</span>
+          </div>
+          <div class="text-xs text-slate-500" style="flex: 3;">Price (₹)</div>
+          <div style="width: 32px; flex-shrink: 0;"></div>
+        </div>
+
+        <!-- Draft Rows -->
+        <div class="flex flex-col gap-3">
+          <div *ngFor="let row of priceMasterRows; let i = index" class="flex items-center gap-2">
+            <!-- Product Name Dropdown -->
+            <select [ngModel]="row.productName" (ngModelChange)="onPriceMasterProductSelect(row, $event)"
+                    class="px-2.5 py-2.5 rounded-xl text-sm focus:outline-none min-w-0"
+                    style="flex: 5; background: rgba(255,255,255,0.06); border: 1px solid rgba(139,92,246,0.3); color: white; appearance: none; -webkit-appearance: none;">
+              <option value="" disabled selected style="background:#1a1f2e; color: #64748b;">Select product</option>
+              <option *ngFor="let p of finishedProductsList" [value]="p.name" style="background:#1a1f2e; color: white;">{{ p.name }}</option>
+            </select>
+            <input type="number" [(ngModel)]="row.price"
+                   placeholder="0.00" min="0"
+                   class="px-2.5 py-2.5 rounded-xl text-sm placeholder:text-slate-600 focus:outline-none min-w-0"
+                   style="flex: 3; background: rgba(255,255,255,0.06); border: 1px solid rgba(139,92,246,0.3); color: white;" />
+            <button (click)="removePriceMasterRow(i)"
+                    class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style="background: rgba(239,68,68,0.1); width: 32px;">
+              <ion-icon name="close-outline" class="text-red-400 text-base"></ion-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Save All -->
+        <button (click)="saveAllPriceMasterProducts()"
+                class="w-full py-3 rounded-xl font-bold text-sm text-white mt-4"
+                style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); box-shadow: 0 4px 12px rgba(139,92,246,0.3);">
+          Add Pricing
+        </button>
+      </div>
+
+      <!-- Product Table -->
+      <div class="rounded-2xl overflow-hidden" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+
+        <!-- Table Header -->
+        <div class="flex items-center px-4 py-3 text-xs font-bold tracking-widest text-slate-500 uppercase"
+             style="border-bottom: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.02);">
+          <div style="flex: 5;">Product</div>
+          <div class="text-right" style="flex: 3;">Price</div>
+          <div style="width: 28px; flex-shrink: 0;"></div>
+        </div>
+
+        <!-- Loading State -->
+        <div *ngIf="isLoadingDealerProducts[selectedPriceMasterDealer.id]"
+             class="flex items-center justify-center gap-2 py-10 text-slate-500 text-sm">
+          <ion-spinner name="dots" style="width:18px;height:18px;"></ion-spinner>
+          <span>Loading products...</span>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="!isLoadingDealerProducts[selectedPriceMasterDealer.id] && (dealerProducts[selectedPriceMasterDealer.id] || []).length === 0"
+             class="text-center py-10">
+          <ion-icon name="cube-outline" class="text-slate-600 text-4xl mb-2 block"></ion-icon>
+          <p class="text-slate-500 text-sm font-semibold">No products yet</p>
+          <p class="text-slate-600 text-xs mt-1">Add a product using the form above</p>
+        </div>
+
+        <!-- Product Rows -->
+        <div *ngFor="let product of (dealerProducts[selectedPriceMasterDealer.id] || []); let last = last"
+             class="flex items-center px-4 py-3"
+             [style]="last ? '' : 'border-bottom: 1px solid rgba(255,255,255,0.04);'">
+          <p class="text-white font-semibold text-sm truncate" style="flex: 5;">{{ product.productName }}</p>
+          <p class="text-emerald-400 font-bold text-sm text-right" style="flex: 3;">₹{{ product.price | number:'1.0-2' }}</p>
+          <div style="width: 28px; flex-shrink: 0;" class="flex justify-end">
+            <button (click)="removePriceMasterProduct(selectedPriceMasterDealer.id, product.id)"
+                    class="w-7 h-7 rounded-lg flex items-center justify-center"
+                    style="background: rgba(239,68,68,0.1);">
+              <ion-icon name="close-outline" class="text-red-400 text-sm"></ion-icon>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </ng-container>
+
+  </div>
+
+  <!-- ==================== MY STOCK VIEW ==================== -->
+  <div *ngIf="activeOperationView === 'my-stock'" class="max-w-6xl mx-auto px-4 pt-4 pb-8">
+
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-5">
+      <button (click)="goBackToOperations()" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);">
+        <ion-icon name="arrow-back-outline" class="text-white text-xl"></ion-icon>
+      </button>
+      <div class="flex-1">
+        <h1 class="text-xl font-bold text-white">My Stock</h1>
+        <p class="text-xs text-slate-500">Current stock levels at your location</p>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoadingStock" class="flex flex-col items-center justify-center py-16 gap-3">
+      <ion-spinner name="crescent" style="color: #10b981; width: 32px; height: 32px;"></ion-spinner>
+      <p class="text-slate-500 text-sm">Loading stock...</p>
+    </div>
+
+    <!-- Empty -->
+    <div *ngIf="!isLoadingStock && !distributorStock" class="text-center py-16">
+      <ion-icon name="layers-outline" class="text-slate-600 text-5xl mb-3 block mx-auto"></ion-icon>
+      <p class="text-slate-400 font-semibold">No stock data available</p>
+    </div>
+
+    <!-- Stock Data -->
+    <ng-container *ngIf="!isLoadingStock && distributorStock">
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-2 gap-3 mb-5">
+        <div class="rounded-2xl p-4 text-center" style="background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2);">
+          <p class="text-xs font-bold tracking-widest mb-1" style="color: #475569;">TOTAL QTY</p>
+          <p class="text-2xl font-bold text-white">{{ distributorStock.totalQuantity }}</p>
+        </div>
+        <div class="rounded-2xl p-4 text-center" style="background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2);">
+          <p class="text-xs font-bold tracking-widest mb-1" style="color: #475569;">STOCK VALUE</p>
+          <p class="text-lg font-bold text-white">₹{{ distributorStock.totalStockValue | number:'1.0-0' }}</p>
+        </div>
+      </div>
+
+      <!-- Stock Items -->
+      <div class="flex flex-col gap-3">
+        <div *ngFor="let item of distributorStock.stockItems"
+             class="rounded-2xl p-4" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex-1 min-w-0">
+              <p class="text-white font-bold text-sm">{{ item.itemName }}</p>
+              <p class="text-xs mt-0.5" style="color: #475569;">SKU: {{ item.itemSku }}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <p class="text-emerald-400 font-bold text-sm">₹{{ item.totalValue | number:'1.0-0' }}</p>
+              <p class="text-xs" style="color: #475569;">Total Value</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2 mt-3">
+            <div class="rounded-xl p-2.5 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);">
+              <p class="text-xs" style="color: #475569;">Quantity</p>
+              <p class="text-white font-semibold text-sm mt-0.5">{{ item.totalQuantity }}</p>
+            </div>
+            <div class="rounded-xl p-2.5 text-center" style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.06);">
+              <p class="text-xs" style="color: #475569;">Unit Price</p>
+              <p class="text-white font-semibold text-sm mt-0.5">₹{{ item.unitPrice | number:'1.0-2' }}</p>
+            </div>
+            <div class="rounded-xl p-2.5 text-center" style="background: rgba(16,185,129,0.06); border: 1px solid rgba(16,185,129,0.15);">
+              <p class="text-xs" style="color: #475569;">Value</p>
+              <p class="text-emerald-400 font-bold text-sm mt-0.5">₹{{ item.totalValue | number:'1.0-0' }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Last Updated -->
+      <p class="text-xs text-center mt-4" style="color: #475569;">
+        Last updated: {{ distributorStock.lastUpdated | date:'dd MMM yyyy, hh:mm a' }}
+      </p>
+
+    </ng-container>
+  </div>
+
+  <!-- ==================== MAIN DASHBOARD / OPERATIONS VIEW ==================== -->
+  <div *ngIf="!activeOperationView" class="dd-shell">
+
+    <!-- ── Tab Selector ── -->
+    <div class="dd-tabs">
+      <button class="dd-tabs__btn" [class.dd-tabs__btn--active]="activeTab === 'dashboard'" (click)="switchTab('dashboard')">Dashboard</button>
+      <button class="dd-tabs__btn" [class.dd-tabs__btn--active]="activeTab === 'operations'" (click)="switchTab('operations')">Operations</button>
+    </div>
+
+    <!-- ── Body ── -->
+    <div class="dd-body">
+
+    <!-- ===== DASHBOARD TAB ===== -->
+    <div *ngIf="activeTab === 'dashboard'" class="dd-fade-in">
+
+      <!-- FY Label -->
+      <p class="dd-fy-label">{{ currentFYLabel }}</p>
+
+      <!-- Loading -->
+      <div *ngIf="isLoadingAnalytics" class="dd-loading">
+        <ion-spinner name="crescent"></ion-spinner>
+        <span>Loading analytics...</span>
+      </div>
+
+      <!-- Stats Cards -->
+      <div *ngIf="!isLoadingAnalytics">
+
+        <!-- Volume Row (Green) -->
+        <div class="dd-card-row">
+          <div class="dd-stat-card dd-stat-card--green">
+            <p class="dd-stat-card__label">Vol MTD</p>
+            <p class="dd-stat-card__value">{{ periodData.volMTD }}</p>
+          </div>
+          <div class="dd-stat-card dd-stat-card--green">
+            <p class="dd-stat-card__label">Vol YTD</p>
+            <p class="dd-stat-card__value">{{ periodData.volYTD }}</p>
+          </div>
+        </div>
+
+        <!-- Value Row (Light) -->
+        <div class="dd-card-row">
+          <div class="dd-stat-card dd-stat-card--light">
+            <p class="dd-stat-card__label dd-stat-card__label--emerald">Value MTD</p>
+            <p class="dd-stat-card__value dd-stat-card__value--dark">{{ periodData.valueMTD }}</p>
+          </div>
+          <div class="dd-stat-card dd-stat-card--light">
+            <p class="dd-stat-card__label dd-stat-card__label--emerald">Value YTD</p>
+            <p class="dd-stat-card__value dd-stat-card__value--dark">{{ periodData.valueYTD }}</p>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="dd-divider"></div>
+
+        <!-- Financial Stats Rows -->
+        <div class="dd-info-row">
+          <div class="dd-info-cell">
+            <p class="dd-info-cell__label">Total O/S</p>
+            <p class="dd-info-cell__value" style="white-space: nowrap;">{{ formatTotalOS(accountStatementBalance) }}</p>
+          </div>
+          <div class="dd-info-divider"></div>
+          <div class="dd-info-cell">
+            <p class="dd-info-cell__label dd-info-cell__label--teal">Coll MTD</p>
+            <p class="dd-info-cell__value">{{ formatAmount(collectionAnalytics?.collectionMonthly ?? volumeAnalytics?.collectionMonthly ?? totalCollectionAmount) }}</p>
+          </div>
+        </div>
+
+        <div class="dd-info-row">
+          <div class="dd-info-cell">
+            <p class="dd-info-cell__label dd-info-cell__label--rose">Total OD</p>
+            <p class="dd-info-cell__value">{{ formatAmount(displayCreditLimit) }}</p>
+          </div>
+          <div class="dd-info-divider"></div>
+          <div class="dd-info-cell">
+            <p class="dd-info-cell__label dd-info-cell__label--teal">Coll YTD</p>
+            <p class="dd-info-cell__value">{{ formatAmount(collectionAnalytics?.collectionYearly ?? volumeAnalytics?.collectionYearly ?? totalCollectionAmount) }}</p>
+          </div>
+        </div>
+
+        <!-- Divider -->
+        <div class="dd-divider"></div>
+
+        <!-- Quick Actions -->
+        <div style="text-align:center;">
+          <button (click)="goToCatalog()" class="dd-quick-action-btn">
+            <ion-icon name="cart-outline" style="font-size:18px;"></ion-icon>
+            Place Order
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ===== OPERATIONS TAB ===== -->
+    <div *ngIf="activeTab === 'operations'" class="ops-tab dd-fade-in">
+
+      <!-- ── Quick Access ───────────────────────────── -->
+      <div class="ops-section">
+        <div class="ops-section-header">
+          <div class="ops-section-icon" style="background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.25);">
+            <ion-icon name="apps-outline" style="font-size: 18px; color: #38bdf8;"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-white font-bold text-base">Quick Access</h2>
+            <p class="text-xs" style="color: #475569;">Navigate your key screens</p>
+          </div>
+        </div>
+        <div class="ops-grid">
+          <button (click)="goToCatalog()" class="ops-card ops-card--cyan">
+            <div class="ops-card__icon" style="background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.3);">
+              <ion-icon name="cart-outline" style="font-size: 28px; color: #38bdf8;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Shopping Cart</p>
+            <p class="ops-card__desc">Browse &amp; place orders</p>
+          </button>
+          <button (click)="goToOrderTracking()" class="ops-card ops-card--amber">
+            <div class="ops-card__icon" style="background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3);">
+              <ion-icon name="location-outline" style="font-size: 28px; color: #fbbf24;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Order Tracking</p>
+            <p class="ops-card__desc">Track orders &amp; delivery status</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Payments & Finance ─────────────────────── -->
+      <div class="ops-section">
+        <div class="ops-section-header">
+          <div class="ops-section-icon" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.25);">
+            <ion-icon name="cash-outline" style="font-size: 18px; color: #34d399;"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-white font-bold text-base">Payments &amp; Finance</h2>
+            <p class="text-xs" style="color: #475569;">Manage payments and accounts</p>
+          </div>
+        </div>
+        <div class="ops-grid">
+          <button (click)="openOperationView('collections')" class="ops-card ops-card--teal">
+            <div class="ops-card__icon" style="background: rgba(20,184,166,0.15); border-color: rgba(20,184,166,0.3);">
+              <ion-icon name="cash-outline" style="font-size: 28px; color: #2dd4bf;"></ion-icon>
+            </div>
+            <p class="ops-card__title">My Payments</p>
+            <p class="ops-card__desc">View cleared &amp; settled payments</p>
+          </button>
+          <button (click)="openAddPaymentModal()" class="ops-card ops-card--emerald">
+            <div class="ops-card__icon" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3);">
+              <ion-icon name="add-circle-outline" style="font-size: 28px; color: #34d399;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Add Payment</p>
+            <p class="ops-card__desc">Record a credit or debit entry</p>
+          </button>
+          <button (click)="openOperationView('payment-report')" class="ops-card ops-card--violet">
+            <div class="ops-card__icon" style="background: rgba(124,58,237,0.15); border-color: rgba(124,58,237,0.3);">
+              <ion-icon name="bar-chart-outline" style="font-size: 28px; color: #a78bfa;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Payment Report</p>
+            <p class="ops-card__desc">View payment analytics</p>
+          </button>
+          <button (click)="openOperationView('account-statement')" class="ops-card ops-card--sky">
+            <div class="ops-card__icon" style="background: rgba(14,165,233,0.15); border-color: rgba(14,165,233,0.3);">
+              <ion-icon name="newspaper-outline" style="font-size: 28px; color: #38bdf8;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Account Statement</p>
+            <p class="ops-card__desc">Full account transaction history</p>
+          </button>
+          <button (click)="openOperationView('balance-confirmation')" class="ops-card ops-card--rose">
+            <div class="ops-card__icon" style="background: rgba(244,63,94,0.15); border-color: rgba(244,63,94,0.3);">
+              <ion-icon name="checkmark-done-circle-outline" style="font-size: 28px; color: #fb7185;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Balance Confirmation</p>
+            <p class="ops-card__desc">Confirm outstanding balance</p>
+          </button>
+          <button (click)="openOperationView('credit-limit')" class="ops-card ops-card--amber">
+            <div class="ops-card__icon" style="background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3);">
+              <ion-icon name="wallet-outline" style="font-size: 28px; color: #fbbf24;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Credit Limit</p>
+            <p class="ops-card__desc">View your credit limit &amp; usage</p>
+          </button>
+          <button (click)="openOperationView('copy-invoice')" class="ops-card ops-card--orange">
+            <div class="ops-card__icon" style="background: rgba(249,115,22,0.15); border-color: rgba(249,115,22,0.3);">
+              <ion-icon name="receipt-outline" style="font-size: 28px; color: #fb923c;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Invoices</p>
+            <p class="ops-card__desc">Download invoice copies</p>
+          </button>
+          <button (click)="openOperationView('account-services')" class="ops-card ops-card--purple">
+            <div class="ops-card__icon" style="background: rgba(168,85,247,0.15); border-color: rgba(168,85,247,0.3);">
+              <ion-icon name="card-outline" style="font-size: 28px; color: #c084fc;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Account Services</p>
+            <p class="ops-card__desc">Manage account settings</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Orders & Dispatch ──────────────────────── -->
+      <div class="ops-section">
+        <div class="ops-section-header">
+          <div class="ops-section-icon" style="background: rgba(244,63,94,0.15); border-color: rgba(244,63,94,0.25);">
+            <ion-icon name="cube-outline" style="font-size: 18px; color: #fb7185;"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-white font-bold text-base">Orders &amp; Dispatch</h2>
+            <p class="text-xs" style="color: #475569;">Place and track your orders</p>
+          </div>
+        </div>
+        <div class="ops-grid">
+          <button (click)="openOperationView('orders')" class="ops-card ops-card--cyan">
+            <div class="ops-card__icon" style="background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.3);">
+              <ion-icon name="cube-outline" style="font-size: 28px; color: #38bdf8;"></ion-icon>
+            </div>
+            <p class="ops-card__title">My Orders</p>
+            <p class="ops-card__desc">View all your orders</p>
+          </button>
+          <button (click)="openOperationView('my-stock')" class="ops-card ops-card--emerald">
+            <div class="ops-card__icon" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3);">
+              <ion-icon name="layers-outline" style="font-size: 28px; color: #34d399;"></ion-icon>
+            </div>
+            <p class="ops-card__title">My Stock</p>
+            <p class="ops-card__desc">View your current stock levels</p>
+          </button>
+          <button (click)="openOperationView('dispatch-report')" class="ops-card ops-card--rose">
+            <div class="ops-card__icon" style="background: rgba(244,63,94,0.15); border-color: rgba(244,63,94,0.3);">
+              <ion-icon name="car-outline" style="font-size: 28px; color: #fb7185;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Dispatch Report</p>
+            <p class="ops-card__desc">View dispatch &amp; delivery status</p>
+          </button>
+          <button (click)="openOperationView('pending-report')" class="ops-card ops-card--amber">
+            <div class="ops-card__icon" style="background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3);">
+              <ion-icon name="time-outline" style="font-size: 28px; color: #fbbf24;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Pending Orders</p>
+            <p class="ops-card__desc">Track orders awaiting dispatch</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Dealer Management ──────────────────────── -->
+      <div class="ops-section">
+        <div class="ops-section-header">
+          <div class="ops-section-icon" style="background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.25);">
+            <ion-icon name="storefront-outline" style="font-size: 18px; color: #a78bfa;"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-white font-bold text-base">Dealer Management</h2>
+            <p class="text-xs" style="color: #475569;">Manage your dealer network</p>
+          </div>
+        </div>
+        <div class="ops-grid">
+          <button (click)="openOperationView('dealer-ledger')" class="ops-card ops-card--violet">
+            <div class="ops-card__icon" style="background: rgba(124,58,237,0.15); border-color: rgba(124,58,237,0.3);">
+              <ion-icon name="book-outline" style="font-size: 28px; color: #a78bfa;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Dealer Ledger</p>
+            <p class="ops-card__desc">Track dealer transactions &amp; balances</p>
+          </button>
+          <button (click)="openOperationView('dealer-orders')" class="ops-card ops-card--cyan">
+            <div class="ops-card__icon" style="background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.3);">
+              <ion-icon name="receipt-outline" style="font-size: 28px; color: #38bdf8;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Dealer Billing</p>
+            <p class="ops-card__desc">View all dealer bills &amp; invoices</p>
+          </button>
+          <button (click)="openAddDealerModal()" class="ops-card ops-card--emerald">
+            <div class="ops-card__icon" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3);">
+              <ion-icon name="person-add-outline" style="font-size: 28px; color: #34d399;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Add Dealer</p>
+            <p class="ops-card__desc">Register a new dealer</p>
+          </button>
+          <button (click)="openOperationView('price-master')" class="ops-card ops-card--amber">
+            <div class="ops-card__icon" style="background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3);">
+              <ion-icon name="pricetag-outline" style="font-size: 28px; color: #fbbf24;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Price Master</p>
+            <p class="ops-card__desc">View and manage product pricing</p>
+          </button>
+          <button (click)="openOperationView('dealer-order-history')" class="ops-card ops-card--teal">
+            <div class="ops-card__icon" style="background: rgba(45,212,191,0.15); border-color: rgba(45,212,191,0.3);">
+              <ion-icon name="cart-outline" style="font-size: 28px; color: #2dd4bf;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Dealer Orders</p>
+            <p class="ops-card__desc">View order history by dealer</p>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Updates ──────────────────────── -->
+      <div class="ops-section">
+        <div class="ops-section-header">
+          <div class="ops-section-icon" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.25);">
+            <ion-icon name="megaphone-outline" style="font-size: 18px; color: #10b981;"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-white font-bold text-base">Updates</h2>
+            <p class="text-xs" style="color: #64748b;">Offers, news & announcements</p>
+          </div>
+        </div>
+        <div class="ops-grid">
+          <button (click)="goToOffersNews()" class="ops-card ops-card--emerald">
+            <div class="ops-card__icon" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3);">
+              <ion-icon name="pricetags-outline" style="font-size: 20px; color: #10b981;"></ion-icon>
+            </div>
+            <p class="ops-card__title">Offers & News</p>
+            <p class="ops-card__desc">View latest offers & updates</p>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    </div><!-- /dd-body -->
+  </div><!-- /dd-shell -->
+  <!-- ==================== ADD PAYMENT MODAL ==================== -->
+  <ion-modal [isOpen]="showAddPaymentModal" (didDismiss)="closeAddPaymentModal()" [backdropDismiss]="false">
+    <ng-template>
+      <div class="h-full flex flex-col" style="background: #0d1117;">
+
+        <!-- Header -->
+        <div class="relative overflow-hidden" style="background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 55%, #10b981 100%);">
+          <div class="absolute inset-0" style="background: radial-gradient(ellipse at top right, rgba(255,255,255,0.18), transparent 60%);"></div>
+          <!-- Close row -->
+          <div class="relative flex justify-end pt-3 pr-4">
+            <button (click)="closeAddPaymentModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style="background: rgba(0,0,0,0.22); color: white; backdrop-filter: blur(8px);">
+              Close
+              <div class="w-4 h-4 rounded-full flex items-center justify-center" style="background: rgba(255,255,255,0.25);">
+                <ion-icon name="close-outline" style="font-size: 11px;"></ion-icon>
+              </div>
+            </button>
+          </div>
+          <!-- Title row -->
+          <div class="relative flex items-center gap-3 px-5 pb-4 pt-2">
+            <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px);">
+              <ion-icon name="card-outline" class="text-white" style="font-size: 20px;"></ion-icon>
+            </div>
+            <div class="flex-1">
+              <h2 class="text-white font-bold" style="font-size: 18px; line-height: 1.2;">Add Payment</h2>
+              <p style="font-size: 12px; color: rgba(255,255,255,0.75);">Record a credit entry</p>
+            </div>
+          </div>
+          <!-- Distributor pills -->
+          <div class="relative flex gap-2 px-5 pb-4">
+            <span class="px-3 py-1 rounded-full text-xs font-semibold" style="background: rgba(255,255,255,0.2); color: white;">{{ distributorName }}</span>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold" style="background: rgba(255,255,255,0.14); color: rgba(255,255,255,0.9);">ID: {{ distributorId }}</span>
+          </div>
+        </div>
+
+        <!-- Scrollable Body -->
+        <div class="flex-1 overflow-y-auto">
+          <div class="px-5 pt-5 pb-4 space-y-4">
+
+            <!-- Balance Type -->
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">BALANCE TYPE</p>
+              <div>
+                <!-- Credit -->
+                <button type="button" (click)="paymentForm.balanceType = 'credit'; generatePaymentReference()"
+                  class="rounded-2xl py-3.5 flex items-center justify-center gap-2.5 font-bold text-sm transition-all w-full"
+                  [style.background]="paymentForm.balanceType === 'credit' ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.05)'"
+                  [style.border]="paymentForm.balanceType === 'credit' ? '1.5px solid rgba(74,222,128,0.55)' : '1.5px solid rgba(255,255,255,0.08)'"
+                  [style.color]="paymentForm.balanceType === 'credit' ? '#4ade80' : '#475569'">
+                  <ion-icon name="arrow-up-outline" style="font-size: 16px;"></ion-icon>
+                  Credit
+                </button>
+              </div>
+            </div>
+
+            <!-- Date -->
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">DATE *</p>
+              <!-- Trigger button -->
+              <button type="button" (click)="showPaymentDatePicker = !showPaymentDatePicker"
+                class="w-full flex items-center justify-between px-4 rounded-2xl font-medium text-left transition-all"
+                [style.border]="showPaymentDatePicker ? '1px solid rgba(16,185,129,0.5)' : '1px solid rgba(255,255,255,0.10)'"
+                style="background: rgba(255,255,255,0.06); color: white; height: 52px;">
+                <div class="flex items-center gap-2.5">
+                  <ion-icon name="calendar-outline" style="font-size: 16px; color: #10b981; flex-shrink:0;"></ion-icon>
+                  <span [style.color]="paymentForm.date ? '#e2e8f0' : '#475569'" style="font-size: 14px;">
+                    {{ paymentForm.date ? (paymentForm.date | date:'EEE, dd MMM yyyy') : 'Select date' }}
+                  </span>
+                </div>
+                <ion-icon [name]="showPaymentDatePicker ? 'chevron-up-outline' : 'chevron-down-outline'"
+                  style="font-size: 16px; color: #475569; flex-shrink:0;"></ion-icon>
+              </button>
+              <!-- Inline calendar panel -->
+              <div *ngIf="showPaymentDatePicker"
+                style="margin-top: 8px; border-radius: 16px; overflow: hidden; border: 1px solid rgba(16,185,129,0.2); background: #1a2234;">
+                <ion-datetime
+                  presentation="date"
+                  [(ngModel)]="paymentForm.date"
+                  name="paymentDate"
+                  [preferWheel]="false"
+                  (ionChange)="showPaymentDatePicker = false"
+                  style="--background: #1a2234; --background-rgb: 26,34,52; --ion-color-primary: #10b981; --ion-color-primary-contrast: #ffffff; --color: #e2e8f0; width: 100%;">
+                </ion-datetime>
+              </div>
+            </div>
+
+            <!-- Amount -->
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">AMOUNT (₹) *</p>
+              <div class="relative">
+                <input [(ngModel)]="paymentForm.amount" name="paymentAmount" type="number" min="0.01" step="0.01"
+                  class="w-full px-4 rounded-2xl font-mono focus:outline-none"
+                  style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 52px; padding-right: 48px;"
+                  placeholder="0.00">
+                <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" style="font-size: 16px; color: #475569; font-weight: 700;">
+                  ₹
+                </div>
+              </div>
+            </div>
+
+            <!-- Reference -->
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">REFERENCE *</p>
+              <div class="relative">
+                <input [(ngModel)]="paymentForm.reference" name="paymentReference" type="text"
+                  class="w-full px-4 rounded-2xl font-mono focus:outline-none"
+                  style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 52px; padding-right: 48px;"
+                  placeholder="e.g. CR-1005">
+                <button type="button" (click)="generatePaymentReference()"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl flex items-center justify-center"
+                  style="background: rgba(255,255,255,0.08);">
+                  <ion-icon name="document-text-outline" style="font-size: 16px; color: #475569;"></ion-icon>
+                </button>
+              </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">DESCRIPTION *</p>
+              <input [(ngModel)]="paymentForm.description" name="paymentDescription" type="text"
+                class="w-full px-4 rounded-2xl focus:outline-none"
+                style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 52px;"
+                placeholder="Payment description">
+            </div>
+
+            <!-- Transaction Type -->
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">TRANSACTION TYPE <span style="color: #334155; font-weight: 500;">(optional)</span></p>
+              <div class="grid grid-cols-5 gap-2">
+                <button type="button" *ngFor="let pm of paymentMethods"
+                  (click)="paymentForm.paymentMethod === pm.value ? paymentForm.paymentMethod = '' : paymentForm.paymentMethod = $any(pm.value)"
+                  class="rounded-2xl px-1 py-3 flex flex-col items-center justify-center gap-1.5 font-semibold text-[10px] transition-all"
+                  [style.background]="paymentForm.paymentMethod === pm.value ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)'"
+                  [style.border]="paymentForm.paymentMethod === pm.value ? '1.5px solid rgba(74,222,128,0.45)' : '1.5px solid rgba(255,255,255,0.08)'"
+                  [style.color]="paymentForm.paymentMethod === pm.value ? '#4ade80' : '#475569'">
+                  <ion-icon [name]="pm.icon" style="font-size: 18px;"></ion-icon>
+                  <span>{{ pm.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- UTR -->
+            <div *ngIf="paymentForm.paymentMethod === 'rtgs' || paymentForm.paymentMethod === 'neft'">
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">UTR NUMBER *</p>
+              <input [(ngModel)]="paymentForm.utrNumber" name="paymentUtrNumber" type="text"
+                class="w-full px-4 rounded-2xl font-mono focus:outline-none"
+                style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 52px;"
+                placeholder="Enter UTR number">
+            </div>
+
+            <!-- Cheque Fields -->
+            <div *ngIf="paymentForm.paymentMethod === 'cheque'" class="grid grid-cols-2 gap-3">
+              <div>
+                <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">BANK NAME *</p>
+                <input [(ngModel)]="paymentForm.bankName" name="paymentBankName" type="text"
+                  class="w-full px-4 rounded-2xl focus:outline-none"
+                  style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 52px;"
+                  placeholder="Bank name">
+              </div>
+              <div>
+                <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">CHEQUE NO. *</p>
+                <input [(ngModel)]="paymentForm.chequeNumber" name="paymentChequeNumber" type="text"
+                  class="w-full px-4 rounded-2xl font-mono focus:outline-none"
+                  style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 52px;"
+                  placeholder="Cheque number">
+              </div>
+            </div>
+
+            <!-- IMPS/UPI -->
+            <div *ngIf="paymentForm.paymentMethod === 'imps' || paymentForm.paymentMethod === 'upi'">
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">TRANSACTION NUMBER *</p>
+              <input [(ngModel)]="paymentForm.transactionNumber" name="paymentTransactionNumber" type="text"
+                class="w-full px-4 rounded-2xl font-mono focus:outline-none"
+                style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 52px;"
+                placeholder="Enter transaction number">
+            </div>
+
+            <!-- Receipt Upload -->
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">UPLOAD RECEIPT <span style="color: #334155; font-weight: 500;">(optional)</span></p>
+              <div *ngIf="!receiptFileName" class="relative rounded-2xl py-4 text-center"
+                style="border: 1.5px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.03);">
+                <input type="file" (change)="onPaymentReceiptSelected($event)" accept="image/*,.pdf" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+                <div class="flex items-center justify-center gap-3">
+                  <ion-icon name="cloud-upload-outline" style="font-size: 20px; color: #475569;"></ion-icon>
+                  <div class="text-left">
+                    <p style="font-size: 12px; font-weight: 600; color: #64748b;">Tap to upload</p>
+                    <p style="font-size: 10px; color: #334155;">PDF, JPG, PNG</p>
+                  </div>
+                </div>
+              </div>
+              <div *ngIf="receiptFileName" class="flex items-center gap-3 px-4 py-3 rounded-2xl"
+                style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25);">
+                <ion-icon name="image-outline" style="font-size: 20px; color: #4ade80;"></ion-icon>
+                <p class="flex-1 text-sm font-semibold text-white truncate">{{ receiptFileName }}</p>
+                <button type="button" (click)="removePaymentReceipt()" class="w-7 h-7 rounded-lg flex items-center justify-center"
+                  style="background: rgba(255,255,255,0.08); color: #f87171;">
+                  <ion-icon name="close-outline" style="font-size: 14px;"></ion-icon>
+                </button>
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="pb-2">
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">NOTES <span style="color: #334155; font-weight: 500;">(optional)</span></p>
+              <textarea [(ngModel)]="paymentForm.notes" name="paymentNotes" rows="3"
+                class="w-full px-4 py-3 rounded-2xl resize-none focus:outline-none"
+                style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;"
+                placeholder="Additional notes..."></textarea>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Save Button -->
+        <div class="px-5 pb-6 pt-3" style="background: #0d1117;">
+          <button type="button" (click)="submitPayment()" [disabled]="isSubmittingPayment"
+            class="w-full py-4 rounded-2xl text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-60"
+            style="background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 55%, #10b981 100%); letter-spacing: 0.02em;">
+            <ion-spinner *ngIf="isSubmittingPayment" name="crescent"></ion-spinner>
+            {{ isSubmittingPayment ? 'Saving...' : 'Save Payment' }}
+          </button>
+        </div>
+
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- ==================== ADD DEALER MODAL ==================== -->
+  <ion-modal [isOpen]="showAddDealerModal" (didDismiss)="closeAddDealerModal()" [backdropDismiss]="false">
+    <ng-template>
+      <div class="h-full flex flex-col" style="background: #0d1117;">
+
+        <!-- Header -->
+        <div class="relative overflow-hidden" style="background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 55%, #a78bfa 100%);">
+          <div class="absolute inset-0" style="background: radial-gradient(ellipse at top right, rgba(255,255,255,0.18), transparent 60%);"></div>
+          <div class="relative flex justify-end pt-3 pr-4">
+            <button (click)="closeAddDealerModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style="background: rgba(0,0,0,0.22); color: white; backdrop-filter: blur(8px);">
+              Close
+              <div class="w-4 h-4 rounded-full flex items-center justify-center" style="background: rgba(255,255,255,0.25);">
+                <ion-icon name="close-outline" style="font-size: 11px;"></ion-icon>
+              </div>
+            </button>
+          </div>
+          <div class="relative flex items-center gap-3 px-5 pb-5 pt-2">
+            <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px);">
+              <ion-icon name="storefront-outline" class="text-white" style="font-size: 20px;"></ion-icon>
+            </div>
+            <div>
+              <h2 class="text-white font-bold" style="font-size: 18px; line-height: 1.2;">Add Dealer</h2>
+              <p style="font-size: 12px; color: rgba(255,255,255,0.75);">Register a new dealer</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto px-5 pt-5 pb-4 space-y-4">
+
+          <!-- Full Name -->
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">FULL NAME *</p>
+            <input type="text" [(ngModel)]="dealerForm.fullName" placeholder="Enter dealer full name"
+                   class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                   style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+          </div>
+
+          <!-- Phone Number -->
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">PHONE NUMBER *</p>
+            <input type="tel" [(ngModel)]="dealerForm.phone" placeholder="Enter phone number"
+                   maxlength="10" inputmode="numeric" pattern="[0-9]+"
+                   class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                   style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+          </div>
+
+          <!-- Address -->
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">ADDRESS *</p>
+            <textarea [(ngModel)]="dealerForm.address" placeholder="Enter full address" rows="3"
+                      class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/30 resize-none"
+                      style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;"></textarea>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="px-5 pb-8 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06);">
+          <button (click)="submitDealer()"
+                  class="w-full py-4 rounded-2xl font-bold text-sm text-white transition-all"
+                  style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); box-shadow: 0 10px 30px rgba(139,92,246,0.3);">
+            Add Dealer
+          </button>
+        </div>
+
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <footer class="dist-legal-footer">
+    © 2026 Nectar Origin Private Limited. All Rights Reserved. |
+    <button class="dist-legal-link" (click)="openLegalDoc('privacy', 'Privacy Policy')">Privacy Policy</button>
+    |
+    <button class="dist-legal-link" (click)="openLegalDoc('terms', 'Terms &amp; Conditions')">Terms &amp; Conditions</button>
+  </footer>
+
+  </div>
+</ion-content>
+
+<!-- ===== BOTTOM TAB BAR (Glass) ===== -->
+<ion-footer class="ion-no-border">
+  <div style="background: rgba(13,17,23,0.95); border-top: 1px solid rgba(255,255,255,0.06); padding-bottom: env(safe-area-inset-bottom); backdrop-filter: blur(20px);" class="flex">
+    <button class="flex-1 flex flex-col items-center pt-2 pb-3 relative" style="background: transparent; border: none; cursor: pointer;">
+      <div class="absolute top-0 left-1/4 right-1/4 rounded-full" style="height: 2.5px; background: #4ade80;"></div>
+      <ion-icon name="apps-outline" style="font-size: 22px; color: #4ade80;"></ion-icon>
+      <span style="font-size: 11px; color: #4ade80; font-weight: 600; margin-top: 3px;">Dashboard</span>
+    </button>
+    <button (click)="goToCatalog()" class="flex-1 flex flex-col items-center pt-2 pb-3" style="background: transparent; border: none; cursor: pointer;">
+      <ion-icon name="grid-outline" style="font-size: 22px; color: #64748b;"></ion-icon>
+      <span style="font-size: 11px; color: #64748b; margin-top: 3px;">Catalog</span>
+    </button>
+    <button (click)="goToCatalog()" class="flex-1 flex flex-col items-center pt-2 pb-3" style="background: transparent; border: none; cursor: pointer;">
+      <ion-icon name="cart-outline" style="font-size: 22px; color: #64748b;"></ion-icon>
+      <span style="font-size: 11px; color: #64748b; margin-top: 3px;">Cart</span>
+    </button>
+    <button class="flex-1 flex flex-col items-center pt-2 pb-3" style="background: transparent; border: none; cursor: pointer;">
+      <ion-icon name="person-outline" style="font-size: 22px; color: #64748b;"></ion-icon>
+      <span style="font-size: 11px; color: #64748b; margin-top: 3px;">Profile</span>
+    </button>
+  </div>
+</ion-footer>
+
+<!-- ==================== LEGAL DOCUMENT MODAL ==================== -->
+<app-legal-docs-modal
+  [isOpen]="showPdfModal"
+  [docType]="legalDocType"
+  [title]="pdfModalTitle"
+  (didClose)="closePdfModal()">
+</app-legal-docs-modal>

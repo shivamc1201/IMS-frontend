@@ -1,0 +1,710 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar style="--background: #000000; --border-width: 0;">
+    <ion-buttons slot="start">
+      <ion-menu-button style="color: #ffffff;"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="text-white font-bold tracking-tight text-xl">
+      <span class="text-emerald-400">Unit</span> Master
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="refreshUnits()" style="--color: #ffffff;" class="rounded-full w-10 h-10">
+        <ion-icon slot="icon-only" name="refresh-outline" class="text-xl"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<!-- CONTENT -->
+<ion-content class="bg-slate-50">
+  <ion-refresher slot="fixed" (ionRefresh)="handlePullRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+  <div class="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pb-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      
+      <!-- Hero Section -->
+      <div class="bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-500 rounded-3xl shadow-lg shadow-emerald-200/40 overflow-hidden mb-8 relative">
+        <div class="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
+        <div class="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 rounded-full bg-purple-500/20 blur-3xl"></div>
+
+        <div class="relative px-8 py-8">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div>
+              <h1 class="text-3xl font-bold text-white mb-2 tracking-tight"><span class="text-emerald-600">Unit</span> Master</h1>
+              <p class="text-emerald-50 text-sm font-medium flex items-center gap-2 bg-white/10 w-fit px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
+                <ion-icon name="layers-outline" class="text-lg"></ion-icon>
+                Manage Measurement Units
+              </p>
+            </div>
+            
+            <div class="flex flex-wrap gap-3">
+              <ion-button 
+                (click)="openAddModal()" 
+                class="bg-white text-emerald-600 font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 normal-case tracking-normal h-10"
+                style="--background: white; --color: #059669; --box-shadow: none;"
+              >
+                <ion-icon slot="start" name="add-circle-outline"></ion-icon>
+                Add New Unit
+              </ion-button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOADER -->
+      <div *ngIf="isLoading" class="flex flex-col items-center justify-center py-20">
+        <ion-spinner name="crescent" class="text-blue-500"></ion-spinner>
+        <p class="text-slate-500 mt-4 font-medium">Loading units...</p>
+      </div>
+
+      <!-- ERROR -->
+      <div *ngIf="errorMessage" class="bg-rose-50 border border-rose-200 rounded-2xl p-6 mb-8">
+        <div class="flex items-center gap-3">
+          <ion-icon name="alert-circle-outline" class="text-rose-500 text-2xl"></ion-icon>
+          <p class="text-rose-700 font-medium">{{ errorMessage }}</p>
+        </div>
+      </div>
+
+      <!-- STATS -->
+      <div *ngIf="!isLoading" class="grid grid-cols-3 gap-3 sm:gap-5 mb-6 sm:mb-8">
+        <div *ngFor="let stat of statCards" class="bg-white rounded-2xl p-3 sm:p-5 shadow-[0_4px_20px_rgb(0,0,0,0.03)] border-2 border-slate-100 hover:border-emerald-200 transition-all duration-300 group flex items-center gap-2.5 sm:gap-3">
+          <div
+            class="w-9 h-9 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform"
+            [class.bg-blue-50]="stat.color === 'emerald'"
+            [class.text-blue-500]="stat.color === 'emerald'"
+            [class.bg-green-50]="stat.color === 'green'"
+            [class.text-green-500]="stat.color === 'green'"
+            [class.bg-slate-100]="stat.color === 'slate'"
+            [class.text-slate-500]="stat.color === 'slate'"
+          >
+            <ion-icon [name]="stat.icon" class="text-lg sm:text-2xl"></ion-icon>
+          </div>
+          <div class="flex flex-col min-w-0">
+            <p class="text-base sm:text-2xl font-extrabold text-slate-800 leading-none mb-1 break-all">{{ stat.value }}</p>
+            <h3 class="text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider truncate">{{ stat.label }}</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEARCH & FILTER -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-6">
+        <div class="flex flex-col lg:flex-row gap-4 items-center">
+          
+          <!-- Search -->
+          <div class="flex-1 w-full relative group">
+            <ion-icon name="search-outline" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 text-lg z-10 group-focus-within:text-blue-500 transition-colors"></ion-icon>
+            <input 
+              type="text"
+              [(ngModel)]="searchTerm"
+              placeholder="Search by name, code, or description..."
+              class="w-full bg-slate-50 hover:bg-white focus:bg-white text-slate-700 placeholder-slate-400 border border-slate-200 focus:border-blue-400 focus:ring-4 focus:ring-blue-50 rounded-xl py-3 pl-11 pr-4 outline-none transition-all duration-200"
+            />
+          </div>
+
+          <!-- Status Filter Buttons -->
+          <div class="flex gap-2">
+            <button 
+              (click)="onStatusFilterChange('all')"
+              [class]="activeStatusFilter === 'all' ? 'bg-blue-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+              class="px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200"
+            >
+              All Units
+            </button>
+            <button 
+              (click)="onStatusFilterChange('ACTIVE')"
+              [class]="activeStatusFilter === 'ACTIVE' ? 'bg-green-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+              class="px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200"
+            >
+              Active
+            </button>
+            <button 
+              (click)="onStatusFilterChange('INACTIVE')"
+              [class]="activeStatusFilter === 'INACTIVE' ? 'bg-slate-500 text-white shadow-md' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'"
+              class="px-4 py-3 rounded-xl font-semibold text-sm transition-all duration-200"
+            >
+              Inactive
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- UNITS TABLE/CARDS -->
+      <div *ngIf="!isLoading && filteredUnits.length > 0" class="grid grid-cols-1 gap-4 mb-8">
+        <div *ngFor="let unit of paginatedUnits" class="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all duration-300 group">
+          <div class="flex items-start justify-between gap-4">
+            <!-- Unit Info -->
+            <div class="flex-1">
+              <div class="flex items-center gap-3 mb-3">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center group-hover:transition-colors transition-colors"
+                  [class.bg-blue-50]="unit.category === 'Raw Material'"
+                  [class.group-hover:bg-blue-100]="unit.category === 'Raw Material'"
+                  [class.bg-emerald-50]="unit.category === 'Finished Product'"
+                  [class.group-hover:bg-emerald-100]="unit.category === 'Finished Product'">
+                  <ion-icon name="cube-outline" class="text-lg"
+                    [class.text-blue-500]="unit.category === 'Raw Material'"
+                    [class.text-emerald-500]="unit.category === 'Finished Product'"></ion-icon>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-base font-bold text-slate-800">{{ unit.category === 'Raw Material' ? $any(unit).unitName : unit.name }}</h3>
+                    <span class="px-2 py-1 rounded text-xs font-semibold"
+                      [class.bg-blue-100]="unit.category === 'Raw Material'"
+                      [class.text-blue-700]="unit.category === 'Raw Material'"
+                      [class.bg-emerald-100]="unit.category === 'Finished Product'"
+                      [class.text-emerald-700]="unit.category === 'Finished Product'">
+                      {{ unit.category }}
+                    </span>
+                  </div>
+                  <!-- Raw Material Code -->
+                  <p *ngIf="unit.category === 'Raw Material'" class="text-xs text-slate-500 font-mono">
+                    Code: {{ $any(unit).unitCode || 'N/A' }}
+                  </p>
+                  <!-- Finished Product SKU -->
+                  <p *ngIf="unit.category === 'Finished Product'" class="text-xs text-slate-500 font-mono">
+                    SKU: {{ $any(unit).sku || 'N/A' }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Category-specific details -->
+              <div class="ml-13 grid grid-cols-2 gap-4 mb-3">
+                <!-- Raw Material Details -->
+                <ng-container *ngIf="unit.category === 'Raw Material'">
+                  <div class="text-xs">
+                    <span class="text-slate-500">Unit Type:</span>
+                    <span class="font-semibold text-slate-700"> {{ $any(unit).unitType }}</span>
+                  </div>
+                  <div class="text-xs">
+                    <span class="text-slate-500">Size:</span>
+                    <span class="font-semibold text-slate-700"> {{ $any(unit).productSize }}</span>
+                  </div>
+                </ng-container>
+                <!-- Finished Product Details -->
+                <ng-container *ngIf="unit.category === 'Finished Product'">
+                  <div class="text-xs">
+                    <span class="text-slate-500">Price:</span>
+                    <span class="font-semibold text-slate-700"> ₹{{ $any(unit).price | number }}</span>
+                  </div>
+                  <div class="text-xs">
+                    <span class="text-slate-500">Qty:</span>
+                    <span class="font-semibold text-slate-700"> {{ unit.quantity }}</span>
+                  </div>
+                </ng-container>
+              </div>
+
+              <p *ngIf="unit.description" class="text-sm text-slate-600 ml-13 mb-2">{{ unit.description }}</p>
+              <div class="flex items-center gap-3 ml-13 text-xs text-slate-500">
+                <span class="flex items-center gap-1">
+                  <ion-icon name="calendar-clear-outline" class="text-sm"></ion-icon>
+                  {{ unit.createdAt | date: 'short' }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Status Badge -->
+            <div class="flex items-center gap-3">
+              <ion-badge 
+                [class]="'px-3 py-1 rounded-full text-xs font-semibold'"
+                [class.bg-green-100]="$any(unit).status === 'ACTIVE' || unit.active"
+                [class.text-green-700]="$any(unit).status === 'ACTIVE' || unit.active"
+                [class.bg-slate-100]="$any(unit).status === 'INACTIVE' || !unit.active"
+                [class.text-slate-700]="$any(unit).status === 'INACTIVE' || !unit.active"
+              >
+                {{ $any(unit).status || (unit.active ? 'ACTIVE' : 'INACTIVE') }}
+              </ion-badge>
+
+              <!-- Action Buttons -->
+              <div class="flex gap-2">
+                <button 
+                  (click)="openEditModal(unit)"
+                  class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 font-semibold rounded-lg transition-colors"
+                >
+                  <ion-icon name="pencil-outline"></ion-icon>
+                </button>
+                <button 
+                  (click)="deleteUnit(unit.id)"
+                  class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold rounded-lg transition-colors"
+                >
+                  <ion-icon name="trash-outline"></ion-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAGINATION -->
+      <div *ngIf="showPagination" class="flex items-center justify-between mt-8 mb-8 px-4 py-4 bg-white rounded-2xl shadow-md">
+        <div class="text-sm text-gray-600 font-medium">
+          Showing
+          <span class="font-bold text-blue-600">
+            {{ (currentPage - 1) * itemsPerPage + 1 }}
+          </span>
+          to
+          <span class="font-bold text-blue-600">
+            {{ Math.min(currentPage * itemsPerPage, filteredUnits.length) }}
+          </span>
+          of
+          <span class="font-bold text-blue-600">
+            {{ filteredUnits.length }}
+          </span>
+          units
+        </div>
+        <div class="flex items-center gap-2">
+          <button (click)="previousPage()" [disabled]="currentPage === 1" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-700">
+            <ion-icon name="chevron-back-outline"></ion-icon>
+          </button>
+          <div class="flex gap-2">
+            <button (click)="goToPage(page)" *ngFor="let page of pages" [class.bg-gradient-to-r]="currentPage === page" [class.from-blue-400]="currentPage === page" [class.to-purple-500]="currentPage === page" [class.bg-gray-100]="currentPage !== page" [class.text-white]="currentPage === page" [class.text-gray-700]="currentPage !== page" [class.shadow-md]="currentPage === page" class="min-w-[44px] px-4 py-2.5 rounded-xl transition-all font-bold text-sm">
+              {{ page }}
+            </button>
+          </div>
+          <button (click)="nextPage()" [disabled]="currentPage === totalPages" class="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed font-medium text-gray-700">
+            <ion-icon name="chevron-forward-outline"></ion-icon>
+          </button>
+        </div>
+      </div>
+
+      <!-- EMPTY STATE -->
+      <div *ngIf="!isLoading && filteredUnits.length === 0" class="bg-white rounded-3xl shadow-sm border border-slate-100 p-20 text-center">
+        <div class="flex flex-col items-center justify-center">
+          <div class="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center shadow-sm mb-4">
+            <ion-icon name="layers-outline" class="text-4xl text-slate-300"></ion-icon>
+          </div>
+          <h3 class="text-lg font-bold text-slate-700 mb-1">No Units Found</h3>
+          <p class="text-slate-500 mb-6">Get started by creating your first unit</p>
+          <button 
+            (click)="openAddModal()"
+            class="px-6 py-3 bg-gradient-to-r from-blue-400 to-purple-500 text-white font-bold rounded-xl shadow-lg hover:shadow-xl transition-all"
+          >
+            <ion-icon name="add-circle-outline" class="mr-2"></ion-icon>
+            Create Unit
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING ADD BUTTON -->
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed">
+    <ion-fab-button (click)="openAddModal()" class="shadow-lg">
+      <ion-icon name="add"></ion-icon>
+    </ion-fab-button>
+  </ion-fab>
+
+  <!-- ADD UNIT MODAL -->
+  <ion-modal [isOpen]="isAddModalOpen" (didDismiss)="closeAddModal()" class="custom-modal" [backdropDismiss]="false">
+    <ng-template>
+      <div class="h-screen flex flex-col bg-slate-50">
+        
+        <div class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-cyan-500 px-6 py-6 flex items-center justify-between shadow-lg flex-shrink-0">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+              <ion-icon name="add-circle-outline" class="text-2xl text-white"></ion-icon>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-white">Create New Unit</h2>
+              <p class="text-xs text-blue-50">Define a new measurement unit with variants</p>
+            </div>
+          </div>
+          <button (click)="closeAddModal()" class="p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors backdrop-blur-sm border border-white/30">
+            <ion-icon name="close-outline" class="text-xl text-white"></ion-icon>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto">
+          <div class="max-w-xl mx-auto p-6 pb-20">
+          <form [formGroup]="addForm" (ngSubmit)="addUnit()" class="space-y-5">
+            
+            <!-- CATEGORY SELECTION -->
+            <div class="mb-8">
+              <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-4 ml-1">📦 Select Category</label>
+              <div class="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  (click)="onCategoryChange('Raw Material')"
+                  [class.border-blue-500]="selectedCategory === 'Raw Material'"
+                  [class.bg-blue-50]="selectedCategory === 'Raw Material'"
+                  [class.ring-2]="selectedCategory === 'Raw Material'"
+                  [class.ring-blue-200]="selectedCategory === 'Raw Material'"
+                  [class.shadow-md]="selectedCategory === 'Raw Material'"
+                  [class.border-slate-200]="selectedCategory !== 'Raw Material'"
+                  [class.bg-white]="selectedCategory !== 'Raw Material'"
+                  class="px-4 py-5 rounded-xl border-2 transition-all font-semibold text-sm flex flex-col items-center gap-3 hover:border-blue-400 hover:shadow-lg hover:scale-105"
+                >
+                  <div class="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
+                    [class.bg-blue-500]="selectedCategory === 'Raw Material'"
+                    [class.bg-blue-50]="selectedCategory !== 'Raw Material'">
+                    <ion-icon name="layers-outline" class="text-2xl transition-colors"
+                      [class.text-white]="selectedCategory === 'Raw Material'"
+                      [class.text-blue-400]="selectedCategory !== 'Raw Material'"></ion-icon>
+                  </div>
+                  <span [class.text-blue-700]="selectedCategory === 'Raw Material'" [class.text-slate-700]="selectedCategory !== 'Raw Material'">Raw Material</span>
+                </button>
+                <button
+                  type="button"
+                  (click)="onCategoryChange('Finished Product')"
+                  [class.border-emerald-500]="selectedCategory === 'Finished Product'"
+                  [class.bg-emerald-50]="selectedCategory === 'Finished Product'"
+                  [class.ring-2]="selectedCategory === 'Finished Product'"
+                  [class.ring-emerald-200]="selectedCategory === 'Finished Product'"
+                  [class.shadow-md]="selectedCategory === 'Finished Product'"
+                  [class.border-slate-200]="selectedCategory !== 'Finished Product'"
+                  [class.bg-white]="selectedCategory !== 'Finished Product'"
+                  class="px-4 py-5 rounded-xl border-2 transition-all font-semibold text-sm flex flex-col items-center gap-3 hover:border-emerald-400 hover:shadow-lg hover:scale-105"
+                >
+                  <div class="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
+                    [class.bg-emerald-500]="selectedCategory === 'Finished Product'"
+                    [class.bg-emerald-50]="selectedCategory !== 'Finished Product'">
+                    <ion-icon name="cube-outline" class="text-2xl transition-colors"
+                      [class.text-white]="selectedCategory === 'Finished Product'"
+                      [class.text-emerald-400]="selectedCategory !== 'Finished Product'"></ion-icon>
+                  </div>
+                  <span [class.text-emerald-700]="selectedCategory === 'Finished Product'" [class.text-slate-700]="selectedCategory !== 'Finished Product'">Finished Product</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- RAW MATERIAL SPECIFIC FIELDS -->
+            <ng-container *ngIf="selectedCategory === 'Raw Material'">
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Unit Name <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="text" formControlName="unitName" placeholder="e.g. Steel Sheet" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+                <div *ngIf="addForm.get('unitName')?.hasError('minlength')" class="text-xs text-rose-600 mt-1 ml-1">Must be at least 2 characters</div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Unit Code <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="number" formControlName="unitCode" placeholder="e.g. 1000" min="0" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Unit Type <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-select formControlName="unitType" placeholder="Select Unit Type" interface="popover" class="w-full px-4 py-3 text-slate-900 font-medium">
+                    <ion-select-option value="KG">Kilogram (KG)</ion-select-option>
+                    <ion-select-option value="LITER">Liter</ion-select-option>
+                    <ion-select-option value="PIECE">Piece</ion-select-option>
+                    <ion-select-option value="METER">Meter</ion-select-option>
+                  </ion-select>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Product Size <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-select formControlName="productSize" placeholder="Select Size" interface="popover" class="w-full px-4 py-3 text-slate-900 font-medium">
+                    <ion-select-option value="small">Small</ion-select-option>
+                    <ion-select-option value="medium">Medium</ion-select-option>
+                    <ion-select-option value="large">Large</ion-select-option>
+                  </ion-select>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- FINISHED PRODUCT SPECIFIC FIELDS -->
+            <ng-container *ngIf="selectedCategory === 'Finished Product'">
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Product Name <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="text" formControlName="name" placeholder="e.g. Laptop Pro" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">SKU <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="text" formControlName="sku" placeholder="e.g. LP-001" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Price <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="number" formControlName="price" placeholder="e.g. 1299.99" min="0" step="0.01" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Quantity</label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="number" formControlName="quantity" placeholder="e.g. 100" min="0" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Minimum Threshold</label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="number" formControlName="minimumThreshold" placeholder="e.g. 500" min="0" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- COMMON FIELDS -->
+            <div class="group">
+              <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Description (Optional)</label>
+              <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                  <ion-input type="text" formControlName="description" placeholder="e.g. High quality material" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                </ion-item>
+              </div>
+            </div>
+
+            <div class="group">
+              <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Status</label>
+              <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                <ion-select formControlName="status" placeholder="Select Status" interface="popover" class="w-full px-4 py-3 text-slate-900 font-medium">
+                  <ion-select-option value="ACTIVE">Active</ion-select-option>
+                  <ion-select-option value="INACTIVE">Inactive</ion-select-option>
+                </ion-select>
+              </div>
+            </div>
+
+            <div class="pt-8 border-t border-slate-200">
+              <ion-button 
+                expand="block" 
+                type="submit" 
+                [disabled]="addForm.invalid"
+                [class.opacity-50]="addForm.invalid"
+                [class.cursor-not-allowed]="addForm.invalid"
+                class="h-14 font-bold rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-200"
+                style="--background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); --box-shadow: 0 20px 25px rgba(59, 130, 246, 0.3);"
+              >
+                <ion-icon slot="start" name="checkmark-circle-outline" class="text-xl"></ion-icon>
+                <span class="text-white text-lg tracking-wide font-semibold">Create Unit</span>
+              </ion-button>
+            </div>
+
+          </form>
+            </div>
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- EDIT UNIT MODAL -->
+  <ion-modal [isOpen]="isEditModalOpen" (didDismiss)="closeEditModal()" class="custom-modal" [backdropDismiss]="false">
+    <ng-template>
+      <div class="h-screen flex flex-col bg-slate-50">
+        
+        <div class="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-purple-500 px-6 py-6 flex items-center justify-between shadow-lg flex-shrink-0">
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/30">
+              <ion-icon name="pencil-outline" class="text-2xl text-white"></ion-icon>
+            </div>
+            <div>
+              <h2 class="text-xl font-bold text-white">Edit Unit</h2>
+              <p class="text-xs text-blue-50">Update unit details and information</p>
+            </div>
+          </div>
+          <button (click)="closeEditModal()" class="p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors backdrop-blur-sm border border-white/30">
+            <ion-icon name="close-outline" class="text-xl text-white"></ion-icon>
+          </button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto">
+          <div class="max-w-xl mx-auto p-6 pb-20">
+          <form [formGroup]="editForm" (ngSubmit)="updateUnit()" class="space-y-5">
+            
+            <!-- CATEGORY SELECTION -->
+            <div class="mb-8">
+              <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-4 ml-1">📦 Select Category</label>
+              <div class="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  (click)="onCategoryChange('Raw Material')"
+                  [class.border-blue-500]="selectedCategory === 'Raw Material'"
+                  [class.bg-blue-50]="selectedCategory === 'Raw Material'"
+                  [class.ring-2]="selectedCategory === 'Raw Material'"
+                  [class.ring-blue-200]="selectedCategory === 'Raw Material'"
+                  [class.shadow-md]="selectedCategory === 'Raw Material'"
+                  [class.border-slate-200]="selectedCategory !== 'Raw Material'"
+                  [class.bg-white]="selectedCategory !== 'Raw Material'"
+                  class="px-4 py-5 rounded-xl border-2 transition-all font-semibold text-sm flex flex-col items-center gap-3 hover:border-blue-400 hover:shadow-lg hover:scale-105"
+                >
+                  <div class="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
+                    [class.bg-blue-500]="selectedCategory === 'Raw Material'"
+                    [class.bg-blue-50]="selectedCategory !== 'Raw Material'">
+                    <ion-icon name="layers-outline" class="text-2xl transition-colors"
+                      [class.text-white]="selectedCategory === 'Raw Material'"
+                      [class.text-blue-400]="selectedCategory !== 'Raw Material'"></ion-icon>
+                  </div>
+                  <span [class.text-blue-700]="selectedCategory === 'Raw Material'" [class.text-slate-700]="selectedCategory !== 'Raw Material'">Raw Material</span>
+                </button>
+                <button
+                  type="button"
+                  (click)="onCategoryChange('Finished Product')"
+                  [class.border-emerald-500]="selectedCategory === 'Finished Product'"
+                  [class.bg-emerald-50]="selectedCategory === 'Finished Product'"
+                  [class.ring-2]="selectedCategory === 'Finished Product'"
+                  [class.ring-emerald-200]="selectedCategory === 'Finished Product'"
+                  [class.shadow-md]="selectedCategory === 'Finished Product'"
+                  [class.border-slate-200]="selectedCategory !== 'Finished Product'"
+                  [class.bg-white]="selectedCategory !== 'Finished Product'"
+                  class="px-4 py-5 rounded-xl border-2 transition-all font-semibold text-sm flex flex-col items-center gap-3 hover:border-emerald-400 hover:shadow-lg hover:scale-105"
+                >
+                  <div class="w-12 h-12 rounded-xl flex items-center justify-center transition-colors"
+                    [class.bg-emerald-500]="selectedCategory === 'Finished Product'"
+                    [class.bg-emerald-50]="selectedCategory !== 'Finished Product'">
+                    <ion-icon name="cube-outline" class="text-2xl transition-colors"
+                      [class.text-white]="selectedCategory === 'Finished Product'"
+                      [class.text-emerald-400]="selectedCategory !== 'Finished Product'"></ion-icon>
+                  </div>
+                  <span [class.text-emerald-700]="selectedCategory === 'Finished Product'" [class.text-slate-700]="selectedCategory !== 'Finished Product'">Finished Product</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- RAW MATERIAL SPECIFIC FIELDS -->
+            <ng-container *ngIf="selectedCategory === 'Raw Material'">
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Unit Name <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="text" formControlName="unitName" placeholder="e.g. Steel Sheet" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+                <div *ngIf="editForm.get('unitName')?.hasError('minlength')" class="text-xs text-rose-600 mt-1 ml-1">Must be at least 2 characters</div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Unit Code <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="number" formControlName="unitCode" placeholder="e.g. 1000" min="0" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Unit Type <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-select formControlName="unitType" placeholder="Select Unit Type" interface="popover" class="w-full px-4 py-3 text-slate-900 font-medium">
+                    <ion-select-option value="KG">Kilogram (KG)</ion-select-option>
+                    <ion-select-option value="LITER">Liter</ion-select-option>
+                    <ion-select-option value="PIECE">Piece</ion-select-option>
+                    <ion-select-option value="METER">Meter</ion-select-option>
+                  </ion-select>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Product Size <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-select formControlName="productSize" placeholder="Select Size" interface="popover" class="w-full px-4 py-3 text-slate-900 font-medium">
+                    <ion-select-option value="small">Small</ion-select-option>
+                    <ion-select-option value="medium">Medium</ion-select-option>
+                    <ion-select-option value="large">Large</ion-select-option>
+                  </ion-select>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- FINISHED PRODUCT SPECIFIC FIELDS -->
+            <ng-container *ngIf="selectedCategory === 'Finished Product'">
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Product Name <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="text" formControlName="name" placeholder="e.g. Laptop Pro" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">SKU <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="text" formControlName="sku" placeholder="e.g. LP-001" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Price <span class="text-red-500">*</span></label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="number" formControlName="price" placeholder="e.g. 1299.99" min="0" step="0.01" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Quantity</label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="number" formControlName="quantity" placeholder="e.g. 100" min="0" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+
+              <div class="group">
+                <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Minimum Threshold</label>
+                <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                  <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                    <ion-input type="number" formControlName="minimumThreshold" placeholder="e.g. 500" min="0" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                  </ion-item>
+                </div>
+              </div>
+            </ng-container>
+
+            <!-- COMMON FIELDS -->
+            <div class="group">
+              <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Description (Optional)</label>
+              <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                  <ion-input type="text" formControlName="description" placeholder="e.g. High quality material" class="px-4 py-3 text-slate-900 font-medium"></ion-input>
+                </ion-item>
+              </div>
+            </div>
+
+            <div class="group">
+              <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-3 ml-1">Status</label>
+              <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                <ion-select formControlName="status" placeholder="Select Status" interface="popover" class="w-full px-4 py-3 text-slate-900 font-medium">
+                  <ion-select-option value="ACTIVE">Active</ion-select-option>
+                  <ion-select-option value="INACTIVE">Inactive</ion-select-option>
+                </ion-select>
+              </div>
+            </div>
+
+            <div class="pt-8 border-t border-slate-200">
+              <ion-button 
+                expand="block" 
+                type="submit" 
+                [disabled]="editForm.invalid"
+                [class.opacity-50]="editForm.invalid"
+                [class.cursor-not-allowed]="editForm.invalid"
+                class="h-14 font-bold rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-200"
+                style="--background: linear-gradient(135deg, #3b82f6 0%, #7c3aed 100%); --box-shadow: 0 20px 25px rgba(59, 130, 246, 0.3);"
+              >
+                <ion-icon slot="start" name="checkmark-circle-outline" class="text-xl"></ion-icon>
+                <span class="text-white text-lg tracking-wide font-semibold">Update Unit</span>
+              </ion-button>
+            </div>
+
+          </form>
+          </div>
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+</ion-content>

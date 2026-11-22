@@ -1,0 +1,160 @@
+<app-report-hero
+  toolbarAccent="Dispatch"
+  toolbarTitle="& Delivery"
+  eyebrow="Logistics"
+  heroTitle="Dispatch &amp; Delivery"
+  subtitle="Vehicle-wise dispatch tracking and proof-of-delivery confirmation"
+  icon="car-outline"
+  [lastUpdated]="lastUpdated"
+  [isBusy]="isLoading"
+  (refresh)="viewReport()">
+
+    <div class="report-filters">
+      <div class="report-filter-field">
+        <label for="ddFrom">From Date</label>
+        <input id="ddFrom" type="date" [(ngModel)]="filters.dateFrom" />
+      </div>
+      <div class="report-filter-field">
+        <label for="ddTo">To Date</label>
+        <input id="ddTo" type="date" [(ngModel)]="filters.dateTo" />
+      </div>
+      <div class="report-filter-field">
+        <label for="ddStatus">Status</label>
+        <select id="ddStatus" [(ngModel)]="filters.status">
+          <option value="all">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="In-Transit">In-Transit</option>
+          <option value="Delivered">Delivered</option>
+        </select>
+      </div>
+      <div class="report-filter-actions">
+        <button class="report-btn report-btn-primary" (click)="viewReport()">
+          <ion-icon name="checkmark-circle-outline"></ion-icon> Apply
+        </button>
+        <button class="report-btn report-btn-outline" (click)="resetFilters()">
+          <ion-icon name="refresh-outline"></ion-icon> Reset
+        </button>
+      </div>
+    </div>
+
+    <section class="report-panel">
+      <div class="report-tabs">
+        <button [class.active]="activeType === 'register'" (click)="switchType('register')">Dispatch Register</button>
+        <button [class.active]="activeType === 'pending'" (click)="switchType('pending')">Pending Dispatch</button>
+        <button [class.active]="activeType === 'confirmation'" (click)="switchType('confirmation')">Delivery Confirmation</button>
+      </div>
+
+      <div class="report-panel-header">
+        <h2 *ngIf="activeType === 'register'">Dispatch Register</h2>
+        <h2 *ngIf="activeType === 'pending'">Pending Dispatch</h2>
+        <h2 *ngIf="activeType === 'confirmation'">Delivery Confirmation</h2>
+        <div class="report-filter-actions">
+          <button class="report-btn report-btn-outline report-btn-excel" (click)="exportExcel()">
+            <ion-icon name="grid-outline"></ion-icon> Export Excel
+          </button>
+          <button class="report-btn report-btn-outline report-btn-pdf" (click)="exportPdf()">
+            <ion-icon name="document-text-outline"></ion-icon> Export PDF
+          </button>
+        </div>
+      </div>
+
+      <div *ngIf="isLoading" class="report-empty">Loading…</div>
+
+      <ng-container *ngIf="!isLoading">
+        <!-- DISPATCH REGISTER -->
+        <app-date-grouped-table *ngIf="activeType === 'register'"
+          heading="Dispatch Register"
+          [rows]="dispatchRegisterRows"
+          dateField="gdnDate"
+          countLabel="Dispatches"
+          emptyText="No dispatches found for these filters"
+          [summaryColumns]="registerSummaryColumns"
+          (exportExcel)="exportGroupExcel($event)"
+          (exportPdf)="exportGroupPdf($event)">
+          <ng-template #detail let-rows>
+            <table class="report-table report-table-sticky">
+              <thead>
+                <tr>
+                  <th>GDN No</th><th>GDN Date</th><th>Customer</th><th>Vehicle No</th><th>Driver</th>
+                  <th>Transport</th><th>Items</th><th>Packages</th><th>Weight (Kg)</th><th>Shipping Address</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of rows">
+                  <td>{{ row.gdnNumber }}</td>
+                  <td>{{ formatDisplayDate(row.gdnDate) }}</td>
+                  <td>{{ row.customerName }}</td>
+                  <td>{{ row.vehicleNo }}</td>
+                  <td>{{ row.driverName }}<span *ngIf="row.driverMobile"> · {{ row.driverMobile }}</span></td>
+                  <td>{{ row.transportName }}</td>
+                  <td>{{ row.itemCount }}</td>
+                  <td>{{ row.totalPackages }}</td>
+                  <td>{{ row.totalWeight.toLocaleString('en-IN') }}</td>
+                  <td class="report-address-cell" [title]="row.shippingAddress">{{ row.shippingAddress }}</td>
+                  <td><span class="report-badge" [ngClass]="statusBadgeClass(row.status)">{{ row.status }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-template>
+        </app-date-grouped-table>
+
+        <!-- PENDING DISPATCH -->
+        <app-date-grouped-table *ngIf="activeType === 'pending'"
+          heading="Pending Dispatch"
+          [rows]="pendingDispatchRows"
+          dateField="gdnDate"
+          countLabel="Challans"
+          emptyText="Nothing pending dispatch"
+          [summaryColumns]="pendingSummaryColumns"
+          (exportExcel)="exportGroupExcel($event)"
+          (exportPdf)="exportGroupPdf($event)">
+          <ng-template #detail let-rows>
+            <table class="report-table report-table-sticky">
+              <thead><tr><th>Challan No</th><th>Customer</th><th>Items</th><th>Amount</th><th>GDN Date</th><th>Ready Since</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let row of rows">
+                  <td>{{ row.challanNo }}</td>
+                  <td>{{ row.customer }}</td>
+                  <td>{{ row.items }}</td>
+                  <td>{{ formatCurrencyFull(row.amount) }}</td>
+                  <td>{{ formatDisplayDate(row.gdnDate) }}</td>
+                  <td>
+                    <span class="report-badge" [ngClass]="row.readySinceDays > 2 ? 'report-badge-red' : 'report-badge-amber'">{{ row.readySinceDays }} days</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-template>
+        </app-date-grouped-table>
+
+        <!-- DELIVERY CONFIRMATION -->
+        <app-date-grouped-table *ngIf="activeType === 'confirmation'"
+          heading="Delivery Confirmation"
+          [rows]="deliveryConfirmationRows"
+          dateField="deliveredDate"
+          countLabel="Deliveries"
+          emptyText="No confirmed deliveries in this range"
+          [summaryColumns]="confirmationSummaryColumns"
+          (exportExcel)="exportGroupExcel($event)"
+          (exportPdf)="exportGroupPdf($event)">
+          <ng-template #detail let-rows>
+            <table class="report-table report-table-sticky">
+              <thead><tr><th>Challan No</th><th>Customer</th><th>Delivered Date</th><th>Received By</th><th>POD Status</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let row of rows">
+                  <td>{{ row.challanNo }}</td>
+                  <td>{{ row.customer }}</td>
+                  <td>{{ formatDisplayDate(row.deliveredDate) }}</td>
+                  <td>{{ row.receivedBy || '—' }}</td>
+                  <td>
+                    <span class="report-badge" [ngClass]="row.podStatus === 'Confirmed' ? 'report-badge-green' : 'report-badge-amber'">{{ row.podStatus }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-template>
+        </app-date-grouped-table>
+      </ng-container>
+    </section>
+
+</app-report-hero>

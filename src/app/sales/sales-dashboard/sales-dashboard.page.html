@@ -1,0 +1,1029 @@
+<ion-content class="ion-no-padding" style="--background: #0a1628;">
+  <ion-refresher slot="fixed" (ionRefresh)="handlePullRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="sales-dashboard-shell">
+
+    <!-- ══════ HEADER BAR ══════ -->
+    <div class="sd-header">
+      <div class="sd-header__left">
+        <ion-menu-button style="color: #ffffff; --padding-start: 0; --padding-end: 0;"></ion-menu-button>
+      </div>
+      <div class="sd-header__title">
+        <span class="sd-header__title-accent">Sales</span>
+        <span class="sd-header__title-main"> Dashboard</span>
+      </div>
+    </div>
+
+    <!-- ══════ TAB BAR ══════ -->
+    <div class="sd-tabs">
+      <button (click)="selectedTab = 'dashboard'" class="sd-tabs__btn" [class.sd-tabs__btn--active]="selectedTab === 'dashboard'">
+        Dashboard
+      </button>
+      <button (click)="selectedTab = 'operations'" class="sd-tabs__btn" [class.sd-tabs__btn--active]="selectedTab === 'operations'">
+        Operations
+      </button>
+    </div>
+
+    <!-- ══════ STATISTICS TAB ══════ -->
+    <div *ngIf="selectedTab === 'dashboard'" class="sd-body sd-fade-in">
+
+      <!-- FY Label -->
+      <p class="sd-fy-label">FY {{ currentFYLabel }}</p>
+
+      <!-- Loading -->
+      <div *ngIf="isLoadingAnalytics" class="sd-loading">
+        <ion-spinner name="crescent" style="color: #38bdf8; width: 28px; height: 28px;"></ion-spinner>
+        <span>Loading analytics...</span>
+      </div>
+
+      <!-- Volume Cards -->
+      <div class="sd-card-row" *ngIf="!isLoadingHierarchyAnalytics">
+        <div class="sd-stat-card sd-stat-card--sky">
+          <p class="sd-stat-card__label">Volume MTD</p>
+          <p class="sd-stat-card__value">{{ (hierarchyAnalytics?.volumeMTD ?? 0) | number:'1.0-2' }}</p>
+        </div>
+        <div class="sd-stat-card sd-stat-card--sky">
+          <p class="sd-stat-card__label">Volume YTD</p>
+          <p class="sd-stat-card__value">{{ (hierarchyAnalytics?.volumeYTD ?? 0) | number:'1.0-2' }}</p>
+        </div>
+      </div>
+
+      <!-- Value Cards -->
+      <div class="sd-card-row" *ngIf="!isLoadingHierarchyAnalytics">
+        <div class="sd-stat-card sd-stat-card--light">
+          <p class="sd-stat-card__label sd-stat-card__label--cyan">Value MTD</p>
+          <p class="sd-stat-card__value sd-stat-card__value--dark">₹{{ (hierarchyAnalytics?.valueMTD ?? 0) | number:'1.0-0' }}</p>
+        </div>
+        <div class="sd-stat-card sd-stat-card--light">
+          <p class="sd-stat-card__label sd-stat-card__label--cyan">Value YTD</p>
+          <p class="sd-stat-card__value sd-stat-card__value--dark">₹{{ (hierarchyAnalytics?.valueYTD ?? 0) | number:'1.0-0' }}</p>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="sd-divider"></div>
+
+      <!-- Order Stats Row -->
+      <div class="sd-info-row">
+        <div class="sd-info-cell">
+          <p class="sd-info-cell__label">No Of Pending Order</p>
+          <p class="sd-info-cell__value">{{ salesPendingOrdersCount }}</p>
+        </div>
+        <div class="sd-info-divider"></div>
+        <div class="sd-info-cell">
+          <p class="sd-info-cell__label sd-info-cell__label--rose">No of Process Orders</p>
+          <p class="sd-info-cell__value">{{ salesOrdersCount }}</p>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="sd-divider"></div>
+
+      <!-- Distributors Row -->
+      <div class="sd-info-row">
+        <div class="sd-info-cell">
+          <p class="sd-info-cell__label sd-info-cell__label--teal">Active Distributors</p>
+          <p class="sd-info-cell__value">{{ activeDistributorsCount }}</p>
+        </div>
+        <div class="sd-info-divider"></div>
+        <div class="sd-info-cell">
+          <p class="sd-info-cell__label sd-info-cell__label--rose">Inactive Distributors</p>
+          <p class="sd-info-cell__value">{{ inactiveDistributorsCount }}</p>
+        </div>
+      </div>
+
+
+      <!-- Divider -->
+      <div class="sd-divider"></div>
+
+      <!-- KPI Results / Productivity Score -->
+      <section class="sd-kpi-panel">
+        <div *ngIf="isLoadingKpiResults" class="sd-loading sd-kpi-panel__loading">
+          <ion-spinner name="crescent" style="color: #22d3ee; width: 24px; height: 24px;"></ion-spinner>
+          <span>Loading KPI grades...</span>
+        </div>
+
+        <div *ngIf="!isLoadingKpiResults">
+          <p class="sd-productivity-title">Productivity Score</p>
+
+          <div class="sd-performance-cards">
+            <!-- MTD Card -->
+            <button type="button"
+                    class="sd-performance-card sd-performance-card--mtd"
+                    [class.sd-performance-card--active]="activePerformancePeriod === 'MTD'"
+                    (click)="togglePerformancePeriod('MTD')">
+              <div class="sd-performance-card__top-row">
+                <span class="sd-performance-card__period-badge">MTD</span>
+                <ion-icon [name]="activePerformancePeriod === 'MTD' ? 'chevron-up-outline' : 'chevron-down-outline'"
+                          class="sd-performance-card__chevron"></ion-icon>
+              </div>
+              <div class="sd-performance-card__grade-focal">
+                <span class="sd-grade-chip sd-grade-chip--focal" [ngClass]="getGradeClass(getPerformanceGrade('MTD'))">
+                  {{ getPerformanceGrade('MTD') }}
+                </span>
+              </div>
+              <p class="sd-performance-card__meaning">{{ getPerformanceMeaning('MTD') }}</p>
+              <div class="sd-performance-card__score-badge">
+                <span class="sd-performance-card__score-label">Score</span>
+                <span class="sd-performance-card__score-value">{{ getPerformanceScore('MTD') | number:'1.0-2' }}</span>
+              </div>
+            </button>
+
+            <!-- YTD Card -->
+            <button type="button"
+                    class="sd-performance-card sd-performance-card--ytd"
+                    [class.sd-performance-card--active]="activePerformancePeriod === 'YTD'"
+                    (click)="togglePerformancePeriod('YTD')">
+              <div class="sd-performance-card__top-row">
+                <span class="sd-performance-card__period-badge">YTD</span>
+                <ion-icon [name]="activePerformancePeriod === 'YTD' ? 'chevron-up-outline' : 'chevron-down-outline'"
+                          class="sd-performance-card__chevron"></ion-icon>
+              </div>
+              <div class="sd-performance-card__grade-focal">
+                <span class="sd-grade-chip sd-grade-chip--focal" [ngClass]="getGradeClass(getPerformanceGrade('YTD'))">
+                  {{ getPerformanceGrade('YTD') }}
+                </span>
+              </div>
+              <p class="sd-performance-card__meaning">{{ getPerformanceMeaning('YTD') }}</p>
+              <div class="sd-performance-card__score-badge">
+                <span class="sd-performance-card__score-label">Score</span>
+                <span class="sd-performance-card__score-value">{{ getPerformanceScore('YTD') | number:'1.0-2' }}</span>
+              </div>
+            </button>
+          </div>
+
+          <!-- Expanded KPI Detail Table -->
+          <div *ngIf="showKpiTargetTable && kpiRows.length > 0" class="sd-kpi-table">
+            <div class="sd-kpi-table__period-badge">
+              {{ activePerformancePeriod }} — KPI Breakdown
+            </div>
+            <div class="sd-kpi-table__head">
+              <span>KPI</span>
+              <span>Target Summary</span>
+              <span>Grade</span>
+              <span>Meaning</span>
+            </div>
+            <div class="sd-kpi-table__body">
+              <div class="sd-kpi-table__row" *ngFor="let row of kpiRows">
+                <div class="sd-kpi-table__kpi">{{ row.kpiName }}</div>
+                <div class="sd-kpi-table__summary" [title]="(row.achievedValue | number:'1.0-2') + ' / ' + (row.targetValue | number:'1.0-2')">
+                  <span class="sd-kpi-table__summary-achieved" [ngClass]="row.achievedValue < row.targetValue ? 'sd-below-target' : 'sd-met-target'">
+                    {{ row.achievedValue | number:'1.0-2' }}
+                  </span>
+                  <span class="sd-kpi-table__summary-separator">/</span>
+                  <span class="sd-kpi-table__summary-target">{{ row.targetValue | number:'1.0-2' }}</span>
+                </div>
+                <div class="sd-kpi-table__grade">
+                  <span class="sd-grade-chip" [ngClass]="getGradeClass(row.grade)">{{ row.grade }}</span>
+                </div>
+                <div class="sd-kpi-table__meaning">{{ row.gradeMeaning }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div *ngIf="showKpiTargetTable && kpiRows.length === 0" class="sd-kpi-empty">
+            No KPI results found
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ══════ OPERATIONS TAB ══════ -->
+    <div *ngIf="selectedTab === 'operations'" class="sd-body sd-fade-in">
+      <div class="ops-tab flex flex-col gap-6">
+
+        <!-- Sales & Team Section -->
+        <div class="ops-section">
+          <div class="ops-section-header">
+            <div class="ops-section-icon" style="background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.25);">
+              <ion-icon name="people-outline" style="font-size: 18px; color: #38bdf8;"></ion-icon>
+            </div>
+            <div>
+              <h2 class="text-white font-bold text-base">Sales &amp; Team</h2>
+              <p class="text-xs" style="color: #475569;">Manage your sales team and operations</p>
+            </div>
+          </div>
+          <div class="ops-grid">
+            <button [routerLink]="['/sales']" class="ops-card ops-card--cyan">
+              <div class="ops-card__icon" style="background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.3);">
+                <ion-icon name="briefcase-outline" style="font-size: 28px; color: #38bdf8;"></ion-icon>
+              </div>
+              <p class="ops-card__title">Sales Management</p>
+              <p class="ops-card__desc">Approve orders &amp; manage pipeline</p>
+            </button>
+            <button [routerLink]="['/sales/salesperson-onboarding']" class="ops-card ops-card--emerald">
+              <div class="ops-card__icon" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3);">
+                <ion-icon name="people-outline" style="font-size: 28px; color: #34d399;"></ion-icon>
+              </div>
+              <p class="ops-card__title">Reporting Manager</p>
+              <p class="ops-card__desc">Onboard &amp; manage team hierarchy</p>
+            </button>
+            <button [routerLink]="['/order-details']" class="ops-card ops-card--amber">
+              <div class="ops-card__icon" style="background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3);">
+                <ion-icon name="location-outline" style="font-size: 28px; color: #fbbf24;"></ion-icon>
+              </div>
+              <p class="ops-card__title">Order Tracking</p>
+              <p class="ops-card__desc">Track orders &amp; delivery status</p>
+            </button>
+          </div>
+        </div>
+
+        <!-- Payment & Collections Section -->
+        <div class="ops-section">
+          <div class="ops-section-header">
+            <div class="ops-section-icon" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.25);">
+              <ion-icon name="cash-outline" style="font-size: 18px; color: #34d399;"></ion-icon>
+            </div>
+            <div>
+              <h2 class="text-white font-bold text-base">Payment &amp; Collections</h2>
+              <p class="text-xs" style="color: #475569;">Manage payments and track collections</p>
+            </div>
+          </div>
+          <div class="ops-grid">
+            <button [routerLink]="['/sales/my-payments']" class="ops-card ops-card--teal">
+              <div class="ops-card__badge" *ngIf="pendingPayments.length > 0">{{ pendingPayments.length }}</div>
+              <div class="ops-card__icon" style="background: rgba(20,184,166,0.15); border-color: rgba(20,184,166,0.3);">
+                <ion-icon name="wallet-outline" style="font-size: 28px; color: #2dd4bf;"></ion-icon>
+              </div>
+              <p class="ops-card__title">My Payments</p>
+              <p class="ops-card__desc">View cleared &amp; pending payments</p>
+            </button>
+            <button (click)="openAddDealerModal()" class="ops-card ops-card--rose">
+              <div class="ops-card__icon" style="background: rgba(244,63,94,0.15); border-color: rgba(244,63,94,0.3);">
+                <ion-icon name="person-add-outline" style="font-size: 28px; color: #fb7185;"></ion-icon>
+              </div>
+              <p class="ops-card__title">Add Dealer</p>
+              <p class="ops-card__desc">Register a new dealer</p>
+            </button>
+
+            <button (click)="openAddDistributorModal()" class="ops-card ops-card--indigo">
+              <div class="ops-card__icon" style="background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.3);">
+                <ion-icon name="storefront-outline" style="font-size: 28px; color: #818cf8;"></ion-icon>
+              </div>
+              <p class="ops-card__title">Create Distributor</p>
+              <p class="ops-card__desc">Register a new distributor</p>
+            </button>
+
+            <button (click)="openPaymentModal()" class="ops-card ops-card--emerald">
+              <div class="ops-card__icon" style="background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3);">
+                <ion-icon name="cash-outline" style="font-size: 28px; color: #34d399;"></ion-icon>
+              </div>
+              <p class="ops-card__title">Add Payment</p>
+              <p class="ops-card__desc">Add payment for distributor</p>
+            </button>
+            <button (click)="openMyDealersModal()" class="ops-card ops-card--cyan">
+              <div class="ops-card__badge" *ngIf="myDealers.length > 0">{{ myDealers.length }}</div>
+              <div class="ops-card__icon" style="background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.3);">
+                <ion-icon name="storefront-outline" style="font-size: 28px; color: #38bdf8;"></ion-icon>
+              </div>
+              <p class="ops-card__title">My Dealers</p>
+              <p class="ops-card__desc">View all registered dealers</p>
+            </button>
+            <button (click)="openBalanceModal()" class="ops-card ops-card--sky">
+              <div class="ops-card__icon" style="background: rgba(56,189,248,0.15); border-color: rgba(56,189,248,0.3);">
+                <ion-icon name="stats-chart-outline" style="font-size: 28px; color: #38bdf8;"></ion-icon>
+              </div>
+              <p class="ops-card__title">My Distributor</p>
+              <p class="ops-card__desc">View distributor balance</p>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <footer class="sd-legal-footer">
+      © 2026 Nectar Origin Private Limited. All Rights Reserved. |
+      <button class="sd-legal-link" (click)="openLegalDoc('privacy', 'Privacy Policy')">Privacy Policy</button>
+      |
+      <button class="sd-legal-link" (click)="openLegalDoc('terms', 'Terms &amp; Conditions')">Terms &amp; Conditions</button>
+    </footer>
+
+  </div>
+</ion-content>
+
+<!-- ==================== DISTRIBUTOR BALANCE MODAL ==================== -->
+<ion-modal [isOpen]="showBalanceModal" (didDismiss)="closeBalanceModal()" [backdropDismiss]="true">
+  <ng-template>
+    <div class="flex flex-col h-full" style="background: #0d1117;">
+
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #1e3a5f, #1a2a4a);">
+        <div class="flex items-center justify-between px-5 pt-5 pb-2">
+          <button (click)="closeBalanceModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                  style="background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8);">&#8592; Back</button>
+        </div>
+        <div class="flex items-center gap-3 px-5 pb-5 pt-2">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0"
+               style="background: rgba(56,189,248,0.2); backdrop-filter: blur(8px);">
+            <ion-icon name="stats-chart-outline" style="font-size: 20px; color: #38bdf8;"></ion-icon>
+          </div>
+          <div>
+            <h2 style="color: #fff; font-size: 20px; font-weight: 800; margin: 0;">My Distributor</h2>
+            <p style="color: rgba(255,255,255,0.5); font-size: 12px; margin: 2px 0 0;">Select a distributor to view balance</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="flex flex-col gap-4" style="padding: 20px 16px; overflow-y: auto; flex: 1;">
+
+        <!-- Distributor Select -->
+        <div class="bm-field">
+          <p class="bm-field__label">DISTRIBUTOR</p>
+          <div class="dist-select-box">
+            <ion-select
+              class="dist-balance-select"
+              [(ngModel)]="selectedDistributorForBalance"
+              (ionChange)="onDistributorBalanceChange()"
+              [disabled]="isLoadingDealerDistributors"
+              interface="action-sheet"
+              [placeholder]="isLoadingDealerDistributors ? 'Loading distributors…' : 'Select a distributor'"
+              [interfaceOptions]="{ header: 'Select Distributor', cssClass: 'dark-action-sheet' }">
+              <ion-select-option *ngFor="let d of dealerFormDistributors" [value]="d.distributorId">
+                {{ d.distributorName }}
+              </ion-select-option>
+            </ion-select>
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div *ngIf="isLoadingBalance" class="bm-loader">
+          <ion-spinner name="crescent" style="color: #38bdf8; width: 28px; height: 28px;"></ion-spinner>
+          <span>Fetching balance…</span>
+        </div>
+
+        <!-- Balance Result -->
+        <div *ngIf="!isLoadingBalance && distributorBalance !== null" class="bm-result">
+          <ion-icon name="trending-up-outline" style="font-size: 32px; color: #34d399;"></ion-icon>
+          <p class="bm-result__label">Available Balance</p>
+          <p class="bm-result__value">₹{{ distributorBalance | number:'1.0-2' }}</p>
+        </div>
+
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- ==================== MY DEALERS MODAL ==================== -->
+<ion-modal [isOpen]="showMyDealersModal" (didDismiss)="closeMyDealersModal()" [backdropDismiss]="true">
+  <ng-template>
+    <div class="flex flex-col h-full" style="background: #0d1117;">
+      <!-- Header -->
+      <div style="background: linear-gradient(135deg, #1e3a5f, #1a2a4a);">
+        <div class="flex items-center justify-between px-5 pt-5 pb-2">
+          <button (click)="closeMyDealersModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                  style="background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.8);">&#8592; Back</button>
+        </div>
+        <div class="relative flex items-center gap-3 px-5 pb-5 pt-2">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px);">
+            <ion-icon name="storefront-outline" class="text-white" style="font-size: 20px;"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-white font-bold" style="font-size: 18px; line-height: 1.2;">My Dealers</h2>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.75);">All registered dealers</p>
+          </div>
+        </div>
+      </div>
+      <!-- Content -->
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-6">
+        <div *ngIf="isLoadingMyDealers" class="flex flex-col items-center justify-center py-12">
+          <ion-spinner name="crescent" style="width:32px;height:32px;color:#3b82f6;"></ion-spinner>
+          <p class="text-slate-500 text-sm mt-3">Loading dealers...</p>
+        </div>
+        <div *ngIf="!isLoadingMyDealers && myDealers.length === 0" class="flex flex-col items-center justify-center py-12">
+          <ion-icon name="storefront-outline" style="font-size: 48px; color: #334155;"></ion-icon>
+          <p class="text-slate-500 text-sm mt-3">No dealers found</p>
+        </div>
+        <div *ngIf="!isLoadingMyDealers && myDealers.length > 0" class="flex flex-col gap-3">
+          <div *ngFor="let dealer of myDealers"
+               class="rounded-2xl p-4"
+               style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.25);">
+                <ion-icon name="storefront-outline" style="font-size: 18px; color: #60a5fa;"></ion-icon>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-white font-semibold text-sm truncate">{{ dealer.fullName || dealer.name || 'Unknown' }}</p>
+                <p *ngIf="dealer.phone" class="text-slate-400 text-xs mt-0.5">{{ dealer.phone }}</p>
+                <p *ngIf="dealer.address" class="text-slate-500 text-xs mt-0.5 truncate">{{ dealer.address }}</p>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0"
+                    [style]="dealer.status === 'ACTIVE' ? 'background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3);' : 'background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);'">
+                {{ dealer.status || 'ACTIVE' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- ==================== ADD DEALER MODAL ==================== -->
+<ion-modal [isOpen]="showAddDealerModal" (didDismiss)="closeAddDealerModal()" [backdropDismiss]="true">
+  <ng-template>
+    <div class="h-screen flex flex-col overflow-hidden" style="background: #0d1117;">
+      <div class="flex-shrink-0 relative overflow-hidden" style="background: linear-gradient(135deg, #7c3aed 0%, #a855f7 55%, #9333ea 100%);">
+        <div class="absolute inset-0" style="background: radial-gradient(ellipse at top right, rgba(255,255,255,0.18), transparent 60%);"></div>
+        <div class="relative flex justify-end pt-3 pr-4">
+          <button (click)="closeAddDealerModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                  style="background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
+            <ion-icon name="close-outline" style="font-size: 14px;"></ion-icon> Close
+          </button>
+        </div>
+        <div class="relative flex items-center gap-3 px-5 pb-5 pt-2">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px);">
+            <ion-icon name="person-add-outline" class="text-white" style="font-size: 20px;"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-white font-bold" style="font-size: 18px; line-height: 1.2;">Add Dealer</h2>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.75);">Register a new dealer</p>
+          </div>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-4 space-y-4">
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">SELECT DISTRIBUTOR *</p>
+          <div *ngIf="isLoadingDealerDistributors" class="py-3 text-center">
+            <ion-spinner name="crescent" style="width:20px;height:20px;color:#7c3aed;"></ion-spinner>
+            <p style="font-size: 12px; color: #475569; margin-top: 4px;">Loading distributors...</p>
+          </div>
+          <select *ngIf="!isLoadingDealerDistributors" [(ngModel)]="dealerForm.selectedDistributorId"
+                  class="w-full px-4 py-3 rounded-2xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                  style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;">
+            <option [ngValue]="null" disabled style="background:#1e293b;">-- Select Distributor --</option>
+            <option *ngFor="let d of dealerFormDistributors" [ngValue]="d.distributorId" style="background:#1e293b;">{{ d.distributorName }} (ID: {{ d.distributorId }})</option>
+          </select>
+        </div>
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">FULL NAME *</p>
+          <input type="text" [(ngModel)]="dealerForm.fullName" placeholder="Enter dealer full name"
+                 class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                 style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+        </div>
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">PHONE NUMBER *</p>
+          <input type="tel" [(ngModel)]="dealerForm.phone" placeholder="Enter phone number"
+                 maxlength="10" inputmode="numeric" pattern="[0-9]+"
+                 class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                 style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+        </div>
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">ADDRESS *</p>
+          <textarea [(ngModel)]="dealerForm.address" placeholder="Enter address" rows="3"
+                    class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/30 resize-none"
+                    style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;"></textarea>
+        </div>
+      </div>
+      <div class="flex-shrink-0 px-5 pb-6 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06);">
+        <button (click)="submitDealer()" [disabled]="isSubmittingDealer"
+                class="w-full py-4 rounded-2xl font-bold text-sm text-white transition-all"
+                style="background: linear-gradient(135deg, #7c3aed, #a855f7);">
+          <span *ngIf="!isSubmittingDealer">Add Dealer</span>
+          <span *ngIf="isSubmittingDealer">Adding...</span>
+        </button>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- ==================== ADD PAYMENT MODAL ==================== -->
+<ion-modal [isOpen]="isPaymentModalOpen" (didDismiss)="closePaymentModal()" [backdropDismiss]="true">
+  <ng-template>
+    <div class="h-screen flex flex-col overflow-hidden" style="background: #0d1117;">
+
+      <!-- Header -->
+      <div class="flex-shrink-0 relative overflow-hidden" style="background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 55%, #10b981 100%);">
+        <div class="absolute inset-0" style="background: radial-gradient(ellipse at top right, rgba(255,255,255,0.18), transparent 60%);"></div>
+        <!-- Close row -->
+        <div class="relative flex justify-end pt-3 pr-4">
+          <button (click)="closePaymentModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+            style="background: rgba(0,0,0,0.22); color: white; backdrop-filter: blur(8px);">
+            Close
+            <div class="w-4 h-4 rounded-full flex items-center justify-center" style="background: rgba(255,255,255,0.25);">
+              <ion-icon name="close-outline" style="font-size: 11px;"></ion-icon>
+            </div>
+          </button>
+        </div>
+        <!-- Title row -->
+        <div class="relative flex items-center gap-3 px-5 pb-4 pt-2">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px);">
+            <ion-icon name="card-outline" class="text-white" style="font-size: 20px;"></ion-icon>
+          </div>
+          <div class="flex-1">
+            <h2 class="text-white font-bold" style="font-size: 18px; line-height: 1.2;">Add Payment</h2>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.75);">Record a credit entry</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scrollable Body -->
+      <div class="flex-1 overflow-y-auto" style="padding-bottom: 20px;">
+        <div class="px-4 pt-4 pb-4 space-y-4">
+
+          <!-- Distributor Selection -->
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">SELECT DISTRIBUTOR *</p>
+            <div *ngIf="isLoadingDealerDistributors" class="py-3 text-center">
+              <ion-spinner name="crescent" style="font-size: 20px; color: #10b981;"></ion-spinner>
+              <p style="font-size: 12px; color: #475569; margin-top: 8px;">Loading distributors...</p>
+            </div>
+            <select [(ngModel)]="paymentForm.selectedDistributorId" name="selectedDistributor"
+              class="w-full px-4 rounded-xl focus:outline-none"
+              style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 44px; font-size: 14px;"
+              *ngIf="!isLoadingDealerDistributors"
+              [style.color]="paymentForm.selectedDistributorId ? 'white' : '#475569'">
+              <option value="" style="background: #0d1117; color: #475569;">-- Select Distributor --</option>
+              <option *ngFor="let dist of dealerFormDistributors" [value]="dist.distributorId" style="background: #0d1117; color: white;">
+                {{ dist.distributorName }} (ID: {{ dist.distributorId }})
+              </option>
+            </select>
+          </div>
+
+          <!-- Balance Type -->
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">BALANCE TYPE</p>
+            <div>
+              <!-- Credit -->
+              <button type="button" (click)="paymentForm.balanceType = 'credit'; generatePaymentReference()"
+                class="rounded-xl py-2.5 flex items-center justify-center gap-2 font-bold text-sm transition-all w-full"
+                [style.background]="paymentForm.balanceType === 'credit' ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.05)'"
+                [style.border]="paymentForm.balanceType === 'credit' ? '1.5px solid rgba(74,222,128,0.55)' : '1.5px solid rgba(255,255,255,0.08)'"
+                [style.color]="paymentForm.balanceType === 'credit' ? '#4ade80' : '#475569'">
+                <ion-icon name="arrow-up-outline" style="font-size: 16px;"></ion-icon>
+                Credit
+              </button>
+            </div>
+          </div>
+
+          <!-- Date -->
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">DATE *</p>
+            <button id="payment-date-trigger" type="button"
+              class="w-full flex items-center justify-between px-4 rounded-xl font-medium text-left transition-all hover:bg-opacity-20"
+              style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 44px;">
+              <span [style.color]="paymentForm.date ? 'white' : '#475569'">
+                {{ paymentForm.date ? (paymentForm.date | date:'dd-MMM-yyyy') : 'Select date' }}
+              </span>
+              <ion-icon name="calendar-outline" style="font-size: 18px; color: #10b981; flex-shrink:0;"></ion-icon>
+            </button>
+            <ion-popover trigger="payment-date-trigger" [keepContentsMounted]="true" [showBackdrop]="true" side="bottom">
+              <ng-template>
+                <div style="padding: 0; background: #1a1f26; border-radius: 8px; overflow: hidden;">
+                  <ion-datetime
+                    presentation="date"
+                    [(ngModel)]="paymentForm.date"
+                    name="paymentDate"
+                    [preferWheel]="false"
+                    style="--background: #0d1117; --ion-background-color: #0d1117; --ion-color-primary: #10b981; --ion-color-primary-contrast: #fff; --ion-text-color: #f1f5f9; width: 100%; height: auto;">
+                  </ion-datetime>
+                </div>
+              </ng-template>
+            </ion-popover>
+          </div>
+
+          <!-- Amount and Reference Grid -->
+          <div class="grid grid-cols-2 gap-3">
+            <!-- Amount -->
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">AMOUNT (₹) *</p>
+              <div class="relative">
+                <input [(ngModel)]="paymentForm.amount" name="paymentAmount" type="number" min="0.01" step="0.01"
+                  class="w-full px-4 rounded-xl font-mono focus:outline-none"
+                  style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 44px; padding-right: 36px;"
+                  placeholder="0.00">
+                <div class="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" style="font-size: 14px; color: #475569; font-weight: 700;">
+                  ₹
+                </div>
+              </div>
+            </div>
+
+            <!-- Reference -->
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">REFERENCE *</p>
+              <div class="relative">
+                <input [(ngModel)]="paymentForm.reference" name="paymentReference" type="text"
+                  class="w-full px-4 rounded-xl font-mono focus:outline-none"
+                  style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 44px; padding-right: 40px;"
+                  placeholder="e.g. CR-1005">
+                <button type="button" (click)="generatePaymentReference()"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-lg flex items-center justify-center"
+                  style="background: rgba(255,255,255,0.08);">
+                  <ion-icon name="document-text-outline" style="font-size: 14px; color: #475569;"></ion-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">DESCRIPTION *</p>
+            <input [(ngModel)]="paymentForm.description" name="paymentDescription" type="text"
+              class="w-full px-4 rounded-xl focus:outline-none"
+              style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 44px;"
+              placeholder="Payment description">
+          </div>
+
+          <!-- Transaction Type -->
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">TRANSACTION TYPE <span style="color: #334155; font-weight: 500;">(optional)</span></p>
+            <div class="grid grid-cols-5 gap-2">
+              <button type="button" *ngFor="let pm of paymentMethods"
+                (click)="paymentForm.paymentMethod === pm.value ? paymentForm.paymentMethod = '' : paymentForm.paymentMethod = $any(pm.value)"
+                class="rounded-xl px-1 py-2.5 flex flex-col items-center justify-center gap-1 font-semibold text-[9px] transition-all"
+                [style.background]="paymentForm.paymentMethod === pm.value ? 'rgba(16,185,129,0.12)' : 'rgba(255,255,255,0.04)'"
+                [style.border]="paymentForm.paymentMethod === pm.value ? '1.5px solid rgba(74,222,128,0.45)' : '1.5px solid rgba(255,255,255,0.08)'"
+                [style.color]="paymentForm.paymentMethod === pm.value ? '#4ade80' : '#475569'">
+                <ion-icon [name]="pm.icon" style="font-size: 16px;"></ion-icon>
+                <span class="line-clamp-1">{{ pm.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- UTR -->
+          <div *ngIf="paymentForm.paymentMethod === 'rtgs' || paymentForm.paymentMethod === 'neft'">
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">UTR NUMBER *</p>
+            <input [(ngModel)]="paymentForm.utrNumber" name="paymentUtrNumber" type="text"
+              class="w-full px-4 rounded-xl font-mono focus:outline-none"
+              style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 44px;"
+              placeholder="Enter UTR number">
+          </div>
+
+          <!-- Cheque Fields -->
+          <div *ngIf="paymentForm.paymentMethod === 'cheque'" class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">BANK NAME *</p>
+              <input [(ngModel)]="paymentForm.bankName" name="paymentBankName" type="text"
+                class="w-full px-4 rounded-xl focus:outline-none"
+                style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 44px;"
+                placeholder="Bank name">
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">CHEQUE NO. *</p>
+              <input [(ngModel)]="paymentForm.chequeNumber" name="paymentChequeNumber" type="text"
+                class="w-full px-4 rounded-xl font-mono focus:outline-none"
+                style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 44px;"
+                placeholder="Cheque number">
+            </div>
+          </div>
+
+          <!-- IMPS/UPI -->
+          <div *ngIf="paymentForm.paymentMethod === 'imps' || paymentForm.paymentMethod === 'upi'">
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">TRANSACTION NUMBER *</p>
+            <input [(ngModel)]="paymentForm.transactionNumber" name="paymentTransactionNumber" type="text"
+              class="w-full px-4 rounded-xl font-mono focus:outline-none"
+              style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; height: 44px;"
+              placeholder="Enter transaction number">
+          </div>
+
+          <!-- Receipt Upload -->
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">UPLOAD RECEIPT <span style="color: #334155; font-weight: 500;">(optional)</span></p>
+            <div *ngIf="!receiptFileName" class="relative rounded-xl py-3 text-center"
+              style="border: 1.5px dashed rgba(255,255,255,0.12); background: rgba(255,255,255,0.03);">
+              <input type="file" (change)="onPaymentReceiptSelected($event)" accept="image/*,.pdf" class="absolute inset-0 opacity-0 w-full h-full cursor-pointer">
+              <div class="flex items-center justify-center gap-2">
+                <ion-icon name="cloud-upload-outline" style="font-size: 18px; color: #475569;"></ion-icon>
+                <div class="text-left">
+                  <p style="font-size: 12px; font-weight: 600; color: #64748b;">Tap to upload</p>
+                  <p style="font-size: 10px; color: #334155;">PDF, JPG, PNG</p>
+                </div>
+              </div>
+            </div>
+            <div *ngIf="receiptFileName" class="flex items-center gap-2 px-3 py-2 rounded-xl"
+              style="background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25);">
+              <ion-icon name="image-outline" style="font-size: 18px; color: #4ade80; flex-shrink: 0;"></ion-icon>
+              <p class="flex-1 text-sm font-semibold text-white truncate">{{ receiptFileName }}</p>
+              <button type="button" (click)="removePaymentReceipt()" class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0"
+                style="background: rgba(255,255,255,0.08); color: #f87171;">
+                <ion-icon name="close-outline" style="font-size: 14px;"></ion-icon>
+              </button>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="pb-2">
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">NOTES <span style="color: #334155; font-weight: 500;">(optional)</span></p>
+            <textarea [(ngModel)]="paymentForm.notes" name="paymentNotes" rows="2"
+              class="w-full px-4 py-3 rounded-xl resize-none focus:outline-none"
+              style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;"
+              placeholder="Additional notes..."></textarea>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Save Button -->
+      <div class="flex-shrink-0 px-4 pb-4 pt-2" style="background: #0d1117; border-top: 1px solid rgba(255,255,255,0.05);">
+        <button type="button" (click)="submitPayment()" [disabled]="isSubmittingPayment"
+          class="w-full py-3 rounded-xl text-white font-bold text-base flex items-center justify-center gap-2 disabled:opacity-60 transition-all"
+          style="background: linear-gradient(135deg, #0ea5e9 0%, #14b8a6 55%, #10b981 100%); letter-spacing: 0.02em;">
+          <ion-spinner *ngIf="isSubmittingPayment" name="crescent"></ion-spinner>
+          {{ isSubmittingPayment ? 'Saving...' : 'Save Payment' }}
+        </button>
+      </div>
+
+    </div>
+  </ng-template>
+</ion-modal>
+
+<!-- ==================== LEGAL DOCUMENT MODAL ==================== -->
+<app-legal-docs-modal
+  [isOpen]="showPdfModal"
+  [docType]="legalDocType"
+  [title]="pdfModalTitle"
+  (didClose)="closePdfModal()">
+</app-legal-docs-modal>
+
+
+<!-- ==================== CREATE DISTRIBUTOR MODAL ==================== -->
+<ion-modal [isOpen]="showAddDistributorModal" (didDismiss)="closeAddDistributorModal()" [backdropDismiss]="true">
+  <ng-template>
+    <div class="h-screen flex flex-col overflow-hidden" style="background: #0d1117;">
+      <!-- Header -->
+      <div class="flex-shrink-0 relative overflow-hidden" style="background: linear-gradient(135deg, #3730a3 0%, #6366f1 55%, #4f46e5 100%);">
+        <div class="absolute inset-0" style="background: radial-gradient(ellipse at top right, rgba(255,255,255,0.18), transparent 60%);"></div>
+        <div class="relative flex justify-end pt-3 pr-4">
+          <button (click)="closeAddDistributorModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                  style="background: rgba(0,0,0,0.2); color: white; border: 1px solid rgba(255,255,255,0.2);">
+            <ion-icon name="close-outline" style="font-size: 14px;"></ion-icon> Close
+          </button>
+        </div>
+        <div class="relative flex items-center gap-3 px-5 pb-5 pt-2">
+          <div class="w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0" style="background: rgba(255,255,255,0.2); backdrop-filter: blur(8px);">
+            <ion-icon name="storefront-outline" class="text-white" style="font-size: 20px;"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-white font-bold" style="font-size: 18px; line-height: 1.2;">Create Distributor</h2>
+            <p style="font-size: 12px; color: rgba(255,255,255,0.75);">Will be inactive until admin approves</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form -->
+      <div class="flex-1 overflow-y-auto px-5 pt-5 pb-4 space-y-5" [formGroup]="distributorCreateForm">
+
+        <!-- Sales & Assignment -->
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-3" style="color: #6366f1;">SALES &amp; ASSIGNMENT</p>
+          <div>
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">ASSIGNED PERSON</p>
+            <div class="flex items-center gap-3 px-4 py-3 rounded-2xl" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10);">
+              <div class="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style="background: rgba(99,102,241,0.2);">
+                <ion-icon name="person-outline" style="font-size: 16px; color: #818cf8;"></ion-icon>
+              </div>
+              <div>
+                <p class="text-sm font-semibold" style="color: white;">{{ auth.getUsername() }}</p>
+                <p class="text-xs" style="color: rgba(255,255,255,0.45);">{{ auth.getRoleType() }} &bull; Auto-assigned</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Company Info -->
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-3" style="color: #6366f1;">COMPANY INFO</p>
+          <div class="space-y-3">
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">COMPANY NAME *</p>
+              <input type="text" formControlName="companyName" placeholder="Enter company / firm name"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+              <p *ngIf="distributorCreateForm.get('companyName')?.invalid && distributorCreateForm.get('companyName')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Company name is required</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">KEY PERSON NAME *</p>
+              <input type="text" formControlName="keyPersonName" placeholder="Enter key person / proprietor name"
+                     autocomplete="off"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+              <p *ngIf="distributorCreateForm.get('keyPersonName')?.invalid && distributorCreateForm.get('keyPersonName')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Key person name is required</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">DISTRIBUTOR TYPE *</p>
+              <select formControlName="distributorType"
+                      class="w-full px-4 py-3 rounded-2xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                      style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;">
+                <option value="" disabled style="background:#1e293b;">Select distributor type</option>
+                <option value="DISTRIBUTOR" style="background:#1e293b;">Distributor</option>
+                <option value="DEALER" style="background:#1e293b;">Dealer</option>
+                <option value="RETAILER" style="background:#1e293b;">Retailer</option>
+                <option value="SUPER_STOCKIST" style="background:#1e293b;">Super Stockist</option>
+                <option value="CNF_AGENT" style="background:#1e293b;">C&amp;F Agent</option>
+              </select>
+              <p *ngIf="distributorCreateForm.get('distributorType')?.invalid && distributorCreateForm.get('distributorType')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Distributor type is required</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">COMPANY TYPE *</p>
+              <select formControlName="companyType"
+                      class="w-full px-4 py-3 rounded-2xl font-medium text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                      style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;">
+                <option value="" disabled style="background:#1e293b;">-- Select Type --</option>
+                <option value="SOLE_PROPRIETOR" style="background:#1e293b;">Sole Proprietor</option>
+                <option value="PARTNERSHIP" style="background:#1e293b;">Partnership</option>
+                <option value="PVT_LTD" style="background:#1e293b;">Private Limited</option>
+                <option value="LTD" style="background:#1e293b;">Limited</option>
+              </select>
+              <p *ngIf="distributorCreateForm.get('companyType')?.invalid && distributorCreateForm.get('companyType')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Company type is required</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact -->
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-3" style="color: #6366f1;">CONTACT</p>
+          <div class="space-y-3">
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">EMAIL *</p>
+              <input type="email" formControlName="email" placeholder="Enter email address"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+              <p *ngIf="distributorCreateForm.get('email')?.invalid && distributorCreateForm.get('email')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Valid email is required</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">PHONE NUMBER *</p>
+              <input type="tel" formControlName="contact" placeholder="10-digit mobile number"
+                     maxlength="10" inputmode="numeric"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+              <p *ngIf="distributorCreateForm.get('contact')?.invalid && distributorCreateForm.get('contact')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Valid 10-digit phone number is required</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">ALTERNATE PHONE</p>
+              <input type="tel" formControlName="alternateContact" placeholder="Alternate phone (optional)"
+                     maxlength="10" inputmode="numeric"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Address -->
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-3" style="color: #6366f1;">ADDRESS</p>
+          <div class="space-y-3">
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">FULL ADDRESS *</p>
+              <textarea formControlName="address" placeholder="Enter full address" rows="3"
+                        class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 resize-none"
+                        style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;"></textarea>
+              <p *ngIf="distributorCreateForm.get('address')?.invalid && distributorCreateForm.get('address')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Address is required</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">PINCODE</p>
+              <input type="text" formControlName="pincode" placeholder="6-digit pincode"
+                     maxlength="6" inputmode="numeric"
+                     (input)="onPincodeInput($event)"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">STATE</p>
+                <input type="text" formControlName="state" placeholder="Auto-filled from pincode"
+                       class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                       style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+              </div>
+              <div>
+                <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">DISTRICT</p>
+                <input type="text" formControlName="district" placeholder="Auto-filled from pincode"
+                       class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                       style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KYC -->
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-3" style="color: #6366f1;">KYC DETAILS</p>
+          <div class="space-y-3">
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">AADHAAR NUMBER *</p>
+              <input type="text" formControlName="aadhaarNumber" placeholder="12-digit Aadhaar number"
+                     maxlength="12" inputmode="numeric"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+              <p *ngIf="distributorCreateForm.get('aadhaarNumber')?.invalid && distributorCreateForm.get('aadhaarNumber')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Valid 12-digit Aadhaar is required</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">PAN NUMBER *</p>
+              <input type="text" formControlName="panNumber" placeholder="10-character PAN"
+                     maxlength="10"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; text-transform: uppercase;" />
+              <p *ngIf="distributorCreateForm.get('panNumber')?.invalid && distributorCreateForm.get('panNumber')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Valid 10-character PAN is required</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">GST NUMBER</p>
+              <input type="text" formControlName="gstNumber" placeholder="15-character GST (optional)"
+                     maxlength="15"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; text-transform: uppercase;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Bank Details -->
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-3" style="color: #6366f1;">BANK DETAILS</p>
+          <div class="space-y-3">
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">ACCOUNT NUMBER</p>
+              <input type="text" formControlName="accountNumber" placeholder="Bank account number"
+                     inputmode="numeric" autocomplete="off"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">ACCOUNT NAME</p>
+              <input type="text" formControlName="accountName" placeholder="Name on bank account"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">IFSC CODE</p>
+              <input type="text" formControlName="ifsc" placeholder="IFSC code" maxlength="11"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white; text-transform: uppercase;" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Login Credentials -->
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-3" style="color: #6366f1;">LOGIN CREDENTIALS</p>
+          <div class="space-y-3">
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">USERNAME *</p>
+              <input type="text" formControlName="username" placeholder="Distributor login username"
+                     autocomplete="off"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+              <p *ngIf="distributorCreateForm.get('username')?.invalid && distributorCreateForm.get('username')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Username is required</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">PASSWORD *</p>
+              <input type="password" formControlName="password" placeholder="Set a password"
+                     autocomplete="new-password"
+                     class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+              <p *ngIf="distributorCreateForm.get('password')?.invalid && distributorCreateForm.get('password')?.touched"
+                 class="text-xs mt-1" style="color: #f87171;">Password is required</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Credit -->
+        <div>
+          <p class="text-[10px] font-bold tracking-widest mb-3" style="color: #6366f1;">CREDIT</p>
+          <div class="flex items-center justify-between px-4 py-3 rounded-2xl" style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10);">
+            <p class="text-sm font-medium" style="color: white;">Enable Credit Limit</p>
+            <ion-toggle formControlName="creditLimit" color="primary"></ion-toggle>
+          </div>
+          <div *ngIf="distributorCreateForm.get('creditLimit')?.value" class="mt-3">
+            <p class="text-[10px] font-bold tracking-widest mb-2" style="color: rgba(255,255,255,0.55);">CREDIT AMOUNT</p>
+            <input type="number" formControlName="creditAmount" placeholder="Enter credit amount"
+                   inputmode="numeric" autocomplete="off"
+                   class="w-full px-4 py-3 rounded-2xl font-medium text-sm placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                   style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); color: white;" />
+          </div>
+        </div>
+
+        <!-- Status note -->
+        <div class="flex items-center gap-3 px-4 py-3 rounded-2xl" style="background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.25);">
+          <ion-icon name="information-circle-outline" style="font-size: 18px; color: #fbbf24; flex-shrink: 0;"></ion-icon>
+          <p style="font-size: 12px; color: #fbbf24; line-height: 1.5;">This distributor will be created as <strong>Inactive</strong> and must be activated by an admin before use.</p>
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="flex-shrink-0 px-5 pb-6 pt-3" style="border-top: 1px solid rgba(255,255,255,0.06);">
+        <button (click)="submitDistributor()" [disabled]="isSubmittingDistributor"
+                class="w-full py-4 rounded-2xl font-bold text-sm text-white transition-all"
+                style="background: linear-gradient(135deg, #3730a3, #6366f1);">
+          <span *ngIf="!isSubmittingDistributor">Create Distributor</span>
+          <span *ngIf="isSubmittingDistributor" class="flex items-center justify-center gap-2">
+            <ion-spinner name="crescent" style="width:16px;height:16px;--color:white;"></ion-spinner>
+            Creating...
+          </span>
+        </button>
+      </div>
+    </div>
+  </ng-template>
+</ion-modal>

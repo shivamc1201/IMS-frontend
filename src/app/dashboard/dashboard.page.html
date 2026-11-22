@@ -1,0 +1,274 @@
+<!-- HEADER -->
+<ng-container *ngIf="isReady">
+<ion-header class="ion-no-border">
+  <!-- Distributor dark glass header -->
+  <ion-toolbar *ngIf="isDistributor" style="--background: rgba(13,17,23,0.95); --border-width: 0; backdrop-filter: blur(20px);">
+    <ion-buttons slot="start">
+      <ion-menu-button style="color: #e2e8f0;"></ion-menu-button>
+    </ion-buttons>
+    <ion-title>
+      <span style="color: #10b981; font-weight: 800; font-size: 1.125rem;">Distributor</span>
+      <span style="color: #e2e8f0; font-weight: 700; font-size: 1.125rem;"> Dashboard</span>
+    </ion-title>
+  </ion-toolbar>
+  <!-- Admin light header -->
+  <ion-toolbar *ngIf="!isDistributor" class="bg-white/80 backdrop-blur-md border-b border-slate-100 sticky top-0 z-50">
+    <ion-buttons slot="start">
+      <ion-menu-button class="text-slate-600 hover:text-emerald-500 transition-colors"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="text-slate-800 font-bold tracking-tight text-xl">
+      <span class="text-emerald-500">Dashboard</span> Overview
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [class.bg-slate-50]="!isDistributor" [style.--background]="isDistributor ? '#0d1117' : ''">
+  <!-- DISTRIBUTOR DASHBOARD -->
+  <app-distributor-dashboard *ngIf="isDistributor"></app-distributor-dashboard>
+
+  <!-- ADMIN DASHBOARD -->
+  <div *ngIf="!isDistributor" class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 pb-20">
+    <div class="max-w-7xl mx-auto px-3 sm:px-5 py-4 sm:py-6">
+
+      <!-- HERO BANNER -->
+      <div class="bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 rounded-2xl shadow-xl overflow-hidden mb-5 relative">
+        <div class="absolute inset-0 opacity-15" style="background-image: radial-gradient(circle at 85% 15%, #ffffff 0%, transparent 45%), radial-gradient(circle at 5% 85%, #a7f3d0 0%, transparent 40%);"></div>
+        <div class="relative px-5 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p class="text-emerald-100 text-xs font-semibold uppercase tracking-widest mb-1">Business Intelligence</p>
+            <h1 class="text-white text-xl sm:text-2xl font-bold tracking-tight leading-tight drop-shadow-sm">Dashboard Overview</h1>
+            <p class="text-emerald-100 text-xs mt-1">{{ currentDate | date:'EEEE, d MMMM yyyy' }}</p>
+          </div>
+
+          <!-- Period Selector -->
+          <div class="flex items-center gap-1 bg-white/20 backdrop-blur-sm border border-white/30 rounded-xl p-1">
+            <button
+              *ngFor="let p of periods"
+              (click)="selectPeriod(p.key)"
+              class="px-4 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200"
+              [class.bg-white]="selectedPeriod === p.key"
+              [class.text-teal-700]="selectedPeriod === p.key"
+              [class.shadow-md]="selectedPeriod === p.key"
+              [class.text-white]="selectedPeriod !== p.key"
+            >{{ p.label }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOADING SKELETON -->
+      <div *ngIf="isLoading" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <div *ngFor="let i of [1,2,3,4]" class="bg-white rounded-xl h-28 animate-pulse border border-slate-100"></div>
+      </div>
+
+      <!-- KPI STATS CARDS -->
+      <div *ngIf="!isLoading" class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <div
+          *ngFor="let card of statsCards"
+          class="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all duration-200 group"
+          [ngClass]="card.borderClass"
+        >
+          <div class="flex items-start justify-between mb-3">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform" [ngClass]="card.bgClass">
+              <ion-icon [name]="card.icon" [ngClass]="card.iconClass" class="text-lg"></ion-icon>
+            </div>
+            <span class="text-[0.6rem] font-bold px-2 py-0.5 rounded-md" [ngClass]="card.badgeClass">{{ card.change }}</span>
+          </div>
+          <p class="text-slate-400 text-[0.65rem] font-bold uppercase tracking-wider mb-0.5">{{ card.label }}</p>
+          <p class="text-xl font-bold text-slate-800 leading-tight">{{ card.value }}</p>
+        </div>
+      </div>
+
+      <!-- TWO COLUMN ROW: Revenue Trend + Sales by Region -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
+
+        <!-- REVENUE TREND CHART (2/3 width) -->
+        <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
+                <ion-icon name="bar-chart-outline" class="text-emerald-500 text-sm"></ion-icon>
+              </div>
+              <div>
+                <h2 class="text-sm font-bold text-slate-800">Revenue Trend</h2>
+                <p class="text-slate-400 text-[0.6rem]">Monthly performance overview</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="bg-white rounded-lg border border-slate-200">
+                <ion-select
+                  interface="popover"
+                  [(ngModel)]="selectedChartType"
+                  (ionChange)="onChartTypeChange($event)"
+                  class="text-xs font-medium px-2 py-1"
+                  style="min-width: 90px;"
+                >
+                  <ion-select-option value="line">Line</ion-select-option>
+                  <ion-select-option value="bar">Bar</ion-select-option>
+                </ion-select>
+              </div>
+            </div>
+          </div>
+          <div class="p-3">
+            <apx-chart
+              *ngIf="chartOptions"
+              [series]="chartOptions.series!"
+              [chart]="chartOptions.chart!"
+              [xaxis]="chartOptions.xaxis!"
+              [yaxis]="chartOptions.yaxis!"
+              [stroke]="chartOptions.stroke!"
+              [dataLabels]="chartOptions.dataLabels!"
+              [grid]="chartOptions.grid!"
+              [colors]="chartOptions.colors!"
+              [fill]="chartOptions.fill!"
+              [tooltip]="chartOptions.tooltip!"
+            ></apx-chart>
+          </div>
+        </div>
+
+        <!-- SALES BY REGION DONUT (1/3 width) -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+            <div class="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center">
+              <ion-icon name="pie-chart-outline" class="text-blue-500 text-sm"></ion-icon>
+            </div>
+            <div>
+              <h2 class="text-sm font-bold text-slate-800">Sales by Region</h2>
+              <p class="text-slate-400 text-[0.6rem]">Regional distribution</p>
+            </div>
+          </div>
+          <div class="p-3">
+            <apx-chart
+              *ngIf="regionDonutOptions && regionDonutOptions.series && regionDonutOptions.series.length > 0"
+              [series]="regionDonutOptions.series!"
+              [chart]="regionDonutOptions.chart!"
+              [labels]="regionDonutOptions.labels!"
+              [colors]="regionDonutOptions.colors!"
+              [legend]="regionDonutOptions.legend!"
+              [plotOptions]="regionDonutOptions.plotOptions!"
+              [dataLabels]="regionDonutOptions.dataLabels!"
+              [responsive]="regionDonutOptions.responsive!"
+              [tooltip]="regionDonutOptions.tooltip!"
+            ></apx-chart>
+            <div *ngIf="!regionDonutOptions || !regionDonutOptions.series || regionDonutOptions.series.length === 0" class="flex items-center justify-center h-40 text-slate-300 text-sm">
+              No region data
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- USER STATS SECTION -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mb-5">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+          <div class="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center">
+            <ion-icon name="people-outline" class="text-blue-500 text-sm"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-slate-800">Network Overview</h2>
+            <p class="text-slate-400 text-[0.6rem]">User & partner distribution</p>
+          </div>
+        </div>
+        <div class="p-4">
+          <div *ngIf="isLoading" class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div *ngFor="let i of [1,2,3,4,5]" class="h-20 rounded-lg bg-slate-50 animate-pulse"></div>
+          </div>
+          <div *ngIf="!isLoading" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div
+              *ngFor="let stat of userStatCards"
+              class="rounded-xl p-3 text-center group hover:scale-105 transition-transform duration-200"
+              [ngClass]="stat.bgClass"
+            >
+              <div class="flex justify-center mb-2">
+                <ion-icon [name]="stat.icon" [ngClass]="stat.iconClass" class="text-2xl"></ion-icon>
+              </div>
+              <p class="text-2xl font-bold" [ngClass]="stat.textClass">{{ stat.value }}</p>
+              <p class="text-[0.6rem] font-semibold text-slate-500 uppercase tracking-wide mt-0.5">{{ stat.label }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PERIOD COMPARISON TABLE -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mb-5">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+          <div class="w-7 h-7 bg-emerald-50 rounded-lg flex items-center justify-center">
+            <ion-icon name="calendar-outline" class="text-emerald-500 text-sm"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-slate-800">Period Comparison</h2>
+            <p class="text-slate-400 text-[0.6rem]">WTD / MTD / YTD breakdown</p>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="bg-slate-50">
+                <th class="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Metric</th>
+                <th class="px-4 py-3 text-right text-xs font-bold text-blue-500 uppercase tracking-wider">Week</th>
+                <th class="px-4 py-3 text-right text-xs font-bold text-emerald-500 uppercase tracking-wider">Month</th>
+                <th class="px-4 py-3 text-right text-xs font-bold text-violet-500 uppercase tracking-wider">Year</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of periodRows; let i = index" [class.bg-slate-50/50]="i % 2 !== 0" class="border-t border-slate-100 hover:bg-slate-50/80 transition-colors">
+                <td class="px-4 py-3 text-xs font-semibold text-slate-600">{{ row.label }}</td>
+                <td class="px-4 py-3 text-xs font-bold text-blue-600 text-right">{{ row.wtd }}</td>
+                <td class="px-4 py-3 text-xs font-bold text-emerald-600 text-right">{{ row.mtd }}</td>
+                <td class="px-4 py-3 text-xs font-bold text-violet-600 text-right">{{ row.ytd }}</td>
+              </tr>
+              <tr *ngIf="periodRows.length === 0" class="border-t border-slate-100">
+                <td colspan="4" class="px-4 py-8 text-center text-slate-300 text-xs">No data available</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SALES BY REGION BAR CHART (full width) -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden mb-5">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+          <div class="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center">
+            <ion-icon name="map-outline" class="text-blue-500 text-sm"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-slate-800">Regional Sales Breakdown</h2>
+            <p class="text-slate-400 text-[0.6rem]">Sales value by region</p>
+          </div>
+        </div>
+        <div class="p-3">
+          <apx-chart
+            *ngIf="regionBarOptions && regionBarOptions.series && regionBarOptions.series[0]?.data?.length"
+            [series]="regionBarOptions.series!"
+            [chart]="regionBarOptions.chart!"
+            [xaxis]="regionBarOptions.xaxis!"
+            [yaxis]="regionBarOptions.yaxis!"
+            [colors]="regionBarOptions.colors!"
+            [dataLabels]="regionBarOptions.dataLabels!"
+            [plotOptions]="regionBarOptions.plotOptions!"
+            [grid]="regionBarOptions.grid!"
+            [tooltip]="regionBarOptions.tooltip!"
+          ></apx-chart>
+          <div *ngIf="!regionBarOptions || !regionBarOptions.series || !regionBarOptions.series[0]?.data?.length" class="flex items-center justify-center h-24 text-slate-300 text-sm">
+            No region data
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="db-legal-footer">
+    © 2026 Nectar Origin Private Limited. All Rights Reserved. |
+    <button class="db-legal-link" (click)="openLegalDoc('privacy', 'Privacy Policy')">Privacy Policy</button>
+    |
+    <button class="db-legal-link" (click)="openLegalDoc('terms', 'Terms &amp; Conditions')">Terms &amp; Conditions</button>
+  </footer>
+</ion-content>
+</ng-container>
+
+<!-- ==================== LEGAL DOCUMENT MODAL ==================== -->
+<app-legal-docs-modal
+  [isOpen]="showPdfModal"
+  [docType]="legalDocType"
+  [title]="pdfModalTitle"
+  (didClose)="closePdfModal()">
+</app-legal-docs-modal>

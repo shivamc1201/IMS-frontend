@@ -1,0 +1,249 @@
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { IonicModule } from '@ionic/angular';
+import { forkJoin } from 'rxjs';
+import { DownloadService } from '../../services/download.service';
+import { Toast } from '../../services/toast';
+import { HapticService } from '../../services/haptic.service';
+import { ReportsService } from '../../services/reports.service';
+import { ReportHeroComponent } from '../report-hero/report-hero.component';
+import { DateGroupedTableComponent, DateSummaryColumn } from '../date-grouped-table/date-grouped-table.component';
+import {
+  toDateInputValue, formatDisplayDate, formatCurrencyFull,
+  DateGroup, listDistinct, sumBy,
+  exportRowsToExcel, exportRowsToPdf, filterByDateRange, filterByField,
+} from '../report-shared';
+
+type ReportType = 'register' | 'pending' | 'confirmation';
+type DispatchStatus = 'Pending' | 'In-Transit' | 'Delivered';
+type StatusFilter = 'all' | DispatchStatus;
+
+interface Filters {
+  dateFrom: string;
+  dateTo: string;
+  status: StatusFilter;
+}
+
+// Mirrors the raw GET /reports/dispatch/register response fields (minus id and orderId — internal
+// foreign keys, not display values). deliveryStatus is normalized to the same DispatchStatus union
+// used everywhere else on this page, so statusBadgeClass() works unchanged.
+interface DispatchRegisterRow {
+  gdnNumber: string;
+  gdnDate: string;
+  customerName: string;
+  vehicleNo: string;
+  driverName: string;
+  driverMobile: string;
+  transportName: string;
+  itemCount: number;
+  totalPackages: number;
+  totalWeight: number;
+  shippingAddress: string;
+  status: DispatchStatus;
+}
+
+function normalizeDeliveryStatus(raw: string): DispatchStatus {
+  const s = (raw ?? '').toUpperCase();
+  if (s === 'DELIVERED') return 'Delivered';
+  if (s === 'IN_TRANSIT' || s === 'IN-TRANSIT' || s === 'INTRANSIT') return 'In-Transit';
+  return 'Pending';
+}
+
+function mapDispatchRegisterRow(raw: any): DispatchRegisterRow {
+  return {
+    gdnNumber: raw.gdnNumber ?? '—',
+    gdnDate: raw.gdnDate ?? '',
+    customerName: (raw.customerName ?? '—').trim(),
+    vehicleNo: raw.vehicleNo ?? '—',
+    driverName: raw.driverName ?? '—',
+    driverMobile: raw.driverMobile ?? '',
+    transportName: raw.transportName ?? '—',
+    itemCount: Number(raw.itemCount ?? 0),
+    totalPackages: Number(raw.totalPackages ?? 0),
+    totalWeight: Number(raw.totalWeight ?? 0),
+    shippingAddress: (raw.shippingAddress ?? '—').replace(/\n/g, ', '),
+    status: normalizeDeliveryStatus(raw.deliveryStatus),
+  };
+}
+
+// Mirrors the raw GET /reports/dispatch/pending response fields (minus id — an internal key, not a display value).
+interface PendingDispatchRow {
+  challanNo: string;
+  customer: string;
+  items: number;
+  amount: number;
+  readySinceDays: number;
+  gdnDate: string;
+}
+
+function mapPendingDispatchRow(raw: any): PendingDispatchRow {
+  return {
+    challanNo: raw.challanNo ?? '—',
+    customer: (raw.customer ?? '—').trim(),
+    items: Number(raw.items ?? 0),
+    amount: Number(raw.amount ?? 0),
+    readySinceDays: Number(raw.readySinceDays ?? 0),
+    gdnDate: raw.gdnDate ?? '',
+  };
+}
+
+// Mirrors the raw GET /reports/dispatch/delivery-confirmation response fields (minus id).
+interface DeliveryConfirmationRow {
+  challanNo: string;
+  customer: string;
+  deliveredDate: string;
+  receivedBy: string | null;
+  podStatus: string;
+}
+
+function mapDeliveryConfirmationRow(raw: any): DeliveryConfirmationRow {
+  return {
+    challanNo: raw.challanNo || '—',
+    customer: (raw.customer ?? '—').trim(),
+    deliveredDate: raw.deliveredDate ?? '',
+    receivedBy: raw.receivedBy ?? null,
+    podStatus: raw.podStatus ?? '—',
+  };
+}
+
+@Component({
+  selector: 'app-dispatch-delivery',
+  templateUrl: './dispatch-delivery.page.html',
+  styleUrls: ['./dispatch-delivery.page.scss'],
+  standalone: true,
+  imports: [CommonModule, FormsModule, IonicModule, ReportHeroComponent, DateGroupedTableComponent],
+})
+export class DispatchDeliveryReportPage implements OnInit {
+
+  private downloadService = inject(DownloadService);
+  private toast = inject(Toast);
+  private haptic = inject(HapticService);
+  private reportsService = inject(ReportsService);
+
+  filters: Filters = this.buildDefaultFilters();
+  isLoading = false;
+  lastUpdated: Date | null = null;
+  activeType: ReportType = 'register';
+
+  dispatchRegisterRows: DispatchRegisterRow[] = [];
+  pendingDispatchRows: PendingDispatchRow[] = [];
+  deliveryConfirmationRows: DeliveryConfirmationRow[] = [];
+
+  readonly registerSummaryColumns: DateSummaryColumn<DispatchRegisterRow>[] = [
+    { header: 'Customers', value: rows => listDistinct(rows, r => r.customerName) },
+    { header: 'Packages', value: rows => sumBy(rows, r => r.totalPackages).toLocaleString('en-IN') },
+    { header: 'Weight (Kg)', value: rows => sumBy(rows, r => r.totalWeight).toLocaleString('en-IN') },
+  ];
+
+  readonly pendingSummaryColumns: DateSummaryColumn<PendingDispatchRow>[] = [
+    { header: 'Customers', value: rows => listDistinct(rows, r => r.customer) },
+    { header: 'Total Items', value: rows => sumBy(rows, r => r.items).toLocaleString('en-IN') },
+    { header: 'Total Amount', value: rows => formatCurrencyFull(sumBy(rows, r => r.amount)) },
+  ];
+
+  readonly confirmationSummaryColumns: DateSummaryColumn<DeliveryConfirmationRow>[] = [
+    { header: 'Customers', value: rows => listDistinct(rows, r => r.customer) },
+    { header: 'POD Confirmed', value: rows => rows.filter(r => r.podStatus === 'Confirmed').length },
+  ];
+
+  ngOnInit() {
+    this.viewReport();
+  }
+
+  private buildDefaultFilters(): Filters {
+    const now = new Date();
+    const from = new Date(now);
+    from.setDate(from.getDate() - 14);
+    return { dateFrom: toDateInputValue(from), dateTo: toDateInputValue(now), status: 'all' };
+  }
+
+  resetFilters() {
+    this.filters = this.buildDefaultFilters();
+    this.viewReport();
+  }
+
+  viewReport() {
+    this.haptic.selectionChanged();
+    this.isLoading = true;
+
+    const dateParams = { dateFrom: this.filters.dateFrom, dateTo: this.filters.dateTo };
+    forkJoin({
+      register: this.reportsService.getDispatchRegister(dateParams),
+      pending: this.reportsService.getDispatchPending(dateParams),
+      confirmation: this.reportsService.getDeliveryConfirmation(dateParams),
+    }).subscribe(({ register, pending, confirmation }) => {
+      const { dateFrom, dateTo, status } = this.filters;
+      this.dispatchRegisterRows = filterByField(filterByDateRange(register.map(mapDispatchRegisterRow), dateFrom, dateTo, r => r.gdnDate), status, r => r.status)
+        .sort((a, b) => b.gdnDate.localeCompare(a.gdnDate));
+      this.pendingDispatchRows = filterByDateRange(pending.map(mapPendingDispatchRow), dateFrom, dateTo, r => r.gdnDate);
+      this.deliveryConfirmationRows = filterByDateRange(confirmation.map(mapDeliveryConfirmationRow), dateFrom, dateTo, r => r.deliveredDate);
+      this.isLoading = false;
+      this.lastUpdated = new Date();
+    });
+  }
+
+  switchType(type: ReportType) {
+    this.activeType = type;
+    this.haptic.selectionChanged();
+  }
+
+  statusBadgeClass(status: DispatchStatus): string {
+    if (status === 'Delivered') return 'report-badge-green';
+    if (status === 'In-Transit') return 'report-badge-blue';
+    return 'report-badge-amber';
+  }
+
+  formatDisplayDate = formatDisplayDate;
+  formatCurrencyFull = formatCurrencyFull;
+
+  // `source` narrows the export to one date's rows (the date modal); omitted, it exports the whole active tab.
+  private getExportData(source?: any[]): { headers: string[]; rows: (string | number)[][]; jsonRows: Record<string, unknown>[]; title: string } {
+    if (this.activeType === 'pending') {
+      const data: PendingDispatchRow[] = source ?? this.pendingDispatchRows;
+      const headers = ['Challan No', 'Customer', 'Items', 'Amount', 'GDN Date', 'Ready Since (days)'];
+      const rows = data.map(r => [r.challanNo, r.customer, r.items, formatCurrencyFull(r.amount), formatDisplayDate(r.gdnDate), r.readySinceDays]);
+      const jsonRows = data.map(r => ({ 'Challan No': r.challanNo, Customer: r.customer, Items: r.items, Amount: r.amount, 'GDN Date': r.gdnDate, 'Ready Since (days)': r.readySinceDays }));
+      return { headers, rows, jsonRows, title: 'Pending Dispatch' };
+    }
+    if (this.activeType === 'confirmation') {
+      const data: DeliveryConfirmationRow[] = source ?? this.deliveryConfirmationRows;
+      const headers = ['Challan No', 'Customer', 'Delivered Date', 'Received By', 'POD Status'];
+      const rows = data.map(r => [r.challanNo, r.customer, formatDisplayDate(r.deliveredDate), r.receivedBy ?? '—', r.podStatus]);
+      const jsonRows = data.map(r => ({ 'Challan No': r.challanNo, Customer: r.customer, 'Delivered Date': r.deliveredDate, 'Received By': r.receivedBy, 'POD Status': r.podStatus }));
+      return { headers, rows, jsonRows, title: 'Delivery Confirmation' };
+    }
+    const data: DispatchRegisterRow[] = source ?? this.dispatchRegisterRows;
+    const headers = ['GDN No', 'GDN Date', 'Customer', 'Vehicle No', 'Driver', 'Driver Mobile', 'Transport', 'Items', 'Packages', 'Weight (Kg)', 'Shipping Address', 'Status'];
+    const rows = data.map(r => [
+      r.gdnNumber, formatDisplayDate(r.gdnDate), r.customerName, r.vehicleNo, r.driverName, r.driverMobile,
+      r.transportName, r.itemCount, r.totalPackages, r.totalWeight, r.shippingAddress, r.status,
+    ]);
+    const jsonRows = data.map(r => ({
+      'GDN No': r.gdnNumber, 'GDN Date': r.gdnDate, Customer: r.customerName, 'Vehicle No': r.vehicleNo,
+      Driver: r.driverName, 'Driver Mobile': r.driverMobile, Transport: r.transportName, Items: r.itemCount,
+      Packages: r.totalPackages, 'Weight (Kg)': r.totalWeight, 'Shipping Address': r.shippingAddress, Status: r.status,
+    }));
+    return { headers, rows, jsonRows, title: 'Dispatch Register' };
+  }
+
+  async exportExcel() {
+    const { jsonRows, title } = this.getExportData();
+    await exportRowsToExcel(jsonRows, title, this.downloadService, this.toast);
+  }
+
+  async exportPdf() {
+    const { headers, rows, title } = this.getExportData();
+    await exportRowsToPdf(headers, rows, title, this.downloadService, this.toast);
+  }
+
+  async exportGroupExcel(group: DateGroup<unknown>) {
+    const { jsonRows, title } = this.getExportData(group.rows);
+    await exportRowsToExcel(jsonRows, title, this.downloadService, this.toast, group.label);
+  }
+
+  async exportGroupPdf(group: DateGroup<unknown>) {
+    const { headers, rows, title } = this.getExportData(group.rows);
+    await exportRowsToPdf(headers, rows, title, this.downloadService, this.toast, group.label);
+  }
+}

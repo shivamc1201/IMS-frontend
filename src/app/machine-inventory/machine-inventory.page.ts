@@ -1,0 +1,328 @@
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+
+import {
+  IonHeader,
+  IonToolbar,
+  IonTitle,
+  IonContent,
+  IonButtons,
+  IonMenuButton,
+  IonButton,
+  IonIcon,
+  IonFab,
+  IonFabButton,
+  IonModal,
+  IonInput,
+  IonItem,
+  IonLabel,
+  IonSelect,
+  IonSelectOption,
+  IonSpinner,
+  ToastController,
+  IonRefresher,
+  IonRefresherContent
+} from '@ionic/angular/standalone';
+
+import { InventoryService, InventoryItem } from '../services/inventory';
+import { HapticService } from '../services/haptic.service';
+import { Toast } from '../services/toast';
+
+@Component({
+  selector: 'app-machine-inventory',
+  standalone: true,
+  templateUrl: './machine-inventory.page.html',
+  styleUrls: ['./machine-inventory.page.scss'],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ReactiveFormsModule,
+    IonHeader, IonToolbar, IonTitle, IonContent,
+    IonButtons, IonMenuButton, IonButton, IonIcon,
+    IonFab, IonFabButton, IonModal, IonInput,
+    IonItem, IonSelect, IonSelectOption,
+    IonRefresher, IonRefresherContent
+  ],
+})
+export class MachineInventoryPage implements OnInit {
+
+  searchTerm = '';
+  activeFilter = 'all';
+
+  isAddModalOpen = false;
+  isEditModalOpen = false;
+  addForm!: FormGroup;
+  editForm!: FormGroup;
+  selectedPartId: number | null = null;
+  currentPage = 1;
+  itemsPerPage = 6;
+
+  filterTabs = [
+    { key: 'all', label: 'All' },
+    { key: 'TOOL', label: 'Tools' },
+    { key: 'SPARE_PART', label: 'Spare Parts' },
+    { key: 'MACHINE', label: 'Machines' }
+  ];
+
+  machineParts: InventoryItem[] = [];
+  filteredMachines: InventoryItem[] = [];
+
+  private haptic = inject(HapticService);
+  private toast = inject(Toast);
+
+  constructor(private inventoryService: InventoryService, private fb: FormBuilder, private toastController: ToastController) {}
+
+  // Helper method to extract error message from API response
+  private extractErrorMessage(error: any): string {
+    if (!error) return 'An error occurred. Please try again.';
+    
+    if (error.error?.error) return error.error.error;
+    if (error.error?.message) return error.error.message;
+    
+    if (error.error && typeof error.error === 'object' && !Array.isArray(error.error)) {
+      const errorEntries = Object.entries(error.error);
+      if (errorEntries.length > 0) {
+        const errorMessages = errorEntries
+          .map(([field, message]) => message as string)
+          .filter(msg => msg && typeof msg === 'string');
+        
+        if (errorMessages.length > 0) return errorMessages.join('\n');
+      }
+    }
+    
+    if (error.statusText) return error.statusText;
+    return 'Failed to process machine part. Please try again.';
+  }
+
+  private async showToast(message: string, color: 'success' | 'danger' | 'warning' = 'success'): Promise<void> {
+    const toast = await this.toastController.create({
+      message,
+      duration: 3000,
+      position: 'top',
+      color,
+      buttons: [{ icon: 'close', role: 'cancel' }]
+    });
+    await toast.present();
+  }
+
+  ngOnInit() {
+    this.loadMachines();
+    this.createForm();
+    this.createEditForm();
+  }
+
+  loadMachines() {
+    this.inventoryService.getMachineParts().subscribe({
+      next: (parts) => {
+        this.machineParts = parts;
+        this.applyFilters();
+      },
+      error: () => this.showToast('Unable to fetch machine parts.', 'danger')
+    });
+  }
+
+  refreshMachines() {
+    this.loadMachines();
+  }
+
+  handlePullRefresh(event: any) {
+    this.refreshMachines();
+    setTimeout(() => event.target.complete(), 1500);
+  }
+
+  applyFilters() {
+    const q = this.searchTerm.toLowerCase();
+
+    this.filteredMachines = this.machineParts.filter(m => {
+      const s =
+        m.name.toLowerCase().includes(q) ||
+        m.partNumber?.toLowerCase().includes(q);
+
+      const c =
+        this.activeFilter === 'all' ||
+        m.category === this.activeFilter;
+
+      return s && c;
+    });
+    this.resetPagination();
+  }
+
+  /* ---------- PAGINATION ---------- */
+  get paginatedMachines(): InventoryItem[] {
+    const startIndex = (this.currentPage - 1) * this.itemsPerPage;
+    const endIndex = startIndex + this.itemsPerPage;
+    return this.filteredMachines.slice(startIndex, endIndex);
+  }
+
+  get totalPages(): number {
+    return Math.ceil(this.filteredMachines.length / this.itemsPerPage);
+  }
+
+  get pages(): number[] {
+    return Array.from({ length: this.totalPages }, (_, i) => i + 1);
+  }
+
+  get showPagination(): boolean {
+    return this.filteredMachines.length > this.itemsPerPage;
+  }
+
+  goToPage(page: number) {
+    if (page >= 1 && page <= this.totalPages) {
+      this.currentPage = page;
+    }
+  }
+
+  nextPage() {
+    if (this.currentPage < this.totalPages) {
+      this.currentPage++;
+    }
+  }
+
+  previousPage() {
+    if (this.currentPage > 1) {
+      this.currentPage--;
+    }
+  }
+
+  resetPagination() {
+    this.currentPage = 1;
+  }
+
+  get statCards() {
+    return [
+      { label: 'Total', value: this.machineParts.length, icon: 'server-outline' },
+      { label: 'Tools', value: this.machineParts.filter(i => i.category === 'TOOL').length, icon: 'construct-outline' },
+      { label: 'Spare Parts', value: this.machineParts.filter(i => i.category === 'SPARE_PART').length, icon: 'cog-outline' },
+      { label: 'Machines', value: this.machineParts.filter(i => i.category === 'MACHINE').length, icon: 'build-outline' }
+    ];
+  }
+
+  /** ---------- ADD PART MODAL ---------- */
+  createForm() {
+    this.addForm = this.fb.group({
+      name: ['', Validators.required],
+      partNumber: ['', Validators.required],
+      vendor: ['', Validators.required],
+      purchaseDate: ['', Validators.required],
+      warrantyExpiryDate: ['', Validators.required],
+      quantity: [0, Validators.required],
+      condition: ['NEW', Validators.required],
+      category: ['MACHINE', Validators.required]
+    });
+  }
+
+  openAddModal() {
+    this.haptic.medium();
+    this.isAddModalOpen = true;
+  }
+
+  closeAddModal() {
+    this.haptic.light();
+    this.isAddModalOpen = false;
+  }
+
+  addMachinePart() {
+    this.haptic.medium();
+    const data = this.addForm.value;
+    console.log('Creating:', data);
+
+    this.inventoryService.createItem(data).subscribe({
+      next: () => {
+        this.closeAddModal();
+        this.loadMachines();
+        this.resetPagination();
+        this.addForm.reset({
+          category: 'MACHINE',
+          condition: 'NEW',
+          quantity: 0
+        });
+        this.showToast('Machine part added successfully!', 'success');
+      },
+      error: (err) => {
+        const errorMessage = this.extractErrorMessage(err);
+        console.error(err);
+        this.showToast(errorMessage, 'danger');
+        this.toast.present(errorMessage, 'danger');
+      }
+    });
+  }
+
+  /** ---------- EDIT PART MODAL ---------- */
+  createEditForm() {
+    this.editForm = this.fb.group({
+      name: ['', Validators.required],
+      partNumber: ['', Validators.required],
+      vendor: ['', Validators.required],
+      purchaseDate: ['', Validators.required],
+      warrantyExpiryDate: ['', Validators.required],
+      quantity: [0, Validators.required],
+      condition: ['NEW', Validators.required],
+      category: ['MACHINE', Validators.required]
+    });
+  }
+
+  editPart(part: InventoryItem) {
+    this.haptic.medium();
+    this.selectedPartId = part.id;
+    this.editForm.patchValue({
+      name: part.name,
+      partNumber: part.partNumber,
+      vendor: part.vendor,
+      purchaseDate: part.purchaseDate,
+      warrantyExpiryDate: part.warrantyExpiryDate,
+      quantity: part.quantity,
+      condition: part.condition || 'NEW',
+      category: part.category || 'MACHINE'
+    });
+    this.isEditModalOpen = true;
+  }
+
+  closeEditModal() {
+    this.haptic.light();
+    this.isEditModalOpen = false;
+    this.selectedPartId = null;
+  }
+
+  updateMachinePart() {
+    this.haptic.medium();
+    if (!this.selectedPartId) return;
+
+    const data = this.editForm.value;
+    console.log('Updating:', data);
+
+    this.inventoryService.updateItem(this.selectedPartId, data).subscribe({
+      next: () => {
+        this.closeEditModal();
+        this.loadMachines();
+        this.showToast('Machine part updated successfully!', 'success');
+      },
+      error: (err) => {
+        const errorMessage = this.extractErrorMessage(err);
+        console.error(err);
+        this.showToast(errorMessage, 'danger');
+        this.toast.present(errorMessage, 'danger');
+      }
+    });
+  }
+
+  /** ---------- DELETE PART ---------- */
+  deletePart(part: InventoryItem) {
+    this.haptic.heavy();
+    const confirmed = confirm(`Are you sure you want to delete "${part.name}"?`);
+    if (!confirmed) return;
+
+    this.inventoryService.deleteItem(part.id, part.category).subscribe({
+      next: () => {
+        this.loadMachines();
+        this.showToast('Machine part deleted successfully!', 'success');
+      },
+      error: (err) => {
+        const errorMessage = this.extractErrorMessage(err);
+        console.error(err);
+        this.showToast(errorMessage, 'danger');
+        this.toast.present(errorMessage, 'danger');
+      }
+    });
+  }
+  Math = Math;}

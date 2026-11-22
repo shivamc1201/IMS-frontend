@@ -1,0 +1,1628 @@
+<!-- Main Container with Gradient Theme -->
+<ion-header class="ion-no-border">
+  <ion-toolbar style="--background: #000000; --border-width: 0;">
+    <ion-buttons slot="start">
+      <ion-menu-button style="color: #ffffff;">
+      </ion-menu-button>
+    </ion-buttons>
+    <ion-title class="text-white font-bold tracking-tight text-xl">
+      <span class="text-emerald-400">Human</span> Resources
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-refresher slot="fixed" (ionRefresh)="handlePullRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+  <div class="flex flex-col bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/20 min-h-full pb-8">
+    <!-- Fixed Header Section -->
+    <div class="flex-shrink-0 p-4 sm:p-5">
+      <div class="max-w-7xl mx-auto">
+        <!-- Hero Banner -->
+        <div class="bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 rounded-2xl shadow-lg shadow-emerald-200/40 overflow-hidden relative mb-5">
+          <div class="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
+          <!-- Top Section: Title and Buttons -->
+          <div class="relative px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <!-- Left: Title -->
+            <div>
+              <h1 class="text-white text-xl sm:text-2xl font-bold tracking-tight leading-tight mb-1">
+                Human Resources <span class="font-extrabold">Department</span>
+              </h1>
+              <p class="text-cyan-50 text-sm">Add · Modify · Delete employees</p>
+            </div>
+            <!-- Right: Action buttons -->
+            <div class="flex flex-wrap items-center gap-3">
+              <!-- Create Designation Button -->
+              <button *appAcl="{ feature: FEATURE, action: 'create' }" (click)="openDesignationModal()"
+                class="flex items-center gap-2 px-5 py-2.5 bg-white text-purple-600 hover:bg-purple-50 rounded-xl transition-all font-semibold shadow-lg whitespace-nowrap">
+                <ion-icon class="text-lg" name="ribbon-outline"></ion-icon>
+                <span>Create Designation</span>
+              </button>
+              <!-- Add Employee Button -->
+              <button *appAcl="{ feature: FEATURE, action: 'create' }" (click)="openAddModal()"
+                class="flex items-center gap-2 px-5 py-2.5 bg-white text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all font-semibold shadow-lg whitespace-nowrap">
+                <ion-icon class="text-lg" name="person-add"></ion-icon>
+                <span>Add Employee</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="mb-5">
+          <div class="flex gap-3 mb-4">
+            <!-- Search Input -->
+            <div class="flex-1 relative">
+              <ion-icon
+                class="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-xl pointer-events-none z-10"
+                name="search-outline">
+              </ion-icon>
+              <input (input)="onSearchChange($event)" [value]="searchQuery"
+                class="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 shadow-sm placeholder:text-slate-400 text-slate-700 font-medium transition-all"
+                placeholder="Search employee name, designation or department..." type="text" />
+            </div>
+            <!-- Status Filter Dropdown -->
+            <div class="relative status-dropdown-wrap">
+              <button (click)="showStatusDropdown = !showStatusDropdown"
+                class="flex items-center gap-3 px-4 py-3 bg-white border border-slate-200 rounded-xl hover:border-emerald-400 transition-all shadow-sm min-w-[140px] justify-between">
+                <span [ngClass]="getStatusFilterClass(statusFilter)" class="font-semibold text-gray-700">
+                  {{ statusFilter }}
+                </span>
+                <ion-icon [ngClass]="{'rotate-180': showStatusDropdown}" class="text-gray-500 transition-transform"
+                  name="chevron-down-outline">
+                </ion-icon>
+              </button>
+              <!-- Dropdown Menu -->
+              <div *ngIf="showStatusDropdown"
+                class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                <button (click)="onStatusFilterChange(status)" *ngFor="let status of getStatusOptions()"
+                  [ngClass]="getStatusFilterClass(status)"
+                  class="w-full px-4 py-3 text-left hover:bg-gray-50 transition-colors flex items-center justify-between font-medium">
+                  {{ status }}
+                  <ion-icon *ngIf="statusFilter === status" class="text-emerald-500 text-lg" name="checkmark-circle">
+                  </ion-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Card: All -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-l-slate-400 hover:shadow-md transition-all">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-slate-500 font-medium text-xs uppercase tracking-wide">All Employees</span>
+                <div class="p-2 bg-slate-50 rounded-lg">
+                  <ion-icon class="text-lg text-slate-500" name="people"></ion-icon>
+                </div>
+              </div>
+              <div class="text-2xl font-bold text-slate-800">{{ filteredEmployees.length || 0 }}</div>
+            </div>
+            <!-- Card: Pending -->
+            <div [ngClass]="{
+              'bg-white border-l-4 border-l-amber-400': pendingHRApprovalsCount === 0,
+              'bg-red-50 border-l-4 border-l-red-500 shadow-lg shadow-red-200/50': pendingHRApprovalsCount > 0
+            }" class="p-4 rounded-xl shadow-sm hover:shadow-md transition-all">
+              <div class="flex items-center justify-between mb-2">
+                <span [ngClass]="{
+                  'text-amber-600': pendingHRApprovalsCount === 0,
+                  'text-red-600 font-bold': pendingHRApprovalsCount > 0
+                }" class="font-medium text-xs uppercase tracking-wide">
+                  {{ pendingHRApprovalsCount > 0 ? '⚠ Pending Approvals' : 'Pending' }}
+                </span>
+                <div [ngClass]="{
+                  'bg-amber-50': pendingHRApprovalsCount === 0,
+                  'bg-red-100': pendingHRApprovalsCount > 0
+                }" class="p-2 rounded-lg">
+                  <ion-icon [ngClass]="{
+                    'text-amber-500': pendingHRApprovalsCount === 0,
+                    'text-red-600': pendingHRApprovalsCount > 0
+                  }" class="text-lg" name="time"></ion-icon>
+                </div>
+              </div>
+              <div class="text-2xl font-bold text-slate-800">{{ pendingHRApprovalsCount > 0 ? pendingHRApprovalsCount : getStatusCount('Pending') }}</div>
+              <div *ngIf="pendingHRApprovalsCount > 0" class="text-xs text-red-600 font-semibold mt-2">
+                HR approvals pending
+              </div>
+            </div>
+            <!-- Card: Active -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-l-emerald-400 hover:shadow-md transition-all">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-emerald-600 font-medium text-xs uppercase tracking-wide">Active</span>
+                <div class="p-2 bg-emerald-50 rounded-lg">
+                  <ion-icon class="text-lg text-emerald-500" name="checkmark-circle"></ion-icon>
+                </div>
+              </div>
+              <div class="text-2xl font-bold text-slate-800">{{ getStatusCount('Active') }}</div>
+            </div>
+            <!-- Card: Rejected -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-l-rose-400 hover:shadow-md transition-all">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-rose-600 font-medium text-xs uppercase tracking-wide">Rejected</span>
+                <div class="p-2 bg-rose-50 rounded-lg">
+                  <ion-icon class="text-lg text-rose-500" name="close-circle"></ion-icon>
+                </div>
+              </div>
+              <div class="text-2xl font-bold text-slate-800">{{ getStatusCount('Rejected') }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pending HR Approvals Section -->
+        <div *ngIf="pendingHRApprovalsCount > 0" class="mt-6">
+          <h3 class="text-lg font-bold text-slate-700 mb-4 flex items-center gap-2">
+            <ion-icon name="alert-circle-outline" class="text-red-600 text-xl"></ion-icon>
+            Pending Approvals ({{ pendingHRApprovalsCount }})
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div *ngFor="let approval of pendingHRApprovals"
+              class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-slate-100 hover:border-amber-100 opacity-75">
+              <!-- Card Header -->
+              <div class="px-5 pt-5 pb-4 border-b border-gray-100">
+                <div class="flex items-start justify-between">
+                  <div class="flex items-center gap-3 flex-1">
+                    <!-- Avatar Circle -->
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-br from-amber-300 to-orange-400 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                      {{ approval.firstName.charAt(0) }}
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <h3 class="font-bold text-base text-gray-900 truncate">
+                        {{ approval.firstName }} {{ approval.lastName }}
+                      </h3>
+                      <p class="text-xs text-amber-600 font-semibold mt-0.5 truncate">
+                        {{ approval.username }}
+                      </p>
+                    </div>
+                  </div>
+                  <span class="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-bold rounded-full whitespace-nowrap ml-2">
+                    Pending
+                  </span>
+                </div>
+              </div>
+
+              <!-- Card Body -->
+              <div class="px-5 py-4">
+                <div class="space-y-3">
+                  <!-- Role -->
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <ion-icon name="briefcase-outline" class="text-blue-600 text-lg"></ion-icon>
+                    </div>
+                    <div class="flex-1">
+                      <p class="text-xs text-slate-500 font-semibold">Role</p>
+                      <p class="text-sm font-medium text-slate-800">{{ approval.salesRole || approval.roleType || 'N/A' }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Email -->
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                      <ion-icon name="mail-outline" class="text-emerald-600 text-lg"></ion-icon>
+                    </div>
+                    <div class="flex-1">
+                      <p class="text-xs text-slate-500 font-semibold">Email</p>
+                      <p class="text-sm font-medium text-slate-800 truncate">{{ approval.email }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Contact -->
+                  <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center">
+                      <ion-icon name="call-outline" class="text-purple-600 text-lg"></ion-icon>
+                    </div>
+                    <div class="flex-1">
+                      <p class="text-xs text-slate-500 font-semibold">Phone</p>
+                      <p class="text-sm font-medium text-slate-800">{{ approval.contactNo }}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Card Footer - Actions -->
+              <div class="px-5 py-3 border-t border-gray-100 flex gap-2">
+                <button (click)="openEditPendingModal(approval)"
+                  class="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg text-xs font-bold transition-all active:scale-95">
+                  <ion-icon name="pencil-outline" class="text-lg"></ion-icon>
+                </button>
+                <button (click)="openApprovalModal(approval, 'APPROVE')"
+                  class="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-all active:scale-95">
+                  <ion-icon name="checkmark-circle-outline" class="text-lg"></ion-icon>
+                </button>
+                <button (click)="openApprovalModal(approval, 'REJECT')"
+                  class="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-bold transition-all active:scale-95">
+                  <ion-icon name="close-circle-outline" class="text-lg"></ion-icon>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Scrollable Employee Cards Section -->
+    <div class="flex-1">
+      <div class="max-w-7xl mx-auto px-6">
+        <!-- Employee Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div *ngFor="let employee of paginatedEmployees"
+            class="bg-white rounded-xl shadow-sm hover:shadow-md transition-all border border-slate-100 hover:border-emerald-100">
+            <!-- Card Header -->
+            <div class="px-5 pt-5 pb-4 border-b border-gray-100">
+              <div class="flex items-start justify-between">
+                <div class="flex items-center gap-3 flex-1">
+                  <!-- Avatar Circle with Gradient -->
+                  <div
+                    class="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-bold text-lg shadow-md">
+                    {{ employee.name.charAt(0) }}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <h3 class="font-bold text-base text-gray-900 truncate">
+                      {{ employee.name }}
+                    </h3>
+                    <p class="text-xs text-teal-600 font-semibold mt-0.5 truncate">
+                      {{ employee.position }}
+                    </p>
+                  </div>
+                </div>
+                <span [ngClass]="getStatusClass(employee.status)"
+                  class="px-3 py-1.5 rounded-full text-xs font-bold border-2 whitespace-nowrap ml-2">
+                  {{ employee.status }}
+                </span>
+              </div>
+            </div>
+            <!-- Card Body -->
+            <div class="px-5 py-4 space-y-3 bg-slate-50/50">
+              <div class="flex items-center gap-3 text-gray-600">
+                <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <ion-icon class="text-blue-600 text-lg" name="business-outline">
+                  </ion-icon>
+                </div>
+                <span class="text-sm font-medium">
+                  {{ employee.department }}
+                </span>
+              </div>
+              <div class="flex items-center gap-3 text-gray-600">
+                <div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                  <ion-icon class="text-emerald-600 text-lg" name="mail-outline">
+                  </ion-icon>
+                </div>
+                <span class="text-sm truncate font-medium">
+                  {{ employee.email }}
+                </span>
+              </div>
+              <div class="flex items-center gap-3 text-gray-600">
+                <div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <ion-icon class="text-purple-600 text-lg" name="call-outline">
+                  </ion-icon>
+                </div>
+                <span class="text-sm font-medium">
+                  {{ employee.phone }}
+                </span>
+              </div>
+            </div>
+            <!-- Card Actions -->
+            <div class="px-4 pb-4 pt-3 flex gap-2">
+              <button (click)="openViewModal(employee)"
+                class="flex-1 flex items-center justify-center p-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 transition-colors group">
+                <ion-icon class="text-blue-600 text-lg group-hover:scale-110 transition-transform" name="eye-outline">
+                </ion-icon>
+              </button>
+              <button *appAcl="{ feature: FEATURE, action: 'update' }" (click)="openEditModal(employee)"
+                class="flex-1 flex items-center justify-center p-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 transition-colors group">
+                <ion-icon class="text-emerald-600 text-lg group-hover:scale-110 transition-transform"
+                  name="create-outline">
+                </ion-icon>
+              </button>
+              <ng-container *appAcl="{ feature: FEATURE, action: 'update' }">
+                <button (click)="openRejectModal(employee)" *ngIf="employee.status === 'Pending'"
+                  class="flex-1 flex items-center justify-center p-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 transition-colors group"
+                  title="Reject Employee">
+                  <ion-icon class="text-amber-600 text-lg group-hover:scale-110 transition-transform"
+                    name="close-circle-outline">
+                  </ion-icon>
+                </button>
+              </ng-container>
+              <button *appAcl="{ feature: FEATURE, action: 'delete' }" (click)="openDeleteModal(employee)"
+                class="flex-1 flex items-center justify-center p-2.5 rounded-xl bg-red-50 hover:bg-red-100 transition-colors group">
+                <ion-icon class="text-red-600 text-lg group-hover:scale-110 transition-transform" name="trash-outline">
+                </ion-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- Empty State -->
+        <div *ngIf="filteredEmployees.length === 0"
+          class="flex flex-col items-center justify-center py-20 bg-white rounded-2xl shadow-md mt-6">
+          <div
+            class="w-24 h-24 rounded-full bg-gradient-to-br from-emerald-100 to-blue-100 flex items-center justify-center mb-4">
+            <ion-icon class="text-emerald-500 text-6xl" name="people-outline">
+            </ion-icon>
+          </div>
+          <p class="text-gray-700 text-lg font-semibold">
+            No employees found
+          </p>
+          <p class="text-gray-400 text-sm mt-2">
+            Try adjusting your search or filter
+          </p>
+        </div>
+        <!-- Pagination -->
+        <div *ngIf="showPagination"
+          class="flex items-center justify-between mt-6 mb-8 px-4 py-4 bg-white rounded-xl shadow-sm border border-slate-100">
+          <!-- Pagination Info -->
+          <div class="text-sm text-gray-600 font-medium">
+            Showing
+            <span class="font-bold text-emerald-600">
+              {{ (currentPage - 1) * itemsPerPage + 1 }}
+            </span>
+            to
+            <span class="font-bold text-emerald-600">
+              {{ Math.min(currentPage * itemsPerPage, filteredEmployees.length)
+              }}
+            </span>
+            of
+            <span class="font-bold text-emerald-600">
+              {{ filteredEmployees.length }}
+            </span>
+            employees
+          </div>
+          <!-- Pagination Controls -->
+          <div class="flex items-center gap-2">
+            <!-- Previous Button -->
+            <button (click)="previousPage()" [disabled]="currentPage === 1"
+              class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed font-medium text-slate-700">
+              <ion-icon name="chevron-back-outline">
+              </ion-icon>
+            </button>
+            <!-- Page Numbers -->
+            <div class="flex gap-2">
+              <button (click)="goToPage(page)" *ngFor="let page of pages"
+                [class.bg-gradient-to-r]="currentPage === page" [class.bg-gray-100]="currentPage !== page"
+                [class.from-emerald-500]="currentPage === page" [class.bg-slate-100]="currentPage !== page"
+                [class.hover:bg-slate-200]="currentPage !== page" [class.shadow-md]="currentPage === page"
+                [class.text-slate-700]="currentPage !== page" [class.text-white]="currentPage === page"
+                [class.to-emerald-600]="currentPage === page"
+                class="min-w-[44px] px-4 py-2.5 rounded-xl transition-all font-bold text-sm">
+                {{ page }}
+              </button>
+            </div>
+            <!-- Next Button -->
+            <button (click)="nextPage()" [disabled]="currentPage === totalPages"
+              class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed font-medium text-slate-700">
+              <ion-icon name="chevron-forward-outline">
+              </ion-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</ion-content>
+
+<!-- Modal Backdrop -->
+<div *ngIf="activeModal"
+  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fadeIn">
+  <!-- ✨ Add Employee Modal -->
+  <div (click)="$event.stopPropagation()" *ngIf="activeModal === 'add'"
+    class="bg-white rounded-3xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-slideUp">
+    <!-- Header with Gradient -->
+    <div class="bg-gradient-to-r from-emerald-400 to-teal-500 px-6 py-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-white">
+          Add New Employee
+        </h2>
+        <button (click)="closeModal()" class="p-2 hover:bg-white/20 rounded-xl transition-colors bg-transparent"
+          type="button">
+          <ion-icon class="text-2xl text-white" name="close-outline">
+          </ion-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Success Message -->
+    <div *ngIf="successMessage" class="mx-6 mt-4 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
+      <p class="text-green-700 font-medium">
+        {{ successMessage }}
+      </p>
+    </div>
+    <!-- Error Message -->
+    <div *ngIf="errorMessage" class="mx-6 mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+      <p class="text-red-700 font-medium">
+        {{ errorMessage }}
+      </p>
+    </div>
+    <!-- Form -->
+    <form (ngSubmit)="onAddEmployee()" [formGroup]="employeeForm" class="flex-1 overflow-y-scroll bg-white" style="-webkit-overflow-scrolling: touch;">
+      <div class="p-6 space-y-4">
+        <!-- First Name -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            First Name *
+          </label>
+          <input
+            [class.border-red-400]="employeeForm.get('firstName')?.invalid && employeeForm.get('firstName')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="firstName" placeholder="Enter first name" type="text" />
+          <p *ngIf="employeeForm.get('firstName')?.invalid && employeeForm.get('firstName')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            First name is required (minimum 2 characters)
+          </p>
+        </div>
+        <!-- Last Name -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Last Name *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('lastName')?.invalid && employeeForm.get('lastName')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="lastName" placeholder="Enter last name" type="text" />
+          <p *ngIf="employeeForm.get('lastName')?.invalid && employeeForm.get('lastName')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Last name is required (minimum 2 characters)
+          </p>
+        </div>
+        <!-- Username -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Username *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('username')?.invalid && employeeForm.get('username')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="username" placeholder="Enter username" type="text" />
+          <p *ngIf="employeeForm.get('username')?.invalid && employeeForm.get('username')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Username is required (minimum 3 characters)
+          </p>
+        </div>
+        <!-- Employee ID/Roll no -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Employee ID *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('employeeRollNo')?.invalid && employeeForm.get('employeeRollNo')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="employeeRollNo" placeholder="Enter employee id" type="text" />
+          <p *ngIf="employeeForm.get('employeeRollNo')?.invalid && employeeForm.get('employeeRollNo')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Employee is required
+          </p>
+        </div>
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Email Address *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('email')?.invalid && employeeForm.get('email')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="email" placeholder="Enter email address" type="email" />
+          <p *ngIf="employeeForm.get('email')?.invalid && employeeForm.get('email')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Please enter a valid email address
+          </p>
+        </div>
+        <!-- Password -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Password *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('password')?.invalid && employeeForm.get('password')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="password" placeholder="Enter password" type="password" />
+          <p *ngIf="employeeForm.get('password')?.invalid && employeeForm.get('password')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Password is required (minimum 6 characters)
+          </p>
+        </div>
+        <!-- Contact -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Contact Number *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('contact')?.invalid && employeeForm.get('contact')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="contact" placeholder="Enter 10-digit contact number" type="tel" />
+          <p *ngIf="employeeForm.get('contact')?.invalid && employeeForm.get('contact')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Please enter a valid 10-digit contact number
+          </p>
+        </div>
+        <!-- Alternate Contact -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Alternate Contact
+          </label>
+          <input
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="alternateContact" placeholder="Enter alternate contact number" type="tel" />
+        </div>
+        <!-- City -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            City *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('city')?.invalid && employeeForm.get('city')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="city" placeholder="Enter city" type="text" />
+          <p *ngIf="employeeForm.get('city')?.invalid && employeeForm.get('city')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            City is required
+          </p>
+        </div>
+        <!-- PIN Code -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            PIN Code *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('zip')?.invalid && employeeForm.get('zip')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="zip" placeholder="Enter 6-digit ZIP code" type="text" />
+          <p *ngIf="employeeForm.get('zip')?.invalid && employeeForm.get('zip')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Please enter a valid 6-digit PIN code
+          </p>
+        </div>
+        <!-- Country -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Country *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('country')?.invalid && employeeForm.get('country')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="country" placeholder="Enter country" type="text" />
+          <p *ngIf="employeeForm.get('country')?.invalid && employeeForm.get('country')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Country is required
+          </p>
+        </div>
+        <!-- Date of Birth -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Date of Birth *
+          </label>
+          <input
+            [class.border-red-400]="employeeForm.get('dateOfBirth')?.invalid && employeeForm.get('dateOfBirth')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="dateOfBirth" type="date" />
+          <p *ngIf="employeeForm.get('dateOfBirth')?.invalid && employeeForm.get('dateOfBirth')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Date of birth is required
+          </p>
+        </div>
+        <!-- Gender - UPDATED WITH DYNAMIC VALUES -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Gender *
+          </label>
+          <select [class.border-red-400]="employeeForm.get('gender')?.invalid && employeeForm.get('gender')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="gender">
+            <option disabled="" selected="" value="">
+              Select gender
+            </option>
+            <option *ngFor="let gender of genderOptions" [value]="gender.value">
+              {{ gender.label }}
+            </option>
+          </select>
+          <p *ngIf="employeeForm.get('gender')?.invalid && employeeForm.get('gender')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Gender is required
+          </p>
+        </div>
+        <!-- Blood Group - UPDATED WITH DYNAMIC VALUES -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Blood Group
+          </label>
+          <select
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="bloodGroup">
+            <option selected="" value="">
+              Select blood group
+            </option>
+            <option *ngFor="let group of bloodGroups" [value]="group">
+              {{ group }}
+            </option>
+          </select>
+        </div>
+        <!-- Role Type - UPDATED WITH ALL DYNAMIC VALUES -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Role Type *
+          </label>
+          <select
+            [class.border-red-400]="employeeForm.get('roleType')?.invalid && employeeForm.get('roleType')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all"
+            formControlName="roleType">
+            <option disabled="" selected="" value="">
+              Select role type
+            </option>
+            <option *ngFor="let role of roleTypes" [value]="role.value">
+              {{ role.label }}
+            </option>
+          </select>
+          <p *ngIf="employeeForm.get('roleType')?.invalid && employeeForm.get('roleType')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Role type is required
+          </p>
+        </div>
+
+        <!-- Complete Address -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Complete Address *
+          </label>
+          <textarea
+            [class.border-red-400]="employeeForm.get('completeAddress')?.invalid && employeeForm.get('completeAddress')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all resize-none"
+            formControlName="completeAddress" placeholder="Enter complete address" rows="3"></textarea>
+          <p *ngIf="employeeForm.get('completeAddress')?.invalid && employeeForm.get('completeAddress')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Complete address is required (minimum 10 characters)
+          </p>
+        </div>
+      </div>
+      <!-- Footer -->
+      <div class="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
+        <button (click)="closeModal()" [disabled]="isLoading"
+          class="flex-1 px-6 py-3.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-all font-semibold disabled:opacity-50"
+          type="button">
+          Cancel
+        </button>
+        <button [disabled]="isLoading"
+          class="flex-1 px-6 py-3.5 bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-xl hover:shadow-lg transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          type="submit">
+          <span *ngIf="!isLoading">
+            Add Employee
+          </span>
+          <span *ngIf="isLoading" class="flex items-center justify-center gap-2">
+            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+              </circle>
+              <path class="opacity-75"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                fill="currentColor">
+              </path>
+            </svg>
+            Creating...
+          </span>
+        </button>
+      </div>
+    </form>
+  </div>
+  <!-- 📝 Edit Employee Modal - NOW IDENTICAL TO ADD EMPLOYEE -->
+  <div (click)="$event.stopPropagation()" *ngIf="activeModal === 'edit'"
+    class="bg-white rounded-3xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-slideUp">
+    <!-- Header with Gradient -->
+    <div class="bg-gradient-to-r from-blue-500 to-teal-400 px-6 py-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-white">
+          Edit Employee
+        </h2>
+        <button (click)="closeModal()" class="p-2 hover:bg-white/20 rounded-xl transition-colors outline-none border-0 bg-transparent" type="button">
+          <ion-icon class="text-2xl text-white" name="close-outline">
+          </ion-icon>
+        </button>
+      </div>
+    </div>
+    <!-- Success Message -->
+    <div *ngIf="successMessage" class="mx-6 mt-4 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
+      <p class="text-green-700 font-medium">
+        {{ successMessage }}
+      </p>
+    </div>
+    <!-- Error Message -->
+    <div *ngIf="errorMessage" class="mx-6 mt-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+      <p class="text-red-700 font-medium">
+        {{ errorMessage }}
+      </p>
+    </div>
+    <!-- Form -->
+    <form (ngSubmit)="onUpdateEmployee()" [formGroup]="employeeForm" class="flex-1 overflow-y-scroll bg-white" style="-webkit-overflow-scrolling: touch;">
+      <div class="p-6 space-y-4">
+        <!-- First Name -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            First Name *
+          </label>
+          <input
+            [class.border-red-400]="employeeForm.get('firstName')?.invalid && employeeForm.get('firstName')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="firstName" placeholder="Enter first name" type="text" />
+          <p *ngIf="employeeForm.get('firstName')?.invalid && employeeForm.get('firstName')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            First name is required (minimum 2 characters)
+          </p>
+        </div>
+        <!-- Last Name -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Last Name *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('lastName')?.invalid && employeeForm.get('lastName')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="lastName" placeholder="Enter last name" type="text" />
+          <p *ngIf="employeeForm.get('lastName')?.invalid && employeeForm.get('lastName')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Last name is required (minimum 2 characters)
+          </p>
+        </div>
+        <!-- Username -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Username *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('username')?.invalid && employeeForm.get('username')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="username" placeholder="Enter username" type="text" />
+          <p *ngIf="employeeForm.get('username')?.invalid && employeeForm.get('username')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Username is required (minimum 5 characters)
+          </p>
+        </div>
+        <!-- Employee ID/Roll no -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Employee ID *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('employeeRollNo')?.invalid && employeeForm.get('employeeRollNo')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="employeeRollNo" placeholder="Enter employee id" type="text" />
+          <p *ngIf="employeeForm.get('employeeRollNo')?.invalid && employeeForm.get('employeeRollNo')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Employee ID is required
+          </p>
+        </div>
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Email Address *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('email')?.invalid && employeeForm.get('email')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="email" placeholder="Enter email address" type="email" />
+          <p *ngIf="employeeForm.get('email')?.invalid && employeeForm.get('email')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Please enter a valid email address
+          </p>
+        </div>
+        <!-- Contact -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Contact Number *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('contact')?.invalid && employeeForm.get('contact')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="contact" placeholder="Enter 10-digit contact number" type="tel" />
+          <p *ngIf="employeeForm.get('contact')?.invalid && employeeForm.get('contact')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Please enter a valid 10-digit contact number
+          </p>
+        </div>
+        <!-- Alternate Contact -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Alternate Contact
+          </label>
+          <input
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="alternateContact" placeholder="Enter alternate contact number" type="tel" />
+        </div>
+        <!-- City -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            City *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('city')?.invalid && employeeForm.get('city')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="city" placeholder="Enter city" type="text" />
+          <p *ngIf="employeeForm.get('city')?.invalid && employeeForm.get('city')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            City is required
+          </p>
+        </div>
+        <!-- ZIP Code -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            ZIP Code *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('zip')?.invalid && employeeForm.get('zip')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="zip" placeholder="Enter 6-digit ZIP code" type="text" />
+          <p *ngIf="employeeForm.get('zip')?.invalid && employeeForm.get('zip')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Please enter a valid 6-digit ZIP code
+          </p>
+        </div>
+        <!-- Country -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Country *
+          </label>
+          <input [class.border-red-400]="employeeForm.get('country')?.invalid && employeeForm.get('country')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="country" placeholder="Enter country" type="text" />
+          <p *ngIf="employeeForm.get('country')?.invalid && employeeForm.get('country')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Country is required
+          </p>
+        </div>
+        <!-- Date of Birth -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Date of Birth *
+          </label>
+          <input
+            [class.border-red-400]="employeeForm.get('dateOfBirth')?.invalid && employeeForm.get('dateOfBirth')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="dateOfBirth" type="date" />
+          <p *ngIf="employeeForm.get('dateOfBirth')?.invalid && employeeForm.get('dateOfBirth')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Date of birth is required
+          </p>
+        </div>
+        <!-- Gender -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Gender *
+          </label>
+          <select [class.border-red-400]="employeeForm.get('gender')?.invalid && employeeForm.get('gender')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="gender">
+            <option disabled="" value="">
+              Select gender
+            </option>
+            <option *ngFor="let gender of genderOptions" [value]="gender.value">
+              {{ gender.label }}
+            </option>
+          </select>
+          <p *ngIf="employeeForm.get('gender')?.invalid && employeeForm.get('gender')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Gender is required
+          </p>
+        </div>
+        <!-- Blood Group -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Blood Group
+          </label>
+          <select
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="bloodGroup">
+            <option value="">
+              Select blood group
+            </option>
+            <option *ngFor="let group of bloodGroups" [value]="group">
+              {{ group }}
+            </option>
+          </select>
+        </div>
+        <!-- Role Type -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Role Type *
+          </label>
+          <select
+            [class.border-red-400]="employeeForm.get('roleType')?.invalid && employeeForm.get('roleType')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="roleType">
+            <option disabled="" value="">
+              Select role type
+            </option>
+            <option *ngFor="let role of roleTypes" [value]="role.value">
+              {{ role.label }}
+            </option>
+          </select>
+          <p *ngIf="employeeForm.get('roleType')?.invalid && employeeForm.get('roleType')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Role type is required
+          </p>
+        </div>
+        <!-- Status -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Status *
+          </label>
+          <select [class.border-red-400]="employeeForm.get('status')?.invalid && employeeForm.get('status')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+            formControlName="status">
+            <option disabled="" value="">
+              Select status
+            </option>
+            <option *ngFor="let status of statusOptions" [value]="status.value">
+              {{ status.label }}
+            </option>
+          </select>
+        </div>
+        <!-- Password (Admin only) -->
+        <div *ngIf="isAdmin">
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Password
+            <span class="ml-2 text-xs font-normal text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full">Admin only</span>
+          </label>
+          <div class="relative">
+            <input
+              class="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
+              formControlName="password"
+              [type]="showEditPassword ? 'text' : 'password'"
+              autocomplete="off" />
+            <button type="button"
+              (click)="showEditPassword = !showEditPassword"
+              class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors outline-none border-0 bg-transparent">
+              <ion-icon [name]="showEditPassword ? 'eye-off-outline' : 'eye-outline'" class="text-xl"></ion-icon>
+            </button>
+          </div>
+        </div>
+        <!-- Complete Address -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-2">
+            Complete Address *
+          </label>
+          <textarea
+            [class.border-red-400]="employeeForm.get('completeAddress')?.invalid && employeeForm.get('completeAddress')?.touched"
+            class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all resize-none"
+            formControlName="completeAddress" placeholder="Enter complete address" rows="3"></textarea>
+          <p *ngIf="employeeForm.get('completeAddress')?.invalid && employeeForm.get('completeAddress')?.touched"
+            class="text-red-500 text-xs mt-1 font-medium">
+            Complete address is required (minimum 10 characters)
+          </p>
+        </div>
+      </div>
+      <!-- Footer -->
+      <div class="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
+        <button (click)="closeModal()" [disabled]="isLoading"
+          class="flex-1 px-6 py-3.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-all font-semibold disabled:opacity-50"
+          type="button">
+          Cancel
+        </button>
+        <button [disabled]="isLoading"
+          class="flex-1 px-6 py-3.5 bg-gradient-to-r from-blue-500 to-teal-400 text-white rounded-xl hover:shadow-lg transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+          type="submit">
+          <span *ngIf="!isLoading" class="text-white">
+            Save Changes
+          </span>
+          <span *ngIf="isLoading" class="flex items-center justify-center gap-2">
+            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+              </circle>
+              <path class="opacity-75"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                fill="currentColor">
+              </path>
+            </svg>
+            Updating...
+          </span>
+        </button>
+      </div>
+    </form>
+  </div>
+  <!-- 👁️ View Employee Modal -->
+  <div (click)="$event.stopPropagation()" *ngIf="activeModal === 'view' && selectedEmployee"
+    class="bg-white rounded-3xl w-full max-w-xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-slideUp">
+    <!-- Header with Gradient -->
+    <div class="bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-500 px-6 py-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-white">
+          Employee Details
+        </h2>
+        <button (click)="closeModal()" class="p-2 hover:bg-white/20 rounded-xl transition-colors" type="button">
+          <ion-icon class="text-2xl text-white" name="close-outline">
+          </ion-icon>
+        </button>
+      </div>
+    </div>
+    <!-- Content -->
+    <div class="flex-1 overflow-y-auto p-6 bg-white">
+      <!-- Employee Header -->
+      <div class="flex items-center gap-6 mb-6">
+        <div
+          class="w-24 h-24 rounded-2xl bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center text-white font-bold text-4xl shadow-lg">
+          {{ selectedEmployee.name.charAt(0) }}
+        </div>
+        <div class="flex-1">
+          <h3 class="text-2xl font-bold text-gray-900 mb-1">
+            {{ selectedEmployee.name }}
+          </h3>
+          <p class="text-teal-600 font-semibold mb-3">
+            {{ selectedEmployee.position }}
+          </p>
+          <span [ngClass]="getStatusClass(selectedEmployee.status)"
+            class="inline-block px-4 py-2 rounded-xl text-sm font-bold border-2 shadow-sm">
+            {{ selectedEmployee.status }}
+          </span>
+        </div>
+      </div>
+      <!-- Employee Details -->
+      <div class="space-y-3">
+        <div class="bg-gradient-to-r from-blue-50 to-teal-50 rounded-xl p-4 border-2 border-blue-100">
+          <p class="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
+            Employee ID
+          </p>
+          <p class="text-base text-gray-900 flex items-center gap-2 font-semibold">
+            <ion-icon class="text-blue-600 text-xl" name="card">
+            </ion-icon>
+            {{ selectedEmployee.employeeRollNo || 'N/A' }}
+          </p>
+        </div>
+        <div class="bg-gradient-to-r from-blue-50 to-teal-50 rounded-xl p-4 border-2 border-blue-100">
+          <p class="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
+            Department
+          </p>
+          <p class="text-base text-gray-900 flex items-center gap-2 font-semibold">
+            <ion-icon class="text-blue-600 text-xl" name="business">
+            </ion-icon>
+            {{ selectedEmployee.department }}
+          </p>
+        </div>
+        <div class="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl p-4 border-2 border-emerald-100">
+          <p class="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
+            Email
+          </p>
+          <p class="text-base text-gray-900 flex items-center gap-2 font-semibold break-all">
+            <ion-icon class="text-emerald-600 text-xl" name="mail">
+            </ion-icon>
+            {{ selectedEmployee.email }}
+          </p>
+        </div>
+        <div class="bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl p-4 border-2 border-purple-100">
+          <p class="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
+            Phone
+          </p>
+          <p class="text-base text-gray-900 flex items-center gap-2 font-semibold">
+            <ion-icon class="text-purple-600 text-xl" name="call">
+            </ion-icon>
+            {{ selectedEmployee.phone }}
+          </p>
+        </div>
+      </div>
+    </div>
+    <!-- Footer Actions -->
+    <div class="p-6 border-t border-gray-100 bg-gray-50">
+      <!-- Success Message in Modal -->
+      <div *ngIf="successMessage" class="mb-4 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
+        <p class="text-green-700 font-medium">
+          {{ successMessage }}
+        </p>
+      </div>
+      <!-- Error Message in Modal -->
+      <div *ngIf="errorMessage" class="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+        <p class="text-red-700 font-medium">
+          {{ errorMessage }}
+        </p>
+      </div>
+      <ng-container *appAcl="{ feature: FEATURE, action: 'update' }">
+      <div *ngIf="selectedEmployee.status === 'Pending'" class="flex gap-3">
+        <button (click)="onRejectEmployee()" [disabled]="isLoading"
+          class="flex-1 px-4 py-3.5 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all flex items-center justify-center gap-2 font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+          type="button">
+          <ion-icon class="text-xl" name="close-circle">
+          </ion-icon>
+          Reject
+        </button>
+        <button (click)="onApproveEmployee()" [disabled]="isLoading"
+          class="flex-1 px-4 py-3.5 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+          type="button">
+          <svg *ngIf="isLoading" class="animate-spin h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+            </circle>
+            <path class="opacity-75"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              fill="currentColor">
+            </path>
+          </svg>
+          <ion-icon *ngIf="!isLoading" class="text-xl" name="checkmark-circle">
+          </ion-icon>
+          <span *ngIf="!isLoading">
+            Approve
+          </span>
+          <span *ngIf="isLoading">
+            Approving...
+          </span>
+        </button>
+      </div>
+      </ng-container>
+      <button (click)="closeModal()" *ngIf="selectedEmployee.status !== 'Pending'"
+        class="w-full px-6 py-3.5 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 transition-all font-bold"
+        type="button">
+        Close
+      </button>
+    </div>
+  </div>
+  <!-- ❌ Reject Employee Modal -->
+  <div (click)="$event.stopPropagation()" *ngIf="activeModal === 'reject' && selectedEmployee"
+    class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-slideUp">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-white">
+          Reject Employee
+        </h2>
+        <button (click)="closeModal()" class="p-2 hover:bg-white/20 rounded-xl transition-colors" type="button">
+          <ion-icon class="text-2xl text-white" name="close-outline">
+          </ion-icon>
+        </button>
+      </div>
+    </div>
+    <!-- Content -->
+    <div class="p-6 bg-white">
+      <!-- Success Message -->
+      <div *ngIf="successMessage" class="mb-4 p-4 bg-green-50 border-l-4 border-green-500 rounded-lg">
+        <p class="text-green-700 font-medium">
+          {{ successMessage }}
+        </p>
+      </div>
+      <!-- Error Message -->
+      <div *ngIf="errorMessage" class="mb-4 p-4 bg-red-50 border-l-4 border-red-500 rounded-lg">
+        <p class="text-red-700 font-medium">
+          {{ errorMessage }}
+        </p>
+      </div>
+      <div class="flex items-center justify-center mb-6">
+        <div
+          class="w-20 h-20 bg-gradient-to-br from-amber-100 to-orange-100 rounded-2xl flex items-center justify-center shadow-lg">
+          <ion-icon class="text-5xl text-amber-600" name="alert-circle">
+          </ion-icon>
+        </div>
+      </div>
+      <p class="text-center text-gray-700 text-lg mb-2 font-semibold">
+        Are you sure you want to reject
+      </p>
+      <p class="text-center text-gray-900 font-bold text-2xl mb-4">
+        {{ selectedEmployee.name }}?
+      </p>
+      <p class="text-center text-gray-500 text-sm font-medium">
+        This employee's status will be changed to Rejected.
+      </p>
+    </div>
+    <!-- Footer -->
+    <div class="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
+      <button (click)="closeModal()" [disabled]="isLoading"
+        class="flex-1 px-6 py-3.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-all font-semibold disabled:opacity-50"
+        type="button">
+        Cancel
+      </button>
+      <button (click)="onRejectEmployee()" [disabled]="isLoading"
+        class="flex-1 px-6 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl hover:shadow-lg transition-all font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+        type="button">
+        <span *ngIf="!isLoading">
+          Reject
+        </span>
+        <span *ngIf="isLoading" class="flex items-center justify-center gap-2">
+          <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
+            </circle>
+            <path class="opacity-75"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              fill="currentColor">
+            </path>
+          </svg>
+          Rejecting...
+        </span>
+      </button>
+    </div>
+  </div>
+  <!-- 🗑️ Delete Employee Modal -->
+  <div (click)="$event.stopPropagation()" *ngIf="activeModal === 'delete' && selectedEmployee"
+    class="bg-white rounded-3xl w-full max-w-md overflow-hidden shadow-2xl animate-slideUp">
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-red-500 to-pink-500 px-6 py-5">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-white">
+          Delete Employee
+        </h2>
+        <button (click)="closeModal()" class="p-2 hover:bg-white/20 rounded-xl transition-colors" type="button">
+          <ion-icon class="text-2xl text-white" name="close-outline">
+          </ion-icon>
+        </button>
+      </div>
+    </div>
+    <!-- Content -->
+    <div class="p-6 bg-white">
+      <div class="flex items-center justify-center mb-6">
+        <div
+          class="w-20 h-20 bg-gradient-to-br from-red-100 to-pink-100 rounded-2xl flex items-center justify-center shadow-lg">
+          <ion-icon class="text-5xl text-red-600" name="warning">
+          </ion-icon>
+        </div>
+      </div>
+      <p class="text-center text-gray-700 text-lg mb-2 font-semibold">
+        Are you sure you want to delete
+      </p>
+      <p class="text-center text-gray-900 font-bold text-2xl mb-4">
+        {{ selectedEmployee.name }}?
+      </p>
+      <p class="text-center text-gray-500 text-sm font-medium">
+        This action cannot be undone.
+      </p>
+    </div>
+    <!-- Footer -->
+    <div class="flex gap-3 p-6 border-t border-gray-100 bg-gray-50">
+      <button (click)="closeModal()"
+        class="flex-1 px-6 py-3.5 border-2 border-gray-300 text-gray-700 rounded-xl hover:bg-gray-100 transition-all font-semibold"
+        type="button">
+        Cancel
+      </button>
+      <button (click)="onDeleteEmployee()"
+        class="flex-1 px-6 py-3.5 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl hover:shadow-lg transition-all font-bold"
+        type="button">
+        Delete
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 🏷️ Create Designation Modal -->
+<div *ngIf="showDesignationModal"
+  class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 animate-fadeIn"
+  (click)="closeDesignationModal()">
+  <div (click)="$event.stopPropagation()"
+    class="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-slideUp">
+
+    <!-- Header -->
+    <div class="bg-gradient-to-r from-emerald-400 to-teal-500 px-6 py-5">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-2xl font-bold text-white">Create Designation</h2>
+          <p class="text-cyan-50 text-sm mt-0.5">All roles &amp; designations across the organisation</p>
+        </div>
+        <button (click)="closeDesignationModal()" class="p-2 hover:bg-white/20 rounded-xl transition-colors bg-transparent"
+          type="button">
+          <ion-icon class="text-2xl text-white" name="close-outline"></ion-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="p-6 overflow-y-auto">
+
+      <!-- Loading -->
+      <div *ngIf="isLoadingDesignations" class="flex items-center justify-center py-10">
+        <ion-spinner name="crescent" class="text-emerald-500"></ion-spinner>
+      </div>
+
+      <!-- Chips -->
+      <div *ngIf="!isLoadingDesignations">
+        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Existing Designations</label>
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-5 max-h-56 overflow-y-auto pr-1 items-stretch">
+          <span *ngFor="let d of filteredDesignations"
+            class="flex items-center justify-center text-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-500 text-white text-sm font-semibold shadow-sm whitespace-normal break-words leading-tight">
+            {{ d.label }}
+            <ion-icon *ngIf="d.custom" name="sparkles-outline" class="text-xs opacity-80 shrink-0"></ion-icon>
+          </span>
+          <span *ngIf="filteredDesignations.length === 0"
+            class="col-span-full text-slate-400 text-sm py-2 text-center">No matching designation.</span>
+        </div>
+
+        <!-- Search / create -->
+        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Add New</label>
+
+        <!-- Role Category Dropdown -->
+        <div class="mb-3">
+          <label class="block text-xs font-semibold text-gray-600 mb-2">Role Category</label>
+          <select [(ngModel)]="selectedRoleCategory"
+            class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 bg-slate-50 focus:bg-white text-slate-700 outline-none transition-all font-medium">
+            <option value="USER">User</option>
+            <option value="SALES">Sales</option>
+          </select>
+        </div>
+
+        <div class="relative">
+          <ion-icon name="search-outline"
+            class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg pointer-events-none"></ion-icon>
+          <input
+            type="text"
+            [(ngModel)]="designationSearch"
+            (keyup.enter)="canCreateDesignation && createDesignationFromSearch()"
+            placeholder="Search or type a new designation…"
+            class="w-full bg-slate-50 focus:bg-white text-slate-700 placeholder-slate-400 border border-slate-200 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-50 rounded-xl py-3 pl-11 pr-4 outline-none transition-all" />
+        </div>
+
+        <!-- Create option (shown when the typed value doesn't already exist) -->
+        <button *ngIf="canCreateDesignation"
+          (click)="createDesignationFromSearch()"
+          [disabled]="isSavingDesignation"
+          class="mt-3 w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:opacity-60 text-white font-bold rounded-xl transition-all shadow-md">
+          <ion-spinner *ngIf="isSavingDesignation" name="crescent" class="w-4 h-4"></ion-spinner>
+          <ion-icon *ngIf="!isSavingDesignation" name="add-circle-outline" class="text-lg"></ion-icon>
+          <span>Create "{{ designationSearch.trim() }}"</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex gap-3 p-5 border-t border-slate-100 bg-slate-50">
+      <button (click)="closeDesignationModal()"
+        class="flex-1 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-xl hover:bg-slate-100 transition-all font-semibold"
+        type="button">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Approval Modal -->
+<div *ngIf="showApprovalModal && selectedApprovalRequest" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <!-- Modal Header -->
+    <div [ngClass]="{
+      'bg-emerald-50': approvalAction === 'APPROVE',
+      'bg-red-50': approvalAction === 'REJECT'
+    }" class="p-6 border-b border-slate-100">
+      <div class="flex items-center gap-3">
+        <div [ngClass]="{
+          'bg-emerald-100': approvalAction === 'APPROVE',
+          'bg-red-100': approvalAction === 'REJECT'
+        }" class="w-12 h-12 rounded-full flex items-center justify-center">
+          <ion-icon [ngClass]="{
+            'text-emerald-600': approvalAction === 'APPROVE',
+            'text-red-600': approvalAction === 'REJECT'
+          }" [name]="approvalAction === 'APPROVE' ? 'checkmark-circle-outline' : 'close-circle-outline'" class="text-2xl"></ion-icon>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800">{{ approvalAction === 'APPROVE' ? 'Approve Request' : 'Reject Request' }}</h3>
+          <p class="text-xs text-slate-500 mt-0.5">{{ selectedApprovalRequest.firstName }} {{ selectedApprovalRequest.lastName }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-6 space-y-4">
+      <div class="bg-slate-50 rounded-lg p-4 space-y-3">
+        <div>
+          <p class="text-xs text-slate-500 font-semibold uppercase">Name</p>
+          <p class="text-sm font-medium text-slate-800">{{ selectedApprovalRequest.firstName }} {{ selectedApprovalRequest.lastName }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-semibold uppercase">Email</p>
+          <p class="text-sm font-medium text-slate-800">{{ selectedApprovalRequest.email }}</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 font-semibold uppercase">Role</p>
+          <p class="text-sm font-medium text-slate-800">{{ selectedApprovalRequest.salesRole || selectedApprovalRequest.roleType || 'N/A' }}</p>
+        </div>
+      </div>
+
+      <!-- Comments Field -->
+      <div>
+        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">
+          {{ approvalAction === 'APPROVE' ? 'Approval Notes (Optional)' : 'Rejection Reason (Optional)' }}
+        </label>
+        <textarea [(ngModel)]="approvalComments"
+          [placeholder]="approvalAction === 'APPROVE' ? 'Add any approval notes or comments...' : 'Add comments or reason for rejection...'"
+          class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none resize-none text-sm transition-all"
+          [ngClass]="{
+            'focus:border-emerald-400 focus:ring-2 focus:ring-emerald-50': approvalAction === 'APPROVE',
+            'focus:border-red-400 focus:ring-2 focus:ring-red-50': approvalAction === 'REJECT'
+          }"
+          rows="3"></textarea>
+      </div>
+
+      <!-- Confirmation Message -->
+      <div [ngClass]="{
+        'bg-emerald-50 border border-emerald-200 text-emerald-700': approvalAction === 'APPROVE',
+        'bg-red-50 border border-red-200 text-red-700': approvalAction === 'REJECT'
+      }" class="p-3 rounded-lg text-sm">
+        <p class="font-semibold">{{ approvalAction === 'APPROVE' ? 'Approve this user?' : 'Reject this request?' }}</p>
+        <p class="text-xs mt-1">{{ approvalAction === 'APPROVE' ? 'The user will be saved to the system.' : 'The request will be discarded.' }}</p>
+      </div>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
+      <button (click)="closeApprovalModal()"
+        [disabled]="isProcessingApproval"
+        class="flex-1 px-4 py-3 border-2 border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-all font-semibold disabled:opacity-60"
+        type="button">
+        Cancel
+      </button>
+      <button (click)="processApproval()"
+        [disabled]="isProcessingApproval"
+        [ngClass]="{
+          'bg-emerald-500 hover:bg-emerald-600': approvalAction === 'APPROVE',
+          'bg-red-500 hover:bg-red-600': approvalAction === 'REJECT'
+        }"
+        class="flex-1 px-4 py-3 text-white rounded-lg transition-all font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
+        type="button">
+        <ion-spinner *ngIf="isProcessingApproval" name="crescent" class="w-4 h-4"></ion-spinner>
+        {{ approvalAction === 'APPROVE' ? 'Approve' : 'Reject' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Pending Approval Modal -->
+<div *ngIf="showEditPendingModal && selectedPendingForEdit" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <!-- Modal Header -->
+    <div class="bg-blue-50 p-6 border-b border-slate-100">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-100 w-12 h-12 rounded-full flex items-center justify-center">
+          <ion-icon name="pencil-outline" class="text-blue-600 text-2xl"></ion-icon>
+        </div>
+        <div>
+          <h3 class="font-bold text-slate-800">Edit Profile</h3>
+          <p class="text-xs text-slate-500 mt-0.5">{{ selectedPendingForEdit.firstName }} {{ selectedPendingForEdit.lastName }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-6">
+      <form [formGroup]="editPendingForm" class="space-y-6">
+        <!-- Personal Information Section -->
+        <div class="bg-slate-50 p-4 rounded-lg">
+          <h4 class="font-semibold text-slate-700 mb-4">Personal Information</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- First Name -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">First Name</label>
+              <input type="text" formControlName="firstName"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                placeholder="First Name" />
+              <p *ngIf="editPendingForm.get('firstName')?.invalid && editPendingForm.get('firstName')?.touched" class="text-xs text-red-600 mt-1">
+                First name is required (min 2 chars)
+              </p>
+            </div>
+
+            <!-- Last Name -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Last Name</label>
+              <input type="text" formControlName="lastName"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                placeholder="Last Name" />
+              <p *ngIf="editPendingForm.get('lastName')?.invalid && editPendingForm.get('lastName')?.touched" class="text-xs text-red-600 mt-1">
+                Last name is required (min 2 chars)
+              </p>
+            </div>
+
+            <!-- Gender -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Gender</label>
+              <select formControlName="gender"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all">
+                <option value="">Select Gender</option>
+                <option *ngFor="let g of genderOptions" [value]="g.value">{{ g.label }}</option>
+              </select>
+            </div>
+
+            <!-- Blood Group -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Blood Group</label>
+              <select formControlName="bloodGroup"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all">
+                <option value="">Select Blood Group</option>
+                <option *ngFor="let b of bloodGroups" [value]="b">{{ b }}</option>
+              </select>
+            </div>
+
+            <!-- Date of Birth -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Date of Birth</label>
+              <input type="date" formControlName="dateOfBirth"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all" />
+            </div>
+
+            <!-- Employee Roll No -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Employee Roll No</label>
+              <input type="text" formControlName="employeeRollNo"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                placeholder="Roll No" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact Information Section -->
+        <div class="bg-slate-50 p-4 rounded-lg">
+          <h4 class="font-semibold text-slate-700 mb-4">Contact Information</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Email -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Email</label>
+              <input type="email" formControlName="email"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                placeholder="Email" />
+              <p *ngIf="editPendingForm.get('email')?.invalid && editPendingForm.get('email')?.touched" class="text-xs text-red-600 mt-1">
+                Valid email is required
+              </p>
+            </div>
+
+            <!-- Contact No -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Contact No</label>
+              <input type="tel" formControlName="contactNo"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                placeholder="Contact number" />
+              <p *ngIf="editPendingForm.get('contactNo')?.invalid && editPendingForm.get('contactNo')?.touched" class="text-xs text-red-600 mt-1">
+                Contact number is required
+              </p>
+            </div>
+
+            <!-- Alternate Contact No -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Alternate Contact No</label>
+              <input type="tel" formControlName="alternateContactNo"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                placeholder="10 digit number" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Address Information Section -->
+        <div class="bg-slate-50 p-4 rounded-lg">
+          <h4 class="font-semibold text-slate-700 mb-4">Address Information</h4>
+          <div class="space-y-4">
+            <!-- Complete Address -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Complete Address</label>
+              <textarea formControlName="completeAddress"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all resize-none"
+                placeholder="Enter complete address"
+                rows="3"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- City -->
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">City</label>
+                <input type="text" formControlName="city"
+                  class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                  placeholder="City" />
+              </div>
+
+              <!-- Country -->
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Country</label>
+                <input type="text" formControlName="country"
+                  class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                  placeholder="Country" />
+              </div>
+
+              <!-- Zip -->
+              <div>
+                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Zip Code</label>
+                <input type="text" formControlName="zip"
+                  class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                  placeholder="Zip code" />
+                <p *ngIf="editPendingForm.get('zip')?.invalid && editPendingForm.get('zip')?.touched" class="text-xs text-red-600 mt-1">
+                  Zip code is required
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Zone and Region (for SALES users) -->
+        <div *ngIf="selectedPendingForEdit.zone || selectedPendingForEdit.region" class="bg-slate-50 p-4 rounded-lg">
+          <h4 class="font-semibold text-slate-700 mb-4">Sales Information</h4>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Zone</label>
+              <input type="text" formControlName="zone"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                placeholder="Zone" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Region</label>
+              <input type="text" formControlName="region"
+                class="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 text-sm transition-all"
+                placeholder="Region" />
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
+      <button (click)="closeEditPendingModal()"
+        [disabled]="isEditingPending"
+        class="flex-1 px-4 py-3 border-2 border-slate-300 text-slate-700 rounded-lg hover:bg-slate-100 transition-all font-semibold disabled:opacity-60"
+        type="button">
+        Cancel
+      </button>
+      <button (click)="savePendingChanges()"
+        [disabled]="isEditingPending || editPendingForm.invalid"
+        class="flex-1 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
+        type="button">
+        <ion-spinner *ngIf="isEditingPending" name="crescent" class="w-4 h-4"></ion-spinner>
+        Save Changes
+      </button>
+    </div>
+  </div>
+</div>

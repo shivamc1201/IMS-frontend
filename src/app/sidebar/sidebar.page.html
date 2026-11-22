@@ -1,0 +1,495 @@
+<!-- sidebar.page.html -->
+
+<ion-content class="sidebar-content" [class.dark-mode]="isDarkMode" [class.collapsed]="isCollapsed">
+  <div class="sidebar-container" [class.collapsed]="isCollapsed">
+
+    <!-- ========================= -->
+    <!-- BRAND HEADER -->
+    <!-- ========================= -->
+    <div class="brand">
+      <div class="logo"> <img src="assets/images/nayla.jpeg" alt="Nayla Logo"
+          class="w-15 h-15 object-contain rotate-3 hover:rotate-0 rounded-2xl shadow-lg shadow-emerald-300/100 transform-rotate-3 transition-transform duration-300">
+      </div>
+      <div class="brand-text ml-2">
+        <h2>NAYLA Inventory Portal</h2>
+      </div>
+
+      <ion-button fill="clear" class="menu-toggle" (click)="onToggleSidebar()">
+        <ion-icon [name]="isCollapsed ? 'chevron-forward-outline' : 'chevron-back-outline'">
+        </ion-icon>
+      </ion-button>
+    </div>
+
+    <!-- ========================= -->
+    <!-- MENU (FEATURE CONTROLLED) -->
+    <!-- ========================= -->
+    <ng-container *appAcl="{ anyFeature: true }">
+
+      <ion-list lines="none" class="menu-list">
+
+        <!-- ===== DASHBOARD (only if user has the DASHBOARD feature) ===== -->
+        <ion-item *appAcl="'DASHBOARD'" routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="onMenuItemClick()">
+          <ion-icon name="albums-outline" slot="start"></ion-icon>
+          <ion-label>Dashboard</ion-label>
+        </ion-item>
+
+        <!-- ===== ACCOUNTS (Desktop only, or for all screens if admin) ===== -->
+        <ng-container *ngIf="isDesktop || isAdmin">
+          <ion-accordion-group *appAcl="{ features: ['ACCOUNTS_MASTER', 'ACCOUNTS_PAYMENT_REQUESTS', 'ACCOUNTS_PI_UPDATE'] }">
+            <ion-accordion>
+              <ion-item slot="header" button>
+                <ion-icon name="reader-outline" slot="start"></ion-icon>
+                <ion-label>Accounts</ion-label>
+              </ion-item>
+
+              <div slot="content">
+                <ion-item *appAcl="'ACCOUNTS_MASTER'" routerLink="/accounts-master" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="document-text-outline" slot="start"></ion-icon>
+                  <ion-label>Master</ion-label>
+                </ion-item>
+                <ion-item *appAcl="'ACCOUNTS_PAYMENT_REQUESTS'" routerLink="/payment-request" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="wallet-outline" slot="start"></ion-icon>
+                  <ion-label>Payment Requests</ion-label>
+                </ion-item>
+                <ion-item *appAcl="'ACCOUNTS_PI_UPDATE'" routerLink="/pi-update" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="document-lock-outline" slot="start"></ion-icon>
+                  <ion-label>PI Update</ion-label>
+                </ion-item>
+              </div>
+            </ion-accordion>
+          </ion-accordion-group>
+        </ng-container>
+
+        <!-- ===== TRANSACTION (Desktop only, or for all screens if admin) ===== -->
+        <ng-container *ngIf="isDesktop || isAdmin">
+          <ion-accordion-group *appAcl="{ features: ['TRANSACTION_MASTER', 'TRANSACTION_CASHBOOK'] }">
+            <ion-accordion>
+              <ion-item slot="header" button>
+                <ion-icon name="swap-horizontal-outline" slot="start"></ion-icon>
+                <ion-label>Transaction</ion-label>
+              </ion-item>
+              <div slot="content">
+                <ion-item *appAcl="'TRANSACTION_MASTER'" routerLink="/transaction-master" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="layers-outline" slot="start"></ion-icon>
+                  <ion-label>Master</ion-label>
+                </ion-item>
+                <ion-item *appAcl="'TRANSACTION_CASHBOOK'" routerLink="/transaction-cashbook" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="book-outline" slot="start"></ion-icon>
+                  <ion-label>Cashbook</ion-label>
+                </ion-item>
+              </div>
+            </ion-accordion>
+          </ion-accordion-group>
+        </ng-container>
+
+        <!-- ===== HUMAN RESOURCES (Desktop only, or for all screens if admin) ===== -->
+        <ng-container *ngIf="isDesktop || isAdmin">
+          <ion-accordion-group *appAcl="{ features: ['HR', 'HR_KRA_KPI', 'ADMIN_APPROVAL'] }">
+            <ion-accordion>
+              <ion-item slot="header" button>
+                <ion-icon name="people-outline" slot="start"></ion-icon>
+                <ion-label>Human Resources</ion-label>
+              </ion-item>
+
+              <div slot="content">
+                <ion-item *appAcl="'HR'" routerLink="/hr-department" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="business-outline" slot="start"></ion-icon>
+                  <ion-label>Department Master</ion-label>
+                </ion-item>
+                <ion-item *appAcl="'HR_KRA_KPI'" routerLink="/hr-kra-kpi" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="bar-chart-outline" slot="start"></ion-icon>
+                  <ion-label>KRA/KPI Master</ion-label>
+                </ion-item>
+                <ion-item *appAcl="'ADMIN_APPROVAL'" routerLink="/hr-admin-approval" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="shield-checkmark-outline" slot="start"></ion-icon>
+                  <ion-label>Admin Approval</ion-label>
+                </ion-item>
+              </div>
+            </ion-accordion>
+          </ion-accordion-group>
+        </ng-container>
+
+        <!-- ===== DISTRIBUTOR (any user with the DISTRIBUTOR feature — mobile & web) ===== -->
+        <ion-accordion-group *appAcl="{ features: ['DISTRIBUTOR'] }">
+          <ion-accordion>
+            <ion-item slot="header" button>
+              <ion-icon name="business-outline" slot="start"></ion-icon>
+              <ion-label>Distributor</ion-label>
+            </ion-item>
+
+            <div slot="content">
+              <ion-item *appAcl="'DISTRIBUTOR'" routerLink="/distributor" routerLinkActive="active" (click)="onMenuItemClick()">
+                <ion-icon name="storefront-outline" slot="start"></ion-icon>
+                <ion-label>Distributor Master</ion-label>
+              </ion-item>
+            </div>
+          </ion-accordion>
+        </ion-accordion-group>
+
+        <!-- ===== DEALERS (independent menu — ADMIN / SUPER_ADMIN only; global dealer directory) ===== -->
+        <ion-item *ngIf="isAdmin" routerLink="/dealers" routerLinkActive="active" (click)="onMenuItemClick()">
+          <ion-icon name="people-circle-outline" slot="start"></ion-icon>
+          <ion-label>Dealers</ion-label>
+        </ion-item>
+
+        <ng-container *ngIf="!isSalesRole && userRole !== 'DISTRIBUTOR' && userRole !== 'DEALER'">
+        <ion-accordion-group *appAcl="{ features: ['SALES', 'REPORTING_MANAGER'] }">
+          <ion-accordion>
+            <ion-item slot="header" button>
+              <ion-icon name="trending-up-outline" slot="start"></ion-icon>
+              <ion-label>Sales</ion-label>
+            </ion-item>
+
+            <div slot="content">
+              <ion-item *appAcl="'SALES'" routerLink="/sales" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" (click)="onMenuItemClick()">
+                <ion-icon name="briefcase-outline" slot="start"></ion-icon>
+                <ion-label>Sales Management</ion-label>
+              </ion-item>
+              <ion-item *appAcl="'REPORTING_MANAGER'" routerLink="/sales/salesperson-onboarding" routerLinkActive="active" (click)="onMenuItemClick()">
+                <ion-icon name="person-add-outline" slot="start"></ion-icon>
+                <ion-label>Reporting Manager</ion-label>
+              </ion-item>
+            </div>
+          </ion-accordion>
+        </ion-accordion-group>
+        </ng-container>
+
+        <!-- ===== INVENTORY (Desktop only, or for all screens if admin; hidden for distributors/dealers) ===== -->
+        <ng-container *ngIf="(isDesktop || isAdmin) && userRole !== 'DISTRIBUTOR' && userRole !== 'DEALER'">
+          <ion-accordion-group *appAcl="{ features: ['INVENTORY_MASTERS', 'INVENTORY_INWARD', 'INVENTORY_OUTWARD'] }">
+            <ion-accordion>
+              <ion-item slot="header" button>
+                <ion-icon name="cube-outline" slot="start"></ion-icon>
+                <ion-label>Inventory</ion-label>
+              </ion-item>
+
+              <div slot="content">
+                <ion-item *appAcl="'INVENTORY_MASTERS'" routerLink="/master-inventory" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="layers-outline" slot="start"></ion-icon>
+                  <ion-label>Master Inventory</ion-label>
+                </ion-item>
+                <ion-item *appAcl="'INVENTORY_INWARD'" routerLink="/inward" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="arrow-down-circle-outline" slot="start"></ion-icon>
+                  <ion-label>Inward Inventory</ion-label>
+                </ion-item>
+                <ion-item *appAcl="'INVENTORY_OUTWARD'" routerLink="/outward-inventory" routerLinkActive="active" (click)="onMenuItemClick()">
+                  <ion-icon name="swap-horizontal-outline" slot="start"></ion-icon>
+                  <ion-label>Outward Inventory</ion-label>
+                </ion-item>
+              </div>
+            </ion-accordion>
+          </ion-accordion-group>
+        </ng-container>
+
+        <!-- ===== ORDER TRACKING (Both mobile & desktop, hidden for salespeople and distributors) ===== -->
+        <ng-container *ngIf="!isSalesRole && userRole !== 'DISTRIBUTOR'">
+          <ion-item *appAcl="{ features: ['ORDER_DETAILS'] }" routerLink="/order-details" routerLinkActive="active" (click)="onMenuItemClick()">
+            <ion-icon name="document-text-outline" slot="start"></ion-icon>
+            <ion-label>Order Tracking</ion-label>
+          </ion-item>
+        </ng-container>
+
+        <!-- ===== DISPATCH (Both mobile & desktop) ===== -->
+        <ion-item *appAcl="'DISPATCH'" routerLink="/dispatch" routerLinkActive="active" (click)="onMenuItemClick()">
+          <ion-icon name="cube-outline" slot="start"></ion-icon>
+          <ion-label>Dispatch & GDN</ion-label>
+        </ion-item>
+
+        <!-- ===== NOTIFICATIONS & OFFERS (Desktop only, or for all screens if admin) ===== -->
+        <ng-container *ngIf="isDesktop || isAdmin">
+          <ion-item *appAcl="'NOTIFICATIONS_AND_OFFERS'" routerLink="/notifications-offers" routerLinkActive="active" (click)="onMenuItemClick()">
+            <ion-icon name="megaphone-outline" slot="start"></ion-icon>
+            <ion-label>Notifications & Offers</ion-label>
+          </ion-item>
+        </ng-container>
+
+        <!-- ===== LOGISTICS (hidden) ===== -->
+        <!-- <ion-item *appAcl="{ features: ['ORDER_DETAILS'] }" routerLink="/logistics" routerLinkActive="active" (click)="onMenuItemClick()">
+          <ion-icon name="navigate-outline" slot="start"></ion-icon>
+          <ion-label>Logistics</ion-label>
+        </ion-item> -->
+
+        <!-- ===== OFFERS & NEWS (Distributor / Sales mobile view) ===== -->
+        <ng-container *ngIf="isSalesRole || userRole === 'DISTRIBUTOR'">
+          <ion-item routerLink="/offers-news" routerLinkActive="active" (click)="onMenuItemClick()">
+            <ion-icon name="megaphone-outline" slot="start"></ion-icon>
+            <ion-label>Offers & News</ion-label>
+          </ion-item>
+        </ng-container>
+
+        <!-- ===== COMPLAINTS & FEEDBACK ===== -->
+        <!-- For Sales / Distributor: custom dark accordion (ion-accordion shadow DOM blocks theme CSS) -->
+        <ng-container *ngIf="isSalesRole || userRole === 'DISTRIBUTOR'">
+          <div *appAcl="'COMPLAINT'" class="dark-acc">
+            <div class="dark-acc-header" (click)="toggleComplaintsMenu()">
+              <ion-icon name="chatbubbles-outline" class="dark-acc-icon"></ion-icon>
+              <span class="dark-acc-label">Complaints</span>
+              <ion-icon [name]="isComplaintsOpen ? 'chevron-up-outline' : 'chevron-down-outline'" class="dark-acc-chevron"></ion-icon>
+            </div>
+            <div class="dark-acc-content" [class.open]="isComplaintsOpen">
+              <ion-item routerLink="/complaints" routerLinkActive="active" (click)="onMenuItemClick()">
+                <ion-icon name="create-outline" slot="start"></ion-icon>
+                <ion-label>Submit Complaint</ion-label>
+              </ion-item>
+              <ion-item routerLink="/complaint-resolution" routerLinkActive="active" (click)="onMenuItemClick()">
+                <ion-icon name="shield-checkmark-outline" slot="start"></ion-icon>
+                <ion-label>Complaint Resolution</ion-label>
+              </ion-item>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- For other roles: simple direct link -->
+        <ng-container *ngIf="!isSalesRole && userRole !== 'DISTRIBUTOR'">
+          <ion-item *appAcl="'COMPLAINT'" routerLink="/complaints" routerLinkActive="active" (click)="onMenuItemClick()">
+            <ion-icon name="chatbubbles-outline" slot="start"></ion-icon>
+            <ion-label>Complaints & Feedback</ion-label>
+          </ion-item>
+        </ng-container>
+
+        <!-- ===== COMPLAINTS MANAGEMENT (feature-gated) ===== -->
+        <ion-item *appAcl="'COMPLAINTS_MANAGEMENT'" routerLink="/complaints-management" routerLinkActive="active" (click)="onMenuItemClick()">
+          <ion-icon name="alert-circle-outline" slot="start"></ion-icon>
+          <ion-label>Manage Complaints</ion-label>
+        </ion-item>
+
+        <!-- ===== REPORTS (Desktop only, or for all screens if admin) ===== -->
+        <ng-container *ngIf="isDesktop || isAdmin">
+          <ion-accordion-group *appAcl="'REPORTS'">
+            <ion-accordion>
+              <ion-item slot="header" button>
+                <ion-icon name="analytics-outline" slot="start"></ion-icon>
+                <ion-label>Reports</ion-label>
+              </ion-item>
+
+              <div slot="content">
+                <!-- MIS sub-group -->
+                <div class="report-subgroup">
+                  <div class="report-subgroup-header" (click)="toggleReportGroup('mis')">
+                    <ion-icon name="stats-chart-outline" class="report-subgroup-icon"></ion-icon>
+                    <span class="report-subgroup-label">MIS</span>
+                    <ion-icon [name]="openReportGroup === 'mis' ? 'chevron-up-outline' : 'chevron-down-outline'" class="report-subgroup-chevron"></ion-icon>
+                  </div>
+                  <div class="report-subgroup-content" [class.open]="openReportGroup === 'mis'">
+                    <ion-item routerLink="/reports/mis-dashboard" routerLinkActive="active" (click)="onMenuItemClick()">
+                      <ion-icon name="stats-chart-outline" slot="start"></ion-icon>
+                      <ion-label>MIS Dashboard</ion-label>
+                    </ion-item>
+                  </div>
+                </div>
+
+                <!-- Inventory sub-group -->
+                <div class="report-subgroup">
+                  <div class="report-subgroup-header" (click)="toggleReportGroup('inventory')">
+                    <ion-icon name="cube-outline" class="report-subgroup-icon"></ion-icon>
+                    <span class="report-subgroup-label">Inventory</span>
+                    <ion-icon [name]="openReportGroup === 'inventory' ? 'chevron-up-outline' : 'chevron-down-outline'" class="report-subgroup-chevron"></ion-icon>
+                  </div>
+                  <div class="report-subgroup-content" [class.open]="openReportGroup === 'inventory'">
+                    <ion-item routerLink="/reports/inventory-reports" routerLinkActive="active" (click)="onMenuItemClick()">
+                      <ion-icon name="file-tray-full-outline" slot="start"></ion-icon>
+                      <ion-label>Inventory Reports</ion-label>
+                    </ion-item>
+                    <ion-item routerLink="/reports/stock-movement" routerLinkActive="active" (click)="onMenuItemClick()">
+                      <ion-icon name="swap-vertical-outline" slot="start"></ion-icon>
+                      <ion-label>Stock Movement</ion-label>
+                    </ion-item>
+                    <!-- Hidden from nav (still fully routable at /reports/batch-management) — remove *ngIf="false" to restore -->
+                    <ion-item *ngIf="false" routerLink="/reports/batch-management" routerLinkActive="active" (click)="onMenuItemClick()">
+                      <ion-icon name="layers-outline" slot="start"></ion-icon>
+                      <ion-label>Batch Management</ion-label>
+                    </ion-item>
+                  </div>
+                </div>
+
+                <!-- Production sub-group -->
+                <div class="report-subgroup">
+                  <div class="report-subgroup-header" (click)="toggleReportGroup('production')">
+                    <ion-icon name="construct-outline" class="report-subgroup-icon"></ion-icon>
+                    <span class="report-subgroup-label">Production</span>
+                    <ion-icon [name]="openReportGroup === 'production' ? 'chevron-up-outline' : 'chevron-down-outline'" class="report-subgroup-chevron"></ion-icon>
+                  </div>
+                  <div class="report-subgroup-content" [class.open]="openReportGroup === 'production'">
+                    <ion-item routerLink="/reports/production-reports" routerLinkActive="active" (click)="onMenuItemClick()">
+                      <ion-icon name="construct-outline" slot="start"></ion-icon>
+                      <ion-label>Production Reports</ion-label>
+                    </ion-item>
+                  </div>
+                </div>
+
+                <!-- Sales sub-group -->
+                <div class="report-subgroup">
+                  <div class="report-subgroup-header" (click)="toggleReportGroup('sales')">
+                    <ion-icon name="trending-up-outline" class="report-subgroup-icon"></ion-icon>
+                    <span class="report-subgroup-label">Sales</span>
+                    <ion-icon [name]="openReportGroup === 'sales' ? 'chevron-up-outline' : 'chevron-down-outline'" class="report-subgroup-chevron"></ion-icon>
+                  </div>
+                  <div class="report-subgroup-content" [class.open]="openReportGroup === 'sales'">
+                    <ion-item routerLink="/reports/sales-reports" routerLinkActive="active" (click)="onMenuItemClick()">
+                      <ion-icon name="trending-up-outline" slot="start"></ion-icon>
+                      <ion-label>Sales Reports</ion-label>
+                    </ion-item>
+                    <ion-item routerLink="/reports/receivables-collections" routerLinkActive="active" (click)="onMenuItemClick()">
+                      <ion-icon name="cash-outline" slot="start"></ion-icon>
+                      <ion-label>Receivables & Collections</ion-label>
+                    </ion-item>
+                    <ion-item routerLink="/reports/sales-orders" routerLinkActive="active" (click)="onMenuItemClick()">
+                      <ion-icon name="receipt-outline" slot="start"></ion-icon>
+                      <ion-label>Sales Orders</ion-label>
+                    </ion-item>
+                  </div>
+                </div>
+
+                <!-- Logistics sub-group -->
+                <div class="report-subgroup">
+                  <div class="report-subgroup-header" (click)="toggleReportGroup('logistics')">
+                    <ion-icon name="navigate-outline" class="report-subgroup-icon"></ion-icon>
+                    <span class="report-subgroup-label">Logistics</span>
+                    <ion-icon [name]="openReportGroup === 'logistics' ? 'chevron-up-outline' : 'chevron-down-outline'" class="report-subgroup-chevron"></ion-icon>
+                  </div>
+                  <div class="report-subgroup-content" [class.open]="openReportGroup === 'logistics'">
+                    <ion-item routerLink="/reports/dispatch-delivery" routerLinkActive="active" (click)="onMenuItemClick()">
+                      <ion-icon name="car-outline" slot="start"></ion-icon>
+                      <ion-label>Dispatch & Delivery</ion-label>
+                    </ion-item>
+                  </div>
+                </div>
+              </div>
+            </ion-accordion>
+          </ion-accordion-group>
+        </ng-container>
+
+        <!-- ===== USER RIGHTS ===== -->
+        <ng-container *ngIf="isDesktop || isAdmin">
+          <ion-item *appAcl="'USER_RIGHTS'" routerLink="/user-right" routerLinkActive="active" (click)="onMenuItemClick()">
+            <ion-icon name="shield-checkmark-outline" slot="start"></ion-icon>
+            <ion-label>User Rights</ion-label>
+          </ion-item>
+        </ng-container>
+
+        <ion-item *appAcl="'OPERATIONS'" routerLink="/operations" routerLinkActive="active" (click)="onMenuItemClick()">
+          <ion-icon name="document-text-outline" slot="start"></ion-icon>
+          <ion-label>Operations</ion-label>
+        </ion-item>
+
+      </ion-list>
+    </ng-container>
+
+    <!-- ========================= -->
+    <!-- LOGOUT (ALWAYS VISIBLE) -->
+    <!-- ========================= -->
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar-wrap">
+          <ion-icon name="person-sharp" class="user-avatar"></ion-icon>
+        </div>
+        <div class="user-details">
+          <p class="user-greeting">Hi, {{ salesPersonName || distributorProfile?.firmName || distributorProfile?.companyName || userName }}</p>
+          <span class="user-role">{{ userRole }}</span>
+        </div>
+        <app-logout></app-logout>
+      </div>
+    </div>
+
+  </div>
+</ion-content>
+
+<!-- ===== GLOBAL PROFILE MODAL ===== -->
+<ion-modal [isOpen]="showProfileModal" (didDismiss)="closeProfileModal()" [backdropDismiss]="false">
+  <ng-template>
+    <ion-header class="ion-no-border" style="--background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);">
+      <ion-toolbar style="--background: transparent;">
+        <ion-title class="text-white font-bold">Complete Profile</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="closeProfileModal()" class="text-white">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="ion-padding" *ngIf="distributorProfile">
+      <!-- Profile Header (Glass) -->
+      <div style="background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 16px; padding: 20px; margin-bottom: 20px; backdrop-filter: blur(12px);">
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+          <div style="width: 60px; height: 60px; background: linear-gradient(135deg, #10b981, #3b82f6); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+            <ion-icon name="business-outline" style="font-size: 32px; color: white;"></ion-icon>
+          </div>
+          <div>
+            <h2 style="color: #047857; font-size: 18px; font-weight: bold; margin: 0;">{{ distributorProfile.firstName }} {{ distributorProfile.lastName }}</h2>
+            <p style="color: #6b7280; font-size: 12px; margin: 4px 0 0 0;">Distributor ID: {{ distributorProfile.id }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Account Information -->
+      <div style="background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="color: #1e40af; font-weight: bold; margin: 0 0 12px 0;">Account Information</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">Company Type</p>
+            <p style="color: #111827; font-weight: 500; margin: 0;">{{ distributorProfile.companyType || 'N/A' }}</p>
+          </div>
+          <div>
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">Distributor Type</p>
+            <p style="color: #111827; font-weight: 500; margin: 0;">{{ distributorProfile.distributorType || 'N/A' }}</p>
+          </div>
+          <div>
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">Status</p>
+            <p style="color: #111827; font-weight: 500; margin: 0;">{{ distributorProfile.status || 'N/A' }}</p>
+          </div>
+          <div>
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">Sales Role</p>
+            <p style="color: #111827; font-weight: 500; margin: 0;">{{ distributorProfile.salesPersonRoleType || 'N/A' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact Information -->
+      <div style="background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.2); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="color: #15803d; font-weight: bold; margin: 0 0 12px 0;">Contact Information</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div>
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">Email</p>
+            <p style="color: #111827; font-weight: 500; margin: 0; word-break: break-all;">{{ distributorProfile.contactEmail || distributorProfile.email || 'N/A' }}</p>
+          </div>
+          <div>
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">Phone</p>
+            <p style="color: #111827; font-weight: 500; margin: 0;">{{ distributorProfile.phoneNumber || 'N/A' }}</p>
+          </div>
+          <div *ngIf="distributorProfile.alternateContact">
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">Alternate Contact</p>
+            <p style="color: #111827; font-weight: 500; margin: 0;">{{ distributorProfile.alternateContact }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Address -->
+      <div style="background: rgba(168,85,247,0.05); border: 1px solid rgba(168,85,247,0.2); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="color: #6d28d9; font-weight: bold; margin: 0 0 12px 0;">Delivery Address</h3>
+        <p style="color: #4b5563; font-size: 13px; line-height: 1.6; margin: 0;">{{ distributorProfile.address || 'N/A' }}</p>
+      </div>
+
+      <!-- Financial Information -->
+      <div style="background: rgba(251,146,60,0.05); border: 1px solid rgba(251,146,60,0.2); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="color: #c2410c; font-weight: bold; margin: 0 0 12px 0;">Financial Details</h3>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div>
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">Account Number</p>
+            <p style="color: #111827; font-weight: 500; font-family: monospace; margin: 0;">{{ distributorProfile.accountNumber || 'N/A' }}</p>
+          </div>
+          <div>
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">IFSC Code</p>
+            <p style="color: #111827; font-weight: 500; font-family: monospace; margin: 0;">{{ distributorProfile.IFSC || distributorProfile.ifsc || 'N/A' }}</p>
+          </div>
+          <div>
+            <p style="color: #6b7280; font-size: 11px; margin: 0 0 4px 0;">Account Holder</p>
+            <p style="color: #111827; font-weight: 500; margin: 0;">{{ distributorProfile.accountName || 'N/A' }}</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Close Button -->
+      <button (click)="closeProfileModal()" style="width: 100%; padding: 12px; background-color: #10b981; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer;">Close</button>
+    </ion-content>
+  </ng-template>
+</ion-modal>

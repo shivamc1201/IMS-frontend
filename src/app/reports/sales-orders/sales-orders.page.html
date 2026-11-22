@@ -1,0 +1,160 @@
+<app-report-hero
+  toolbarAccent="Sales"
+  toolbarTitle="Orders"
+  eyebrow="Order Fulfilment"
+  heroTitle="Sales Orders"
+  subtitle="Approval, dispatch and delivery workflow across all orders"
+  icon="receipt-outline"
+  [lastUpdated]="lastUpdated"
+  [isBusy]="isLoading"
+  (refresh)="viewReport()">
+
+    <div class="report-filters">
+      <div class="report-filter-field">
+        <label for="soStatus">Order Status</label>
+        <select id="soStatus" [(ngModel)]="filters.status">
+          <option value="all">All Statuses</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Dispatched">Dispatched</option>
+          <option value="Delivered">Delivered</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+      <div class="report-filter-field">
+        <label for="soCustomer">Customer</label>
+        <select id="soCustomer" [(ngModel)]="filters.customer">
+          <option value="all">All Customers</option>
+          <option *ngFor="let c of customers" [value]="c">{{ c }}</option>
+        </select>
+      </div>
+      <div class="report-filter-field">
+        <label for="soFrom">From Date</label>
+        <input id="soFrom" type="date" [(ngModel)]="filters.dateFrom" />
+      </div>
+      <div class="report-filter-field">
+        <label for="soTo">To Date</label>
+        <input id="soTo" type="date" [(ngModel)]="filters.dateTo" />
+      </div>
+      <div class="report-filter-actions">
+        <button class="report-btn report-btn-primary" (click)="viewReport()">
+          <ion-icon name="stats-chart-outline"></ion-icon> View Report
+        </button>
+        <button class="report-btn report-btn-outline" (click)="resetFilters()">
+          <ion-icon name="refresh-outline"></ion-icon> Reset
+        </button>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <aside class="report-type-rail">
+        <p class="report-type-rail-title">Report Type</p>
+        <button [class.active]="activeType === 'all'" (click)="switchType('all')">All Orders</button>
+        <button [class.active]="activeType === 'pending'" (click)="switchType('pending')">Pending Approval</button>
+        <button [class.active]="activeType === 'dispatch'" (click)="switchType('dispatch')">Dispatch Queue</button>
+      </aside>
+
+      <section class="report-panel">
+        <div class="report-panel-header">
+          <h2 *ngIf="activeType === 'all'">All Orders</h2>
+          <h2 *ngIf="activeType === 'pending'">Pending Approval</h2>
+          <h2 *ngIf="activeType === 'dispatch'">Dispatch Queue</h2>
+          <div class="report-filter-actions">
+            <button class="report-btn report-btn-outline report-btn-excel" (click)="exportExcel()">
+              <ion-icon name="grid-outline"></ion-icon> Export Excel
+            </button>
+            <button class="report-btn report-btn-outline report-btn-pdf" (click)="exportPdf()">
+              <ion-icon name="document-text-outline"></ion-icon> Export PDF
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="isLoading" class="report-empty">Loading…</div>
+
+        <ng-container *ngIf="!isLoading">
+          <!-- ALL ORDERS -->
+          <app-date-grouped-table *ngIf="activeType === 'all'"
+            heading="All Orders"
+            [rows]="orderRows"
+            dateField="date"
+            countLabel="Orders"
+            emptyText="No orders found for these filters"
+            [summaryColumns]="orderSummaryColumns"
+            (exportExcel)="exportGroupExcel($event)"
+            (exportPdf)="exportGroupPdf($event)">
+            <ng-template #detail let-rows>
+              <table class="report-table report-table-sticky">
+                <thead><tr><th>Order No</th><th>Date</th><th>Customer</th><th>Status</th><th>Amount</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let row of rows">
+                    <td>{{ row.orderNo }}</td>
+                    <td>{{ formatDisplayDate(row.date) }}</td>
+                    <td>{{ row.customer }}</td>
+                    <td><span class="report-badge" [ngClass]="statusBadgeClass(row.status)">{{ row.status }}</span></td>
+                    <td>{{ formatCurrencyFull(row.amount) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </ng-template>
+          </app-date-grouped-table>
+
+          <!-- PENDING APPROVAL -->
+          <app-date-grouped-table *ngIf="activeType === 'pending'"
+            heading="Pending Approval"
+            [rows]="pendingRows"
+            dateField="date"
+            countLabel="Orders"
+            emptyText="No orders pending approval"
+            [summaryColumns]="orderSummaryColumns"
+            (exportExcel)="exportGroupExcel($event)"
+            (exportPdf)="exportGroupPdf($event)">
+            <ng-template #detail let-rows>
+              <table class="report-table report-table-sticky">
+                <thead><tr><th>Order No</th><th>Date</th><th>Customer</th><th>Amount</th><th>Requested By</th><th>Days Pending</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let row of rows">
+                    <td>{{ row.orderNo }}</td>
+                    <td>{{ formatDisplayDate(row.date) }}</td>
+                    <td>{{ row.customer }}</td>
+                    <td>{{ formatCurrencyFull(row.amount) }}</td>
+                    <td>{{ row.requestedBy }}</td>
+                    <td>
+                      <span class="report-badge" [ngClass]="daysPending(row.date) > 5 ? 'report-badge-red' : 'report-badge-amber'">{{ daysPending(row.date) }} days</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </ng-template>
+          </app-date-grouped-table>
+
+          <!-- DISPATCH QUEUE -->
+          <app-date-grouped-table *ngIf="activeType === 'dispatch'"
+            heading="Dispatch Queue"
+            [rows]="dispatchRows"
+            dateField="date"
+            countLabel="Orders"
+            emptyText="Dispatch queue is empty"
+            [summaryColumns]="dispatchSummaryColumns"
+            (exportExcel)="exportGroupExcel($event)"
+            (exportPdf)="exportGroupPdf($event)">
+            <ng-template #detail let-rows>
+              <table class="report-table report-table-sticky">
+                <thead><tr><th>Order No</th><th>Date</th><th>Customer</th><th>Items</th><th>Amount</th><th>Dispatch Status</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let row of rows">
+                    <td>{{ row.orderNo }}</td>
+                    <td>{{ formatDisplayDate(row.date) }}</td>
+                    <td>{{ row.customer }}</td>
+                    <td>{{ row.items }}</td>
+                    <td>{{ formatCurrencyFull(row.amount) }}</td>
+                    <td><span class="report-badge report-badge-blue">{{ dispatchStatusLabel(row.status) }}</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </ng-template>
+          </app-date-grouped-table>
+        </ng-container>
+      </section>
+    </div>
+
+</app-report-hero>

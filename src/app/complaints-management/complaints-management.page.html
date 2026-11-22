@@ -1,0 +1,384 @@
+<!-- HEADER -->
+<ion-header class="ion-no-border">
+  <ion-toolbar style="--background: #000000; --border-width: 0;">
+    <ion-buttons slot="start">
+      <ion-menu-button style="color: #ffffff;"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="text-white font-bold tracking-tight text-xl">
+      <span class="text-emerald-400">Complaints</span> Management
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="loadComplaints()" style="--color: #ffffff;" class="rounded-full w-10 h-10">
+        <ion-icon slot="icon-only" name="refresh-outline" class="text-xl"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<!-- CONTENT -->
+<ion-content>
+  <ion-refresher slot="fixed" (ionRefresh)="handlePullRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+  <div class="page-wrapper">
+    <div class="page-inner">
+
+      <!-- PAGE HEADER -->
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1>Manage Complaints</h1>
+          <p>Review and resolve customer complaints</p>
+        </div>
+        <div class="page-header-meta" *ngIf="!isLoading && complaints.length > 0">
+          <span class="total-badge">{{ stats.total }} loaded</span>
+        </div>
+      </div>
+
+      <!-- STATS ROW -->
+      <div *ngIf="!isLoading && complaints.length > 0" class="stats-row">
+        <div class="stat-card stat-open" [class.stat-active]="filterStatus === 'OPEN'" (click)="filterStatus = filterStatus === 'OPEN' ? '' : 'OPEN'">
+          <div class="stat-icon-wrap stat-icon-red">
+            <ion-icon name="radio-button-on-outline"></ion-icon>
+          </div>
+          <div class="stat-content">
+            <span class="stat-number">{{ stats.open }}</span>
+            <span class="stat-label">Open</span>
+          </div>
+        </div>
+        <div class="stat-card stat-inprog" [class.stat-active]="filterStatus === 'IN_PROGRESS'" (click)="filterStatus = filterStatus === 'IN_PROGRESS' ? '' : 'IN_PROGRESS'">
+          <div class="stat-icon-wrap stat-icon-amber">
+            <ion-icon name="time-outline"></ion-icon>
+          </div>
+          <div class="stat-content">
+            <span class="stat-number">{{ stats.inProgress }}</span>
+            <span class="stat-label">In Progress</span>
+          </div>
+        </div>
+        <div class="stat-card stat-closed" [class.stat-active]="filterStatus === 'CLOSED'" (click)="filterStatus = filterStatus === 'CLOSED' ? '' : 'CLOSED'">
+          <div class="stat-icon-wrap stat-icon-indigo">
+            <ion-icon name="lock-closed-outline"></ion-icon>
+          </div>
+          <div class="stat-content">
+            <span class="stat-number">{{ stats.closed }}</span>
+            <span class="stat-label">Closed</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ERROR BANNER -->
+      <div *ngIf="errorMessage" class="error-banner">
+        <ion-icon name="alert-circle-outline"></ion-icon>
+        <span>{{ errorMessage }}</span>
+        <button class="error-close" (click)="errorMessage = ''">
+          <ion-icon name="close-outline"></ion-icon>
+        </button>
+      </div>
+
+      <!-- FILTER BAR -->
+      <div class="filter-bar">
+        <div class="search-wrap">
+          <ion-icon name="search-outline" class="search-icon"></ion-icon>
+          <input type="text" [(ngModel)]="searchTerm" placeholder="Search by name or subject…" class="search-input" />
+          <button *ngIf="searchTerm" class="search-clear" (click)="searchTerm = ''">
+            <ion-icon name="close-circle"></ion-icon>
+          </button>
+        </div>
+        <select [(ngModel)]="filterStatus" class="filter-select">
+          <option value="">All Statuses</option>
+          <option *ngFor="let s of statusOptions" [value]="s">{{ getStatusConfig(s).label }}</option>
+        </select>
+        <select [(ngModel)]="filterCategory" class="filter-select">
+          <option value="">All Categories</option>
+          <option *ngFor="let c of categoryOptions" [value]="c">{{ c }}</option>
+        </select>
+        <button *ngIf="hasActiveFilters" class="clear-filters-btn" (click)="clearFilters()">
+          <ion-icon name="close-outline"></ion-icon>
+          Clear
+        </button>
+      </div>
+
+      <!-- LOADING SKELETON -->
+      <div *ngIf="isLoading" class="complaints-grid">
+        <div *ngFor="let i of [1,2,3,4]" class="complaint-card">
+          <div class="card-accent-bar" style="background:#e2e8f0"></div>
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <div class="skeleton-pulse" style="width:48px;height:12px;border-radius:6px"></div>
+              <div class="skeleton-pulse" style="width:56px;height:20px;border-radius:20px"></div>
+            </div>
+            <div class="skeleton-pulse" style="width:75%;height:16px;border-radius:6px;margin-bottom:16px"></div>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+              <div class="skeleton-pulse" style="width:36px;height:36px;border-radius:50%"></div>
+              <div style="flex:1">
+                <div class="skeleton-pulse" style="width:50%;height:12px;border-radius:6px;margin-bottom:6px"></div>
+                <div class="skeleton-pulse" style="width:35%;height:10px;border-radius:6px"></div>
+              </div>
+            </div>
+            <div class="skeleton-pulse" style="width:100%;height:10px;border-radius:6px;margin-bottom:6px"></div>
+            <div class="skeleton-pulse" style="width:80%;height:10px;border-radius:6px;margin-bottom:16px"></div>
+            <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid #f1f5f9">
+              <div class="skeleton-pulse" style="flex:1;height:36px;border-radius:10px"></div>
+              <div class="skeleton-pulse" style="flex:1;height:36px;border-radius:10px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMPLAINTS GRID -->
+      <div *ngIf="!isLoading && filteredComplaints.length > 0" class="complaints-grid">
+        <div *ngFor="let complaint of filteredComplaints" class="complaint-card">
+
+          <!-- Left accent bar -->
+          <div class="card-accent-bar" [style.backgroundColor]="getStatusConfig(complaint.status).color"></div>
+
+          <div class="card-body">
+            <!-- TOP ROW: ID + Priority -->
+            <div class="card-top-row">
+              <span class="complaint-id">#{{ complaint.id }}</span>
+              <span class="priority-badge"
+                [style.color]="getPriorityConfig(complaint.priorityLevel).color"
+                [style.backgroundColor]="getPriorityConfig(complaint.priorityLevel).bg">
+                {{ getPriorityConfig(complaint.priorityLevel).label }}
+              </span>
+            </div>
+
+            <!-- SUBJECT -->
+            <h3 class="card-subject">{{ complaint.subject }}</h3>
+
+            <!-- CUSTOMER ROW -->
+            <div class="customer-row">
+              <div class="avatar" [style.backgroundColor]="getStatusConfig(complaint.status).color">
+                {{ getInitials(complaint.fullName) }}
+              </div>
+              <div class="customer-info">
+                <span class="customer-name">{{ complaint.fullName }}</span>
+                <span class="customer-email">{{ complaint.emailAddress }}</span>
+              </div>
+              <span class="status-badge"
+                [style.color]="getStatusConfig(complaint.status).color"
+                [style.backgroundColor]="getStatusConfig(complaint.status).bg"
+                [style.borderColor]="getStatusConfig(complaint.status).border">
+                <span class="status-dot" [style.backgroundColor]="getStatusConfig(complaint.status).color"></span>
+                {{ getStatusConfig(complaint.status).label }}
+              </span>
+            </div>
+
+            <!-- META ROW -->
+            <div class="meta-row" *ngIf="complaint.status !== 'CLOSED'">
+              <span class="meta-item">
+                <ion-icon name="folder-outline"></ion-icon>
+                {{ complaint.category }}
+              </span>
+              <span class="meta-dot"></span>
+              <span class="meta-item">
+                <ion-icon name="calendar-outline"></ion-icon>
+                {{ formatDate(complaint.createdAt) }}
+              </span>
+            </div>
+
+            <!-- DESCRIPTION -->
+            <p class="card-description" *ngIf="complaint.status !== 'CLOSED'">{{ complaint.description }}</p>
+
+            <!-- ACTIONS -->
+            <div class="card-actions">
+              <button class="btn-detail" (click)="openDetailModal(complaint)">
+                <ion-icon name="eye-outline"></ion-icon>
+                View Details
+              </button>
+              <ng-container *ngIf="complaint.status !== 'CLOSED'">
+                <button *appAcl="{ feature: FEATURE, action: 'update' }" class="btn-status" (click)="openStatusModal(complaint)"
+                  [style.backgroundColor]="getStatusConfig(complaint.status).color">
+                  <ion-icon name="create-outline"></ion-icon>
+                  Update Status
+                </button>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- EMPTY STATE -->
+      <div *ngIf="!isLoading && filteredComplaints.length === 0" class="empty-state">
+        <div class="empty-icon-wrap">
+          <ion-icon name="chatbox-ellipses-outline"></ion-icon>
+        </div>
+        <h3>No complaints found</h3>
+        <p *ngIf="hasActiveFilters">No results match your current filters.</p>
+        <p *ngIf="!hasActiveFilters">There are no complaints to display.</p>
+        <button *ngIf="hasActiveFilters" class="btn-clear-empty" (click)="clearFilters()">Clear filters</button>
+      </div>
+
+      <!-- PAGINATION -->
+      <div *ngIf="!isLoading && complaints.length > 0" class="pagination">
+        <button class="page-btn" [disabled]="isFirstPage" (click)="previousPage()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Previous</span>
+        </button>
+        <span class="page-indicator">Page {{ currentPage }}</span>
+        <button class="page-btn" [disabled]="isLastPage" (click)="nextPage()">
+          <span>Next</span>
+          <ion-icon name="chevron-forward-outline"></ion-icon>
+        </button>
+      </div>
+
+    </div><!-- end page-inner -->
+  </div><!-- end page-wrapper -->
+</ion-content>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- DETAIL BOTTOM SHEET -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div *ngIf="isDetailModalOpen && selectedComplaint" class="sheet-overlay">
+  <div class="sheet-panel sheet-detail" (click)="$event.stopPropagation()">
+
+    <div class="sheet-handle-wrap">
+      <div class="sheet-handle"></div>
+    </div>
+
+    <div class="sheet-header">
+      <div>
+        <p class="sheet-sub">Complaint #{{ selectedComplaint.id }}</p>
+        <h2 class="sheet-title">{{ selectedComplaint.subject }}</h2>
+      </div>
+      <button class="sheet-close" (click)="closeDetailModal()">
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="sheet-body">
+      <div class="detail-badges">
+        <span class="status-badge"
+          [style.color]="getStatusConfig(selectedComplaint.status).color"
+          [style.backgroundColor]="getStatusConfig(selectedComplaint.status).bg"
+          [style.borderColor]="getStatusConfig(selectedComplaint.status).border">
+          <ion-icon [name]="getStatusConfig(selectedComplaint.status).icon"></ion-icon>
+          {{ getStatusConfig(selectedComplaint.status).label }}
+        </span>
+        <span class="priority-badge"
+          [style.color]="getPriorityConfig(selectedComplaint.priorityLevel).color"
+          [style.backgroundColor]="getPriorityConfig(selectedComplaint.priorityLevel).bg">
+          {{ getPriorityConfig(selectedComplaint.priorityLevel).label }} Priority
+        </span>
+        <span class="category-badge">{{ selectedComplaint.category }}</span>
+      </div>
+
+      <div class="detail-section">
+        <p class="detail-label">Description</p>
+        <p class="detail-text">{{ selectedComplaint.description }}</p>
+      </div>
+
+      <div class="detail-section detail-contact">
+        <div class="contact-avatar" [style.backgroundColor]="getStatusConfig(selectedComplaint.status).color">
+          {{ getInitials(selectedComplaint.fullName) }}
+        </div>
+        <div>
+          <p class="detail-label">Customer</p>
+          <p class="contact-name">{{ selectedComplaint.fullName }}</p>
+          <p class="contact-sub">{{ selectedComplaint.emailAddress }}</p>
+          <p class="contact-sub">{{ selectedComplaint.phoneNumber }}</p>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-item">
+          <p class="detail-label">Created</p>
+          <p class="detail-value">{{ formatDate(selectedComplaint.createdAt) }}</p>
+        </div>
+        <div class="detail-item">
+          <p class="detail-label">Last Updated</p>
+          <p class="detail-value">{{ formatDate(selectedComplaint.updatedAt) }}</p>
+        </div>
+        <div class="detail-item">
+          <p class="detail-label">Type</p>
+          <p class="detail-value">{{ selectedComplaint.type || '—' }}</p>
+        </div>
+        <div class="detail-item">
+          <p class="detail-label">Phone</p>
+          <p class="detail-value">{{ selectedComplaint.phoneNumber }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMMENT SECTION (replaces footer buttons) -->
+    <div class="detail-comment-section">
+      <div class="detail-comment-header">
+        <ion-icon name="chatbox-ellipses-outline"></ion-icon>
+        <span>Comment</span>
+      </div>
+      <p class="detail-comment-body" [class.detail-comment-empty]="!selectedComplaint.comment">
+        {{ selectedComplaint.comment || 'No comment has been added yet.' }}
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- STATUS UPDATE BOTTOM SHEET -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div *ngIf="isStatusModalOpen && selectedComplaint" class="sheet-overlay">
+  <div class="sheet-panel sheet-status" (click)="$event.stopPropagation()">
+
+    <div class="sheet-handle-wrap">
+      <div class="sheet-handle"></div>
+    </div>
+
+    <div class="sheet-header">
+      <div>
+        <p class="sheet-sub">Complaint #{{ selectedComplaint.id }}</p>
+        <h2 class="sheet-title">Change Status</h2>
+      </div>
+      <button class="sheet-close" (click)="closeStatusModal()">
+        <ion-icon name="close-outline"></ion-icon>
+      </button>
+    </div>
+
+    <div class="sheet-subject-preview">
+      <ion-icon name="document-text-outline"></ion-icon>
+      <span>{{ selectedComplaint.subject }}</span>
+    </div>
+
+    <div class="sheet-body">
+      <p class="status-picker-label">Status</p>
+      <div class="status-options-inline">
+        <button *ngFor="let s of statusOptions"
+          class="status-chip"
+          [class.status-chip-selected]="newStatus === s"
+          [style.borderColor]="newStatus === s ? getStatusConfig(s).color : '#e2e8f0'"
+          [style.backgroundColor]="newStatus === s ? getStatusConfig(s).bg : '#f8fafc'"
+          [style.color]="newStatus === s ? getStatusConfig(s).color : '#64748b'"
+          (click)="newStatus = s"
+          type="button">
+          <ion-icon [name]="getStatusConfig(s).icon" style="font-size:14px"></ion-icon>
+          {{ getStatusConfig(s).label }}
+        </button>
+      </div>
+
+      <!-- COMMENT INPUT -->
+      <div class="status-comment-wrap">
+        <p class="status-picker-label">
+          <ion-icon name="chatbox-ellipses-outline" style="vertical-align:middle;margin-right:4px;font-size:13px"></ion-icon>
+          Comment <span style="font-weight:500;color:#cbd5e1;text-transform:none;letter-spacing:0">(optional)</span>
+        </p>
+        <textarea
+          class="status-comment-textarea"
+          [(ngModel)]="statusComment"
+          placeholder="Add a note about this status change…"
+          rows="3">
+        </textarea>
+      </div>
+    </div>
+
+    <div class="sheet-footer">
+      <button class="sheet-btn-secondary" (click)="closeStatusModal()">Cancel</button>
+      <button class="sheet-btn-save"
+        [disabled]="isUpdatingStatus || !newStatus"
+        [style.backgroundColor]="newStatus ? getStatusConfig(newStatus).color : '#94a3b8'"
+        (click)="updateStatus()">
+        <ion-spinner *ngIf="isUpdatingStatus" name="crescent" style="width:16px;height:16px;color:white"></ion-spinner>
+        <ion-icon *ngIf="!isUpdatingStatus" name="checkmark-outline"></ion-icon>
+        {{ isUpdatingStatus ? 'Saving…' : 'Save Changes' }}
+      </button>
+    </div>
+  </div>
+</div>

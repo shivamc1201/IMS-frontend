@@ -1,0 +1,121 @@
+<app-report-hero
+  toolbarAccent="Inventory"
+  toolbarTitle="Issues"
+  eyebrow="Inventory Operations"
+  heroTitle="Inventory Issues"
+  subtitle="Promotional and spare-parts issue history by employee, dealer or distributor"
+  icon="archive-outline"
+  [lastUpdated]="lastUpdated"
+  [isBusy]="isLoading"
+  (refresh)="viewReport()">
+
+    <div class="report-filters">
+      <div class="report-filter-field">
+        <label for="iiType">Issue Type</label>
+        <select id="iiType" [(ngModel)]="filters.issueType">
+          <option value="all">All Types</option>
+          <option value="Promotional">Promotional</option>
+          <option value="Spare Parts">Spare Parts</option>
+        </select>
+      </div>
+      <div class="report-filter-field">
+        <label for="iiIssuedTo">Issued To</label>
+        <select id="iiIssuedTo" [(ngModel)]="filters.issuedTo">
+          <option value="">All Recipients</option>
+          <option *ngFor="let name of issuedToOptions" [value]="name">{{ name }}</option>
+        </select>
+      </div>
+      <div class="report-filter-field">
+        <label for="iiFrom">From Date</label>
+        <input id="iiFrom" type="date" [(ngModel)]="filters.dateFrom" />
+      </div>
+      <div class="report-filter-field">
+        <label for="iiTo">To Date</label>
+        <input id="iiTo" type="date" [(ngModel)]="filters.dateTo" />
+      </div>
+      <div class="report-filter-actions">
+        <button class="report-btn report-btn-primary" (click)="viewReport()">
+          <ion-icon name="checkmark-circle-outline"></ion-icon> Apply
+        </button>
+        <button class="report-btn report-btn-outline" (click)="resetFilters()">
+          <ion-icon name="refresh-outline"></ion-icon> Reset
+        </button>
+      </div>
+    </div>
+
+    <div class="report-body">
+      <aside class="report-type-rail">
+        <p class="report-type-rail-title">Report Type</p>
+        <a routerLink="/reports/inventory-reports">Stock Summary</a>
+        <a routerLink="/reports/inventory-reports">Category Wise Valuation</a>
+        <a routerLink="/reports/inventory-reports">Low Stock / Reorder</a>
+        <a routerLink="/reports/inventory-issues" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inventory Issues</a>
+        <a routerLink="/reports/scrap-management">Scrap Management</a>
+      </aside>
+
+      <section class="report-panel">
+        <div class="report-tabs">
+          <button [class.active]="activeType === 'promotional'" (click)="switchType('promotional')">Promotional Issue</button>
+          <button [class.active]="activeType === 'spareParts'" (click)="switchType('spareParts')">Spare Parts Issue</button>
+        </div>
+
+        <div class="report-panel-header">
+          <h2 *ngIf="activeType === 'promotional'">Promotional Issue</h2>
+          <h2 *ngIf="activeType === 'spareParts'">Spare Parts Issue</h2>
+          <div class="report-filter-actions">
+            <button class="report-btn report-btn-outline report-btn-excel" (click)="exportExcel()">
+              <ion-icon name="grid-outline"></ion-icon> Export Excel
+            </button>
+            <button class="report-btn report-btn-outline report-btn-pdf" (click)="exportPdf()">
+              <ion-icon name="document-text-outline"></ion-icon> Export PDF
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="isLoading" class="report-empty">Loading…</div>
+
+        <app-date-grouped-table *ngIf="!isLoading"
+          [heading]="activeTitle"
+          [rows]="activeRows"
+          dateField="issueDate"
+          countLabel="Items"
+          emptyText="No issues found for these filters"
+          [summaryColumns]="summaryColumns"
+          (exportExcel)="exportGroupExcel($event)"
+          (exportPdf)="exportGroupPdf($event)">
+          <ng-template #detail let-rows>
+            <table class="report-table report-table-sticky">
+              <thead>
+                <tr>
+                  <th>Reference No</th>
+                  <th>Date</th>
+                  <th>Category</th>
+                  <th>Material</th>
+                  <th>Issued To</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Comments</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let row of rows">
+                  <td class="cell-mono">{{ row.referenceNo }}</td>
+                  <td>{{ formatDisplayDate(row.issueDate) }}</td>
+                  <td><span class="report-badge" [ngClass]="categoryBadgeClass(row.category)">{{ row.category }}</span></td>
+                  <td>
+                    <div class="cell-title">{{ row.materialName }}</div>
+                    <div class="cell-sub">{{ row.materialCode }}</div>
+                  </td>
+                  <td>{{ row.issuedTo }}</td>
+                  <td class="cell-nowrap">{{ row.qty }} {{ row.uom }}</td>
+                  <td [class.cell-free]="row.unitPrice === 0">{{ formatPrice(row.unitPrice) }}</td>
+                  <td><div class="cell-comments" [title]="row.comments">{{ row.comments || '—' }}</div></td>
+                </tr>
+              </tbody>
+            </table>
+          </ng-template>
+        </app-date-grouped-table>
+      </section>
+    </div>
+
+</app-report-hero>

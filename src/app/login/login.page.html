@@ -1,0 +1,120 @@
+<ion-content class="bg-slate-50" [scrollY]="true">
+  <div class="flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50 p-6" style="min-height: 100%; box-sizing: border-box;">
+    
+    <div class="w-full max-w-md bg-white/80 backdrop-blur-xl rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-white/50 overflow-hidden">
+      
+      <div class="pt-12 pb-8 px-8 text-center">
+        <div class="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-tr rounded-2xl shadow-xl shadow-emerald-250/100 mb-6 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+          <img src="assets/images/nayla.jpeg" alt="Nayla Logo" class="w-24 h-24 object-contain rotate-3 hover:rotate-0 rounded-2xl shadow-lg shadow-emerald-300/100 transform-rotate-3 transition-transform duration-300">
+        </div>
+        <h1 class="text-3xl font-bold text-slate-800 tracking-tight">NAYLA</h1>
+        <p class="text-slate-600 font-semibold mt-1 text-sm">A Nectar Inventory Management System</p>
+      </div>
+
+      <div class="px-8 pb-12">
+        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-6">
+          
+          <div class="group">
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Username</label>
+            
+            <div class="relative bg-slate-50 rounded-xl border border-slate-200 focus-within:bg-white focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-50 transition-all duration-300 ease-in-out">
+              
+              <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                <ion-input
+                  type="text"
+                  placeholder="Enter your username"
+                  formControlName="username"
+                  class="px-5 py-2 !text-slate-900 custom-input" 
+                ></ion-input>
+              </ion-item>
+
+            </div>
+            
+            <p *ngIf="loginForm.controls['username'].touched && loginForm.controls['username'].invalid"
+               class="mt-2 text-xs font-medium text-rose-500 flex items-center ml-1 animate-fade-in">
+              <ion-icon name="alert-circle-outline" class="mr-1 text-base"></ion-icon>
+              Username is required
+            </p>
+          </div>
+
+          <div class="group">
+            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-1">Password</label>
+            
+            <div class="relative bg-slate-50 rounded-xl border border-slate-200 focus-within:bg-white focus-within:border-emerald-400 focus-within:ring-4 focus-within:ring-emerald-50 transition-all duration-300">
+              
+              <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
+                <ion-input
+                  [type]="showPassword ? 'text' : 'password'"
+                  placeholder="••••••••"
+                  formControlName="password"
+                  class="px-5 py-2 !text-slate-900 custom-input"
+                ></ion-input>
+
+                <ion-button 
+                  slot="end" 
+                  fill="clear" 
+                  (click)="togglePasswordVisibility()"
+                  class="mr-2 text-slate-400 hover:text-emerald-500 transition-colors"
+                >
+                  <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'" slot="icon-only"></ion-icon>
+                </ion-button>
+              </ion-item>
+
+            </div>
+
+            <p *ngIf="loginForm.controls['password'].touched && loginForm.controls['password'].invalid"
+               class="mt-2 text-xs font-medium text-rose-500 flex items-center ml-1 animate-fade-in">
+              <ion-icon name="alert-circle-outline" class="mr-1 text-base"></ion-icon>
+              Password is required
+            </p>
+          </div>
+
+          <div class="flex justify-end">
+            <button type="button" (click)="forgotPassword()"
+              class="group relative inline-flex items-center gap-1.5 px-4 py-2 rounded-xl
+                     bg-gradient-to-r from-emerald-50 to-sky-50
+                     border border-emerald-200/60
+                     text-sm font-semibold text-emerald-600
+                     hover:from-emerald-100 hover:to-sky-100 hover:border-emerald-300
+                     hover:shadow-md hover:shadow-emerald-100/50
+                     active:scale-[0.97]
+                     transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-emerald-300/50">
+              <ion-icon name="key-outline" class="text-base text-emerald-500 group-hover:text-emerald-600 transition-colors"></ion-icon>
+              Forgot password?
+              <ion-icon name="arrow-forward-outline" class="text-sm text-emerald-400 group-hover:translate-x-0.5 transition-transform"></ion-icon>
+            </button>
+          </div>
+
+          <div class="pt-2">
+            <ion-button
+              expand="block"
+              type="submit"
+              [disabled]="loginForm.invalid || loading"
+              class="h-14 font-bold rounded-2xl overflow-hidden shadow-lg shadow-emerald-200/50"
+              style="--background: linear-gradient(135deg, #34d399 0%, #0ea5e9 100%); --border-radius: 16px; --box-shadow: none;"
+            >
+              <ng-container *ngIf="loading; else showText">
+                <ion-spinner name="crescent" class="mr-2 text-white"></ion-spinner>
+                <span class="text-white">Signing in...</span>
+              </ng-container>
+              <ng-template #showText>
+                <span class="text-white text-lg tracking-wide">Sign In</span>
+              </ng-template>
+            </ion-button>
+          </div>
+
+          <div class="text-center pt-4">
+            <p class="text-slate-500 text-sm">
+              Don't have an account?
+              <button type="button" (click)="goToSignup()" 
+                class="font-bold text-emerald-600 hover:text-emerald-700 ml-1 transition-colors hover:underline">
+                Create one
+              </button>
+            </p>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</ion-content>

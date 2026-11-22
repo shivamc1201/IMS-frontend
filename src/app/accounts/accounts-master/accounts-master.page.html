@@ -1,0 +1,1631 @@
+<!-- HEADER -->
+<ion-header class="ion-no-border">
+  <ion-toolbar style="--background: #000000; --border-width: 0;">
+    <ion-buttons slot="start">
+      <ion-menu-button style="color: #ffffff;"></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="text-white font-bold tracking-tight text-xl">
+      <span class="text-emerald-400">Accounts</span> Ledger
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="handleRefresh()" style="--color: #ffffff;" class="rounded-full w-10 h-10">
+        <ion-icon slot="icon-only" name="refresh-outline" class="text-xl"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<!-- CONTENT -->
+<ion-content class="bg-slate-50">
+  <ion-refresher slot="fixed" (ionRefresh)="handlePullRefresh($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+  <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/50 to-emerald-50/30 pb-20">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      <!-- Hero Banner -->
+      <div
+        class="hero-banner-wrap bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-500 rounded-3xl shadow-lg overflow-hidden mb-8 relative">
+        <div class="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 rounded-full bg-white/10 blur-3xl"></div>
+        <div class="absolute bottom-0 left-0 -ml-16 -mb-16 w-64 h-64 rounded-full bg-blue-500/20 blur-3xl"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-emerald-300/10 blur-3xl"></div>
+        <div class="relative hero-content-inner px-8 py-8">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div>
+              <h1 class="text-3xl font-bold text-white mb-2 tracking-tight">Accounts Ledger</h1>
+              <p
+                class="text-emerald-50 text-sm font-medium flex items-center gap-2 bg-white/10 w-fit px-3 py-1 rounded-full backdrop-blur-sm border border-white/20">
+                <ion-icon name="book-outline" class="text-lg"></ion-icon>
+                Track Transactions, Purchases & Sales
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+      <!-- Account Selector Card -->
+      <div class="account-selector-wrap bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-6">
+        <label class="block text-sm font-bold text-slate-500 uppercase tracking-wide mb-3">Select Ledger Account</label>
+        <div class="relative">
+          <button (click)="isAccountSelectorOpen = !isAccountSelectorOpen"
+            class="w-full flex items-center justify-between px-4 py-3.5 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl shadow-sm hover:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent transition-all">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <ion-icon name="business-outline" class="text-xl text-emerald-600"></ion-icon>
+              </div>
+              <div class="text-left">
+                <div class="font-semibold text-slate-800">
+                  {{ selectedAccount ? selectedAccount.name : 'Select an account' }}
+                </div>
+                <div *ngIf="selectedAccount" class="text-xs text-slate-500">
+                  {{ selectedAccount.accountName }}
+                </div>
+              </div>
+            </div>
+            <ion-icon [ngClass]="{'rotate-180': isAccountSelectorOpen}" name="chevron-down-outline"
+              class="text-slate-400 text-lg transition-transform"></ion-icon>
+          </button>
+
+          <div *ngIf="isAccountSelectorOpen"
+            class="selector-dropdown absolute top-full left-0 mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-xl max-h-96 overflow-hidden z-50 flex flex-col">
+
+            <!-- Search Input in Dropdown -->
+            <div class="sticky top-0 p-3 border-b border-slate-100 bg-white">
+              <div class="relative" (click)="$event.stopPropagation()">
+                <ion-icon name="search-outline"
+                  class="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-lg"></ion-icon>
+                <input type="text" 
+                  [(ngModel)]="accountSearchQuery" 
+                  (input)="$event"
+                  placeholder="Search accounts..."
+                  autocomplete="off"
+                  class="w-full bg-slate-50 hover:bg-white text-slate-700 placeholder-slate-400 border border-slate-200 focus:border-emerald-400 rounded-lg py-2 pl-10 pr-4 outline-none transition-all text-sm">
+              </div>
+            </div>
+
+            <!-- Accounts List -->
+            <div class="overflow-y-auto flex-1">
+              <!-- Loading State -->
+              <div *ngIf="isLoadingAccounts" class="px-4 py-8 text-center">
+                <ion-spinner name="crescent" class="text-emerald-500"></ion-spinner>
+                <p class="text-sm text-slate-500 mt-2">Loading accounts...</p>
+              </div>
+
+              <!-- Accounts list -->
+              <div *ngIf="!isLoadingAccounts">
+                <div *ngFor="let account of filteredAccounts" (click)="handleSelectAccount(account)"
+                  class="account-option px-4 py-3 hover:bg-emerald-50 cursor-pointer flex justify-between items-center border-b border-slate-50 last:border-0 transition-colors">
+                  <div>
+                    <div class="font-semibold text-slate-800">{{ account.name }}</div>
+                    <div class="text-xs text-slate-500">{{ account.accountName }}</div>
+                  </div>
+                  <ion-icon *ngIf="selectedAccount?.id === account.id" name="checkmark-circle"
+                    class="text-emerald-500 text-xl"></ion-icon>
+                </div>
+                <div *ngIf="filteredAccounts.length === 0 && !isLoadingAccounts" class="px-4 py-8 text-center">
+                  <p class="text-sm text-slate-500">No accounts found</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Party Info Cards (FROM / TO) -->
+      <div *ngIf="selectedAccount" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div
+          class="party-card party-from bg-gradient-to-br from-white to-slate-50 rounded-2xl p-6 shadow-md border border-slate-200 hover:shadow-lg hover:border-slate-300 transition-all">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full mb-4">
+            <ion-icon name="arrow-forward-outline" class="text-slate-500"></ion-icon>
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">FROM</span>
+          </div>
+          <h3 class="font-bold text-lg text-slate-800 mb-3">{{ selectedAccount.fromParty.name }}</h3>
+          <div class="space-y-2 text-sm text-slate-600">
+            <div class="flex items-start gap-2.5">
+              <ion-icon name="location-outline" class="text-slate-400 mt-0.5 shrink-0"></ion-icon>
+              <div class="leading-relaxed">
+                <div>{{ selectedAccount.fromParty.address }}</div>
+                <div>{{ selectedAccount.fromParty.city }}, {{ selectedAccount.fromParty.state }} - {{
+                  selectedAccount.fromParty.pincode }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">
+              <div class="flex items-center gap-2">
+                <ion-icon name="call-outline" class="text-slate-400"></ion-icon>
+                <span class="text-xs">{{ selectedAccount.fromParty.phone }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <ion-icon name="mail-outline" class="text-slate-400"></ion-icon>
+                <span class="text-xs truncate">{{ selectedAccount.fromParty.email }}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 pt-2">
+              <ion-icon name="document-text-outline" class="text-slate-400"></ion-icon>
+              <span class="text-xs text-slate-500">GSTIN: {{ selectedAccount.fromParty.gstin }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="party-card party-to bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-6 shadow-md border border-emerald-200 hover:shadow-lg hover:border-emerald-300 transition-all">
+          <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-full mb-4">
+            <ion-icon name="arrow-back-outline" class="text-emerald-500"></ion-icon>
+            <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider">TO</span>
+          </div>
+          <h3 class="font-bold text-lg text-slate-800 mb-3">{{ selectedAccount.toParty.name }}</h3>
+          <div class="space-y-2 text-sm text-slate-600">
+            <div class="flex items-start gap-2.5">
+              <ion-icon name="location-outline" class="text-slate-400 mt-0.5 shrink-0"></ion-icon>
+              <div class="leading-relaxed">
+                <div>{{ selectedAccount.toParty.address }}</div>
+                <div>{{ selectedAccount.toParty.city }}, {{ selectedAccount.toParty.state }} - {{
+                  selectedAccount.toParty.pincode }}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-4 mt-3 pt-3 border-t border-slate-100">
+              <div class="flex items-center gap-2">
+                <ion-icon name="call-outline" class="text-slate-400"></ion-icon>
+                <span class="text-xs">{{ selectedAccount.toParty.phone }}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <ion-icon name="mail-outline" class="text-slate-400"></ion-icon>
+                <span class="text-xs truncate">{{ selectedAccount.toParty.email }}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 pt-2">
+              <ion-icon name="document-text-outline" class="text-slate-400"></ion-icon>
+              <span class="text-xs text-slate-500">GSTIN: {{ selectedAccount.toParty.gstin }}</span>
+            </div>
+
+            <!-- ─── Credit Limit & Credit Balance Section ─── -->
+            <ng-container *ngIf="selectedAccount.distributorCreditLimit">
+              <div class="mt-4 pt-4 border-t border-emerald-100">
+                <div class="flex items-center gap-1.5 mb-2.5">
+                  <div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
+                  <p class="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Credit Facility</p>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+
+                  <!-- Credit Limit -->
+                  <div class="relative overflow-hidden flex items-center gap-2.5 px-3 py-3 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 shadow-sm">
+                    <div class="absolute -top-2 -right-2 w-10 h-10 rounded-full bg-blue-100/60 blur-lg"></div>
+                    <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <ion-icon name="card-outline" class="text-blue-600 text-sm"></ion-icon>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-[9px] font-bold text-blue-500 uppercase tracking-wide leading-none mb-0.5">Credit Limit</p>
+                      <p class="text-sm font-extrabold text-blue-700 leading-none truncate">{{ formatCurrency(selectedAccount.distributorCreditAmount || 0) }}</p>
+                    </div>
+                  </div>
+
+                  <!-- Credit Balance -->
+                  <div class="relative overflow-hidden flex items-center gap-2.5 px-3 py-3 rounded-xl border shadow-sm"
+                    [ngClass]="{
+                      'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-100': (selectedAccount.distributorCreditBalance || 0) > 0,
+                      'bg-gradient-to-br from-rose-50 to-red-50 border-rose-100': (selectedAccount.distributorCreditBalance || 0) <= 0
+                    }">
+                    <div class="absolute -top-2 -right-2 w-10 h-10 rounded-full blur-lg"
+                      [ngClass]="{
+                        'bg-emerald-100/60': (selectedAccount.distributorCreditBalance || 0) > 0,
+                        'bg-rose-100/60': (selectedAccount.distributorCreditBalance || 0) <= 0
+                      }"></div>
+                    <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm"
+                      [ngClass]="{
+                        'bg-emerald-100': (selectedAccount.distributorCreditBalance || 0) > 0,
+                        'bg-rose-100': (selectedAccount.distributorCreditBalance || 0) <= 0
+                      }">
+                      <ion-icon name="wallet-outline" class="text-sm"
+                        [ngClass]="{
+                          'text-emerald-600': (selectedAccount.distributorCreditBalance || 0) > 0,
+                          'text-rose-500': (selectedAccount.distributorCreditBalance || 0) <= 0
+                        }"></ion-icon>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-[9px] font-bold uppercase tracking-wide leading-none mb-0.5"
+                        [ngClass]="{
+                          'text-emerald-500': (selectedAccount.distributorCreditBalance || 0) > 0,
+                          'text-rose-400': (selectedAccount.distributorCreditBalance || 0) <= 0
+                        }">Credit Balance</p>
+                      <p class="text-sm font-extrabold leading-none truncate"
+                        [ngClass]="{
+                          'text-emerald-700': (selectedAccount.distributorCreditBalance || 0) > 0,
+                          'text-rose-600': (selectedAccount.distributorCreditBalance || 0) <= 0
+                        }">{{ formatCurrency(selectedAccount.distributorCreditBalance || 0) }}</p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid-acc grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div
+          class="stat-card-acc stat-debit acc-card-animate acc-animate-delay-1 bg-gradient-to-br from-white to-red-50 rounded-2xl p-6 shadow-md border-l-4 border-red-400 hover:shadow-lg transition-all group">
+          <div class="flex items-center justify-between mb-4">
+            <div
+              class="stat-icon-acc w-12 h-12 rounded-xl bg-red-100 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform shadow-sm">
+              <ion-icon name="arrow-down-outline" class="text-2xl rotate-45"></ion-icon>
+            </div>
+          </div>
+          <h3 class="text-red-400 text-xs font-bold uppercase mb-1 tracking-wider">Total Debits</h3>
+          <p class="stat-value-acc text-2xl font-bold text-red-600">{{ formatCurrency(summary.totalDebits) }}</p>
+          <p class="text-xs text-slate-400 mt-1">All outgoing transactions</p>
+        </div>
+
+        <div
+          class="stat-card-acc stat-credit acc-card-animate acc-animate-delay-2 bg-gradient-to-br from-white to-emerald-50 rounded-2xl p-6 shadow-md border-l-4 border-emerald-400 hover:shadow-lg transition-all group">
+          <div class="flex items-center justify-between mb-4">
+            <div
+              class="stat-icon-acc w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-500 group-hover:scale-110 transition-transform shadow-sm">
+              <ion-icon name="arrow-up-outline" class="text-2xl rotate-45"></ion-icon>
+            </div>
+          </div>
+          <h3 class="text-emerald-500 text-xs font-bold uppercase mb-1 tracking-wider">Total Credits</h3>
+          <p class="stat-value-acc text-2xl font-bold text-emerald-600">{{ formatCurrency(summary.totalCredits) }}</p>
+          <p class="text-xs text-slate-400 mt-1">All incoming transactions</p>
+        </div>
+
+        <div
+          class="stat-card-acc stat-balance acc-card-animate acc-animate-delay-3 bg-gradient-to-br from-white to-violet-50 rounded-2xl p-6 shadow-md border-l-4 border-violet-400 hover:shadow-lg transition-all group">
+          <div class="flex items-center justify-between mb-4">
+            <div
+              class="stat-icon-acc w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center text-violet-500 group-hover:scale-110 transition-transform shadow-sm">
+              <ion-icon name="swap-vertical-outline" class="text-2xl"></ion-icon>
+            </div>
+          </div>
+          <h3 class="text-violet-500 text-xs font-bold uppercase mb-1 tracking-wider">Net Balance</h3>
+          <p class="stat-value-acc text-2xl font-bold text-slate-800">{{ formatCurrency(summary.netBalance) }}</p>
+          <p class="text-xs text-slate-400 mt-1 flex items-center gap-1">
+            <ion-icon *ngIf="summary.netBalance > 0" name="trending-up-outline" class="text-emerald-500"></ion-icon>
+            <ion-icon *ngIf="summary.netBalance < 0" name="trending-down-outline" class="text-red-500"></ion-icon>
+            Credits minus debits
+          </p>
+        </div>
+
+        <div
+          class="stat-card-acc stat-closing acc-card-animate acc-animate-delay-4 bg-gradient-to-br from-white to-blue-50 rounded-2xl p-6 shadow-md border-l-4 border-blue-400 hover:shadow-lg transition-all group">
+          <div class="flex items-center justify-between mb-4">
+            <div
+              class="stat-icon-acc w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-500 group-hover:scale-110 transition-transform shadow-sm">
+              <ion-icon name="analytics-outline" class="text-2xl"></ion-icon>
+            </div>
+          </div>
+          <h3 class="text-blue-500 text-xs font-bold uppercase mb-1 tracking-wider">Closing Balance</h3>
+          <p class="stat-value-acc text-2xl font-bold text-slate-800">{{ formatCurrency(summary.closingBalance) }}</p>
+          <p class="text-xs text-slate-400 mt-1">{{ summary.transactionCount }} transactions</p>
+        </div>
+      </div>
+
+      <!-- Search + Filter Section -->
+      <div class="filter-section bg-white rounded-2xl shadow-sm border border-slate-100 p-5 mb-6">
+        <div class="flex flex-col lg:flex-row gap-4 items-center">
+          <div class="flex-1 w-full relative">
+            <ion-icon name="search-outline"
+              class="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 text-lg"></ion-icon>
+            <input type="text" [(ngModel)]="searchQuery" placeholder="Search by description, reference, or category..."
+              class="w-full bg-slate-50 hover:bg-white focus:bg-white text-slate-700 placeholder-slate-400 border border-slate-200 focus:border-emerald-400 rounded-xl py-3 pl-11 pr-4 outline-none transition-all duration-200">
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <ng-container *appAcl="{ feature: FEATURE, action: 'create' }">
+              <!-- Update Balance Button -->
+              <button *ngIf="selectedAccount" (click)="isFormModalOpen = true"
+                class="flex items-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg">
+                <ion-icon name="wallet-outline" class="text-lg"></ion-icon>
+                Update Balance
+              </button>
+
+              <!-- Create JV Button -->
+              <button *ngIf="selectedAccount" (click)="openJVModal()"
+                class="flex items-center gap-2 px-5 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg">
+                <ion-icon name="receipt-outline" class="text-lg"></ion-icon>
+                Create JV
+              </button>
+
+              <!-- Add Credit Button -->
+              <button *ngIf="selectedAccount" (click)="openAddCreditModal()"
+                class="flex items-center gap-2 px-5 py-3 bg-violet-500 hover:bg-violet-600 text-white rounded-xl font-semibold text-sm transition-all shadow-md hover:shadow-lg">
+                <ion-icon name="trending-up-outline" class="text-lg"></ion-icon>
+                Add Credit
+              </button>
+            </ng-container>
+
+            <!-- Date Filter -->
+            <div class="relative date-filter-wrap">
+              <button (click)="isDateDropdownOpen = !isDateDropdownOpen"
+                class="flex items-center gap-2 px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold text-sm text-slate-600 transition-all">
+                <ion-icon name="calendar-outline" class="text-lg"></ion-icon>
+                <span class="truncate max-w-[100px]">{{ dateRangeLabel }}</span>
+                <ion-icon *ngIf="startDate || endDate" name="close-outline" class="text-slate-400 hover:text-slate-600"
+                  (click)="clearDateFilter($event)"></ion-icon>
+              </button>
+              <div *ngIf="isDateDropdownOpen"
+                class="absolute top-full right-0 mt-2 w-72 bg-white border border-slate-200 rounded-xl shadow-xl p-4 z-50">
+                <div class="space-y-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">From</label>
+                    <input type="date" [(ngModel)]="startDate"
+                      class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">To</label>
+                    <input type="date" [(ngModel)]="endDate"
+                      class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-emerald-400">
+                  </div>
+                  <button (click)="applyDateFilter()"
+                    class="w-full py-2.5 bg-emerald-500 text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 transition-colors">Apply
+                    Filter</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Export Buttons -->
+            <div class="flex gap-2 flex-wrap">
+              <button (click)="handleExport()"
+                class="flex items-center gap-2 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-semibold text-sm transition-all shadow-md">
+                <ion-icon name="document-text-outline" class="text-lg"></ion-icon>
+                Excel
+              </button>
+              <button (click)="handleExportPdf()"
+                class="flex items-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-semibold text-sm transition-all shadow-md">
+                <ion-icon name="document-outline" class="text-lg"></ion-icon>
+                PDF
+              </button>
+              <button (click)="exportLedgerStatementPdf()"
+                class="flex items-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold text-sm transition-all shadow-md">
+                <ion-icon name="print-outline" class="text-lg"></ion-icon>
+                Ledger Statement
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Table -->
+      <div *ngIf="selectedAccount && paginatedTransactions.length > 0"
+        class="hidden lg:block bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden mb-6">
+        <table class="w-full table-fixed border-collapse">
+          <colgroup>
+            <col style="width: 130px">
+            <col style="width: 150px">
+            <col>
+            <col style="width: 115px">
+            <col style="width: 130px">
+            <col style="width: 130px">
+            <col style="width: 160px">
+          </colgroup>
+          <thead>
+            <tr class="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-700 text-white text-xs uppercase tracking-wider font-semibold">
+              <th class="px-4 py-4 text-left cursor-pointer hover:text-emerald-300 transition-colors"
+                (click)="handleSort('date')">
+                <div class="flex items-center gap-1">Date
+                  <ion-icon *ngIf="sortField === 'date'"
+                    [name]="sortDirection === 'asc' ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                </div>
+              </th>
+              <th class="px-4 py-4 text-left">Reference</th>
+              <th class="px-4 py-4 text-left cursor-pointer hover:text-emerald-300 transition-colors"
+                (click)="handleSort('description')">
+                <div class="flex items-center gap-1">Description
+                  <ion-icon *ngIf="sortField === 'description'"
+                    [name]="sortDirection === 'asc' ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                </div>
+              </th>
+              <th class="px-4 py-4 text-center">Type</th>
+              <th class="px-4 py-4 text-right cursor-pointer hover:text-emerald-300 transition-colors"
+                (click)="handleSort('debit')">
+                <div class="flex items-center justify-end gap-1">Debit
+                  <ion-icon *ngIf="sortField === 'debit'"
+                    [name]="sortDirection === 'asc' ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                </div>
+              </th>
+              <th class="px-4 py-4 text-right cursor-pointer hover:text-emerald-300 transition-colors"
+                (click)="handleSort('credit')">
+                <div class="flex items-center justify-end gap-1">Credit
+                  <ion-icon *ngIf="sortField === 'credit'"
+                    [name]="sortDirection === 'asc' ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                </div>
+              </th>
+              <th class="px-4 py-4 text-center cursor-pointer hover:text-emerald-300 transition-colors"
+                (click)="handleSort('balance')">
+                <div class="flex items-center justify-center gap-1">Closing Balance
+                  <ion-icon *ngIf="sortField === 'balance'"
+                    [name]="sortDirection === 'asc' ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let transaction of paginatedTransactions; let odd = odd"
+              class="table-row-acc border-b border-slate-100 hover:bg-emerald-50/30 transition-colors"
+              [class.bg-slate-50]="odd">
+              <td class="px-4 py-4 text-sm text-slate-600 font-medium whitespace-nowrap">
+                {{ formatDate(transaction.date) }}
+              </td>
+              <td class="px-4 py-4">
+                <span class="font-mono text-xs bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 block truncate">
+                  {{ transaction.reference }}
+                </span>
+              </td>
+              <td class="px-4 py-4">
+                <div class="font-semibold text-slate-800 text-sm truncate">{{ transaction.description }}</div>
+                <div class="text-xs text-slate-400 mt-0.5">{{ transaction.category }}</div>
+              </td>
+              <td class="px-4 py-4 text-center">
+                <span [class]="getTransactionTypeConfig(transaction.type).className"
+                  class="px-2 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1">
+                  <ion-icon [name]="getTransactionTypeConfig(transaction.type).icon" class="text-xs"></ion-icon>
+                  {{ getTransactionTypeConfig(transaction.type).label }}
+                </span>
+              </td>
+              <td class="px-4 py-4 text-right font-semibold text-sm tabular-nums"
+                [class.text-red-600]="transaction.debit > 0"
+                [class.text-slate-300]="transaction.debit === 0">
+                {{ transaction.debit > 0 ? formatCurrency(transaction.debit) : '—' }}
+              </td>
+              <td class="px-4 py-4 text-right font-semibold text-sm tabular-nums"
+                [class.text-emerald-600]="transaction.credit > 0"
+                [class.text-slate-300]="transaction.credit === 0">
+                {{ transaction.credit > 0 ? formatCurrency(transaction.credit) : '—' }}
+              </td>
+              <td class="px-4 py-4 text-center">
+                <div class="flex items-center justify-center gap-2">
+                  <span class="font-bold text-slate-800 text-sm tabular-nums">{{ formatCurrency(transaction.balance) }}</span>
+                  <button (click)="handleViewDetails(transaction)"
+                    class="text-slate-400 hover:text-emerald-600 p-1.5 rounded-lg hover:bg-emerald-50 transition-all flex-shrink-0">
+                    <ion-icon name="ellipsis-vertical-outline" class="text-lg"></ion-icon>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile Cards View -->
+      <div class="lg:hidden grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div *ngFor="let transaction of paginatedTransactions"
+          class="mobile-txn-card bg-gradient-to-br from-white to-slate-50 rounded-2xl shadow-md border border-slate-200 hover:shadow-lg hover:border-emerald-200 transition-all p-6">
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-bold text-slate-800">{{ transaction.description }}</h3>
+              <p class="text-xs font-mono bg-slate-50 px-2 py-1 rounded border border-slate-200 mt-1">
+                {{ transaction.reference }}
+              </p>
+            </div>
+            <span [class]="getTransactionTypeConfig(transaction.type).className"
+              class="px-2.5 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1">
+              <ion-icon [name]="getTransactionTypeConfig(transaction.type).icon" class="text-xs"></ion-icon>
+              {{ getTransactionTypeConfig(transaction.type).label }}
+            </span>
+          </div>
+
+          <div class="debit-credit-grid grid grid-cols-2 gap-3 mb-4">
+            <div class="bg-red-50 rounded-lg p-3 border border-red-100">
+              <p class="text-xs font-bold text-red-600 uppercase">Debit</p>
+              <p class="text-lg font-bold text-red-600">{{ transaction.debit > 0 ? formatCurrency(transaction.debit) :
+                '—' }}</p>
+            </div>
+            <div class="bg-emerald-50 rounded-lg p-3 border border-emerald-100">
+              <p class="text-xs font-bold text-emerald-600 uppercase">Credit</p>
+              <p class="text-lg font-bold text-emerald-600">{{ transaction.credit > 0 ?
+                formatCurrency(transaction.credit) : '—' }}</p>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+            <div class="text-sm text-slate-500">{{ formatDate(transaction.date) }}</div>
+            <div class="font-bold text-slate-800">Closing Balance: {{ formatCurrency(transaction.balance) }}</div>
+          </div>
+
+          <button (click)="handleViewDetails(transaction)"
+            class="w-full mt-4 px-4 py-2 bg-slate-50 hover:bg-slate-100 text-slate-600 font-semibold rounded-lg transition-colors">
+            View Details
+          </button>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!selectedAccount" class="empty-state-acc bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
+        <div class="empty-icon-wrap-acc w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <ion-icon name="folder-open-outline" class="text-3xl text-slate-400"></ion-icon>
+        </div>
+        <h3 class="text-lg font-bold text-slate-800 mb-2">No Account Selected</h3>
+        <p class="text-slate-500">Please select an account above to view transactions.</p>
+      </div>
+
+      <div *ngIf="selectedAccount && paginatedTransactions.length === 0"
+        class="empty-state-acc bg-white rounded-2xl shadow-sm border border-slate-100 p-12 text-center">
+        <div class="empty-icon-wrap-acc w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <ion-icon name="search-outline" class="text-3xl text-slate-400"></ion-icon>
+        </div>
+        <h3 class="text-lg font-bold text-slate-800 mb-2">No Transactions Found</h3>
+        <p class="text-slate-500">No transactions match your current filters.</p>
+      </div>
+
+      <!-- Pagination -->
+      <div class="pagination-wrap bg-white rounded-2xl shadow-sm border border-slate-100 p-4 flex items-center justify-between"
+        *ngIf="selectedAccount && sortedTransactions.length > 0">
+        <div class="flex items-center gap-2 text-sm text-slate-600">
+          <span>Rows per page:</span>
+          <select [(ngModel)]="rowsPerPage" (change)="currentPage = 1"
+            class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-400 cursor-pointer">
+            <option *ngFor="let opt of rowsPerPageOptions" [value]="opt">{{ opt }}</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-4">
+          <span class="text-sm text-slate-600">{{ (currentPage - 1) * rowsPerPage + 1 }}-{{ Math.min(currentPage *
+            rowsPerPage, sortedTransactions.length) }} of {{ sortedTransactions.length }}</span>
+          <div class="flex items-center gap-1">
+            <button (click)="changePage(-1)" [disabled]="currentPage === 1"
+              class="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 disabled:text-slate-300 disabled:cursor-not-allowed disabled:hover:bg-transparent rounded-lg transition-colors">
+              <ion-icon name="chevron-back-outline" class="text-xl"></ion-icon>
+            </button>
+            <button (click)="changePage(1)" [disabled]="currentPage === totalPages"
+              class="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 disabled:text-slate-300 disabled:cursor-not-allowed disabled:hover:bg-transparent rounded-lg transition-colors">
+              <ion-icon name="chevron-forward-outline" class="text-xl"></ion-icon>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div> <!-- Update Balance Modal -->
+  <ion-modal [isOpen]="isFormModalOpen" (didDismiss)="isFormModalOpen = false" class="modal-xl" [backdropDismiss]="false">
+    <ng-template>
+      <div class="txn-modal-wrap bg-white h-full flex flex-col">
+        <!-- Modal Header -->
+        <div class="txn-modal-header relative overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600"></div>
+          <div class="absolute top-0 right-0 -mr-10 -mt-10 w-44 h-44 rounded-full bg-white/10 blur-2xl"></div>
+          <div class="absolute bottom-0 left-0 -ml-10 -mb-10 w-36 h-36 rounded-full bg-emerald-300/15 blur-2xl"></div>
+          <div class="relative p-5 pb-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-sm">
+                  <ion-icon name="wallet-outline" class="text-white text-xl"></ion-icon>
+                </div>
+                <div>
+                  <h2 class="text-lg font-bold text-white tracking-tight">Update Balance</h2>
+                  <p class="text-emerald-100 text-xs mt-0.5">Record a credit or debit entry</p>
+                </div>
+              </div>
+              <button (click)="isFormModalOpen = false"
+                class="txn-modal-close-btn w-9 h-9 rounded-full bg-white/25 hover:bg-white/40 flex items-center justify-center transition-all shadow-md border border-white/30 backdrop-blur-sm">
+                <ion-icon name="close-outline" class="text-white text-xl"></ion-icon>
+              </button>
+            </div>
+            <div *ngIf="selectedAccount" class="mt-3 flex items-center gap-2 flex-wrap">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-lg text-white text-xs font-semibold border border-white/20">
+                <ion-icon name="business-outline" class="text-xs"></ion-icon>
+                {{ selectedAccount.name }}
+              </span>
+              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/15 backdrop-blur-sm rounded-lg text-white/80 text-xs font-mono border border-white/15">
+                {{ selectedAccount.accountName }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Credit / Debit / JV Selector -->
+        <div class="px-6 pt-5 pb-6 bg-white border-b border-slate-100">
+          <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Balance Type</label>
+          <div class="grid grid-cols-3 gap-3">
+            <button type="button" (click)="formData.balanceType = 'credit'"
+              [class]="formData.balanceType === 'credit'
+                ? 'bg-emerald-50 border-emerald-400 text-emerald-700 shadow-md ring-2 ring-emerald-200'
+                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'"
+              class="flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-bold transition-all border-2">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                [class]="formData.balanceType === 'credit' ? 'bg-emerald-100' : 'bg-slate-100'">
+                <ion-icon name="arrow-up-outline"
+                  [class]="formData.balanceType === 'credit' ? 'text-emerald-600' : 'text-slate-400'"
+                  class="text-lg"></ion-icon>
+              </div>
+              Credit
+            </button>
+            <button type="button" (click)="formData.balanceType = 'debit'"
+              [class]="formData.balanceType === 'debit'
+                ? 'bg-red-50 border-red-400 text-red-700 shadow-md ring-2 ring-red-200'
+                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'"
+              class="flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-bold transition-all border-2">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                [class]="formData.balanceType === 'debit' ? 'bg-red-100' : 'bg-slate-100'">
+                <ion-icon name="arrow-down-outline"
+                  [class]="formData.balanceType === 'debit' ? 'text-red-600' : 'text-slate-400'"
+                  class="text-lg"></ion-icon>
+              </div>
+              Debit
+            </button>
+            <button type="button" (click)="formData.balanceType = 'jv'"
+              [class]="formData.balanceType === 'jv'
+                ? 'bg-blue-50 border-blue-400 text-blue-700 shadow-md ring-2 ring-blue-200'
+                : 'bg-slate-50 border-slate-200 text-slate-500 hover:bg-slate-100'"
+              class="flex items-center justify-center gap-2 py-4 rounded-xl text-sm font-bold transition-all border-2">
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center"
+                [class]="formData.balanceType === 'jv' ? 'bg-blue-100' : 'bg-slate-100'">
+                <ion-icon name="receipt-outline"
+                  [class]="formData.balanceType === 'jv' ? 'text-blue-600' : 'text-slate-400'"
+                  class="text-lg"></ion-icon>
+              </div>
+              JV
+            </button>
+          </div>
+        </div>
+
+        <ion-content class="bg-slate-50/70">
+          <form (ngSubmit)="handleAddTransaction()" class="p-6 space-y-5">
+            <!-- Row 1: Date, Reference, Amount -->
+            <div class="grid grid-cols-3 gap-4">
+              <div class="txn-field-group">
+                <label class="txn-field-label">
+                  <ion-icon name="calendar-outline" class="text-blue-400"></ion-icon>
+                  Date <span class="text-red-400">*</span>
+                </label>
+                <input type="date" [(ngModel)]="formData.date" name="date" required
+                  class="txn-field-input">
+              </div>
+              <div class="txn-field-group">
+                <label class="txn-field-label">
+                  <ion-icon name="document-text-outline" class="text-violet-400"></ion-icon>
+                  Reference <span class="text-red-400">*</span>
+                </label>
+                <div class="flex gap-1.5">
+                  <input type="text" [(ngModel)]="formData.reference" name="reference" required
+                    class="txn-field-input font-mono flex-1" placeholder="e.g. CR-1005">
+                  <button type="button" (click)="generateReference()"
+                    class="px-3 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl text-[11px] font-bold hover:bg-emerald-100 border border-emerald-200 transition-colors whitespace-nowrap">
+                    <ion-icon name="refresh-outline" class="text-sm"></ion-icon>
+                  </button>
+                </div>
+              </div>
+              <div class="txn-field-group">
+                <label class="txn-field-label">
+                  <ion-icon name="cash-outline" class="text-emerald-500"></ion-icon>
+                  Amount (₹) <span class="text-red-400">*</span>
+                </label>
+                <div class="relative">
+                  <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
+                  <input type="number" [(ngModel)]="formData.amount" name="amount" required min="0.01" step="0.01"
+                    class="txn-field-input pl-16 font-mono" placeholder="0.00">
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 2: Description (full width) -->
+            <div class="txn-field-group">
+              <label class="txn-field-label">
+                <ion-icon name="create-outline" class="text-emerald-400"></ion-icon>
+                Description <span class="text-red-400">*</span>
+              </label>
+              <input type="text" [(ngModel)]="formData.description" name="description" required
+                class="txn-field-input" placeholder="Brief description of the transaction">
+            </div>
+
+            <!-- Row 3: Payment Method / Transaction Type -->
+            <div class="txn-field-group">
+              <label class="txn-field-label">
+                <ion-icon name="card-outline" class="text-blue-500"></ion-icon>
+                Transaction Type <span class="text-xs text-slate-400 font-normal ml-1">(optional)</span>
+              </label>
+              <div class="grid grid-cols-5 gap-3">
+                <button type="button" *ngFor="let pm of paymentMethods"
+                  (click)="formData.paymentMethod === pm.value ? formData.paymentMethod = '' : formData.paymentMethod = $any(pm.value)"
+                  [class]="formData.paymentMethod === pm.value
+                    ? 'txn-type-btn txn-type-active-' + pm.color
+                    : 'txn-type-btn txn-type-inactive'"
+                  class="flex flex-col items-center gap-1.5 py-3.5 rounded-xl text-xs font-semibold transition-all">
+                  <ion-icon [name]="pm.icon" class="text-xl"></ion-icon>
+                  <span>{{ pm.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- RTGS / NEFT → UTR Number -->
+            <div *ngIf="formData.paymentMethod === 'rtgs' || formData.paymentMethod === 'neft'" class="txn-field-group">
+              <label class="txn-field-label">
+                <ion-icon name="document-text-outline" class="text-blue-400"></ion-icon>
+                UTR Number <span class="text-red-400">*</span>
+              </label>
+              <input type="text" [(ngModel)]="formData.utrNumber" name="utrNumber"
+                class="txn-field-input font-mono" placeholder="Enter UTR Number">
+            </div>
+
+            <!-- Cheque → Bank Name + Cheque Number side by side -->
+            <div *ngIf="formData.paymentMethod === 'cheque'" class="grid grid-cols-2 gap-4">
+              <div class="txn-field-group">
+                <label class="txn-field-label">
+                  <ion-icon name="business-outline" class="text-amber-500"></ion-icon>
+                  Bank Name <span class="text-red-400">*</span>
+                </label>
+                <input type="text" [(ngModel)]="formData.bankName" name="bankName"
+                  class="txn-field-input" placeholder="Enter Bank Name">
+              </div>
+              <div class="txn-field-group">
+                <label class="txn-field-label">
+                  <ion-icon name="document-text-outline" class="text-amber-400"></ion-icon>
+                  Cheque Number <span class="text-red-400">*</span>
+                </label>
+                <input type="text" [(ngModel)]="formData.chequeNumber" name="chequeNumber"
+                  class="txn-field-input font-mono" placeholder="Enter Cheque Number">
+              </div>
+            </div>
+
+            <!-- IMPS / UPI → Transaction Number -->
+            <div *ngIf="formData.paymentMethod === 'imps' || formData.paymentMethod === 'upi'" class="txn-field-group">
+              <label class="txn-field-label">
+                <ion-icon name="receipt-outline" class="text-emerald-400"></ion-icon>
+                Transaction Number <span class="text-red-400">*</span>
+              </label>
+              <input type="text" [(ngModel)]="formData.transactionNumber" name="transactionNumber"
+                class="txn-field-input font-mono" placeholder="Enter Transaction Number">
+            </div>
+
+            <!-- Receipt Upload + Notes side by side -->
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Receipt Upload -->
+              <div class="txn-field-group">
+                <label class="txn-field-label">
+                  <ion-icon name="cloud-upload-outline" class="text-slate-400"></ion-icon>
+                  Upload Receipt <span class="text-xs text-slate-400 font-normal ml-1">(optional)</span>
+                </label>
+                <div *ngIf="!receiptFileName"
+                  class="relative border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-emerald-300 hover:bg-emerald-50/30 transition-all cursor-pointer group">
+                  <input type="file" (change)="onReceiptSelected($event)" accept="image/*,.pdf"
+                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                  <div class="flex flex-col items-center gap-2">
+                    <div class="w-10 h-10 rounded-full bg-slate-100 group-hover:bg-emerald-100 flex items-center justify-center transition-colors">
+                      <ion-icon name="cloud-upload-outline" class="text-xl text-slate-400 group-hover:text-emerald-500 transition-colors"></ion-icon>
+                    </div>
+                    <p class="text-xs text-slate-500 font-medium">Tap to upload receipt</p>
+                    <p class="text-[10px] text-slate-400">PDF, JPG, PNG up to 5MB</p>
+                  </div>
+                </div>
+                <div *ngIf="receiptFileName"
+                  class="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+                  <div class="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center">
+                    <ion-icon name="image-outline" class="text-emerald-600 text-lg"></ion-icon>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-semibold text-slate-700 truncate">{{ receiptFileName }}</p>
+                    <p class="text-[10px] text-emerald-600 font-medium">Ready to upload</p>
+                  </div>
+                  <button type="button" (click)="removeReceipt()"
+                    class="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors">
+                    <ion-icon name="close-outline" class="text-red-500 text-base"></ion-icon>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Notes -->
+              <div class="txn-field-group flex flex-col">
+                <label class="txn-field-label">
+                  <ion-icon name="chatbubble-ellipses-outline" class="text-slate-400"></ion-icon>
+                  Notes <span class="text-xs text-slate-400 font-normal ml-1">(optional)</span>
+                </label>
+                <textarea [(ngModel)]="formData.notes" name="notes" rows="4"
+                  class="txn-field-input resize-none flex-1" placeholder="Additional notes or remarks..."></textarea>
+              </div>
+            </div>
+
+            <!-- Info Callout -->
+            <div class="flex items-start gap-3 p-3.5 bg-blue-50/80 rounded-xl border border-blue-200/60">
+              <div class="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <ion-icon name="information-circle-outline" class="text-blue-500 text-sm"></ion-icon>
+              </div>
+              <div class="text-xs text-blue-700 leading-relaxed">
+                <span class="font-bold">Tip:</span> This will be recorded as a
+                <strong [class]="formData.balanceType === 'credit' ? 'text-emerald-600' : 'text-red-600'">
+                  {{ formData.balanceType === 'credit' ? 'Credit' : 'Debit' }}
+                </strong>
+                entry for <strong>{{ selectedAccount?.name || 'the selected account' }}</strong>.
+              </div>
+            </div>
+          </form>
+        </ion-content>
+
+        <!-- Footer Actions -->
+        <div class="p-4 border-t border-slate-100 bg-white flex items-center gap-3">
+          <button (click)="isFormModalOpen = false"
+            class="flex items-center justify-center gap-2 px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition-all border border-slate-200">
+            <ion-icon name="close-outline" class="text-base"></ion-icon>
+            Cancel
+          </button>
+          <button (click)="handleAddTransaction()"
+            class="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-bold transition-all shadow-lg hover:shadow-xl">
+            <ion-icon name="checkmark-circle-outline" class="text-lg"></ion-icon>
+            Update Balance
+          </button>
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- Journal Voucher Modal -->
+  <ion-modal [isOpen]="isJVModalOpen" (didDismiss)="closeJVModal()" class="modal-xl" [backdropDismiss]="false">
+    <ng-template>
+      <div class="txn-modal-wrap bg-white h-full flex flex-col">
+        <!-- Modal Header -->
+        <div class="txn-modal-header relative overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-500 to-indigo-600"></div>
+          <div class="absolute top-0 right-0 -mr-10 -mt-10 w-44 h-44 rounded-full bg-white/10 blur-2xl"></div>
+          <div class="absolute bottom-0 left-0 -ml-10 -mb-10 w-36 h-36 rounded-full bg-blue-300/15 blur-2xl"></div>
+          <div class="relative p-5 pb-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-sm">
+                  <ion-icon name="receipt-outline" class="text-white text-xl"></ion-icon>
+                </div>
+                <div>
+                  <h2 class="text-lg font-bold text-white tracking-tight">Create Journal Voucher</h2>
+                  <p class="text-blue-100 text-xs mt-0.5">Record accounting entries with multiple accounts</p>
+                </div>
+              </div>
+              <button (click)="closeJVModal()"
+                class="txn-modal-close-btn w-9 h-9 rounded-full bg-white/25 hover:bg-white/40 flex items-center justify-center transition-all shadow-md border border-white/30 backdrop-blur-sm">
+                <ion-icon name="close-outline" class="text-white text-xl"></ion-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ion-content class="bg-slate-50/70">
+          <form (ngSubmit)="submitJVForm()" class="p-6 space-y-5" style="color-scheme: light;">
+            <!-- Narration Field -->
+            <div class="txn-field-group">
+              <label class="txn-field-label">
+                <ion-icon name="document-text-outline" class="text-blue-400"></ion-icon>
+                Narration <span class="text-red-400">*</span>
+              </label>
+              <textarea [(ngModel)]="jvFormData.narration" name="narration" required
+                placeholder="Enter narration for this voucher"
+                class="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all resize-none bg-white text-slate-800 placeholder-slate-400"
+                rows="3"></textarea>
+            </div>
+
+            <!-- Entries Section -->
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Journal Entries</label>
+                <button type="button" (click)="addJVEntry()"
+                  class="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 border border-blue-200 transition-colors">
+                  <ion-icon name="add-outline" class="text-sm"></ion-icon>
+                  Add Entry
+                </button>
+              </div>
+
+              <!-- Entries List -->
+              <div class="space-y-4 max-h-96 overflow-y-auto">
+                <div *ngFor="let entry of jvFormData.entries; let i = index" class="bg-white rounded-xl p-4 border border-slate-200 space-y-3">
+                  <!-- Entry Header -->
+                  <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wide">Entry {{ i + 1 }}</span>
+                    <button type="button" *ngIf="jvFormData.entries.length > 1" (click)="removeJVEntry(i)"
+                      class="px-2 py-1 text-red-500 hover:bg-red-50 rounded-lg text-xs font-semibold transition-colors">
+                      <ion-icon name="trash-outline" class="text-sm"></ion-icon>
+                      Remove
+                    </button>
+                  </div>
+
+                  <!-- Account Number -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Account Number *</label>
+                    <input type="text" [(ngModel)]="entry.accountNumber" [name]="'accountNumber_' + i" required
+                      placeholder="e.g., 1001"
+                      [readonly]="i === 0"
+                      [class]="i === 0 ? 'w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold text-sm cursor-default' : 'w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm'">
+                    <p *ngIf="i === 0" class="text-[10px] text-slate-400 mt-1">Prefilled from selected distributor</p>
+                  </div>
+
+                  <!-- Account Name -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Account Name *</label>
+                    <input type="text" [(ngModel)]="entry.accountName" [name]="'accountName_' + i" required
+                      placeholder="e.g., Cash, Bank, Expense"
+                      [readonly]="i === 0"
+                      [class]="i === 0 ? 'w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold text-sm cursor-default' : 'w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm'">
+                    <p *ngIf="i === 0" class="text-[10px] text-slate-400 mt-1">Prefilled from selected distributor</p>
+                  </div>
+
+                  <!-- Description -->
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Description</label>
+                    <input type="text" [(ngModel)]="entry.description" [name]="'description_' + i"
+                      placeholder="Optional description"
+                      class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm">
+                  </div>
+
+                  <!-- Debit and Credit -->
+                  <div class="grid grid-cols-2 gap-4">
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1.5">Debit (₹)</label>
+                      <input type="number" [(ngModel)]="entry.debit" [name]="'debit_' + i"
+                        placeholder="0.00" step="0.01" min="0"
+                        class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm">
+                    </div>
+                    <div>
+                      <label class="block text-xs font-bold text-slate-600 mb-1.5">Credit (₹)</label>
+                      <input type="number" [(ngModel)]="entry.credit" [name]="'credit_' + i"
+                        placeholder="0.00" step="0.01" min="0"
+                        class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3 pt-4 border-t border-slate-200">
+              <button type="button" (click)="closeJVModal()"
+                class="flex-1 px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm transition-all">
+                Cancel
+              </button>
+              <button type="submit" [disabled]="isSubmittingJV"
+                class="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white rounded-xl text-sm font-bold transition-all shadow-lg hover:shadow-xl">
+                <ion-icon name="checkmark-circle-outline" class="text-lg"></ion-icon>
+                {{ isSubmittingJV ? 'Creating...' : 'Create JV' }}
+              </button>
+            </div>
+          </form>
+        </ion-content>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- Journal Voucher List Modal -->
+  <ion-modal [isOpen]="isJVListModalOpen" (didDismiss)="closeJVListModal()" class="modal-full" [backdropDismiss]="false">
+    <ng-template>
+      <div class="txn-modal-wrap bg-white h-full flex flex-col">
+        <!-- Modal Header -->
+        <div class="txn-modal-header relative overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-br from-indigo-500 via-indigo-500 to-purple-600"></div>
+          <div class="absolute top-0 right-0 -mr-10 -mt-10 w-44 h-44 rounded-full bg-white/10 blur-2xl"></div>
+          <div class="absolute bottom-0 left-0 -ml-10 -mb-10 w-36 h-36 rounded-full bg-indigo-300/15 blur-2xl"></div>
+          <div class="relative p-5 pb-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-sm">
+                  <ion-icon name="eye-outline" class="text-white text-xl"></ion-icon>
+                </div>
+                <div>
+                  <h2 class="text-lg font-bold text-white tracking-tight">Journal Vouchers</h2>
+                  <p class="text-indigo-100 text-xs mt-0.5">View all journal vouchers for this distributor</p>
+                </div>
+              </div>
+              <button (click)="closeJVListModal()"
+                class="txn-modal-close-btn w-9 h-9 rounded-full bg-white/25 hover:bg-white/40 flex items-center justify-center transition-all shadow-md border border-white/30 backdrop-blur-sm">
+                <ion-icon name="close-outline" class="text-white text-xl"></ion-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ion-content class="bg-slate-50/70">
+          <div class="p-6 space-y-4">
+            <!-- Loading State -->
+            <div *ngIf="isLoadingJVs" class="flex flex-col items-center justify-center py-16">
+              <ion-spinner name="crescent" class="text-indigo-500" style="width: 50px; height: 50px;"></ion-spinner>
+              <p class="text-sm text-slate-500 mt-4">Loading journal vouchers...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div *ngIf="!isLoadingJVs && journalVouchers.length === 0" class="flex flex-col items-center justify-center py-16">
+              <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+                <ion-icon name="document-outline" class="text-slate-400 text-3xl"></ion-icon>
+              </div>
+              <p class="text-sm font-semibold text-slate-600">No Journal Vouchers Found</p>
+              <p class="text-xs text-slate-500 mt-1">Create a new journal voucher to get started</p>
+            </div>
+
+            <!-- Journal Vouchers List -->
+            <div *ngIf="!isLoadingJVs && journalVouchers.length > 0" class="space-y-3">
+              <div *ngFor="let jv of journalVouchers" (click)="viewJVDetails(jv)"
+                class="jv-card bg-white rounded-xl p-5 border border-slate-200 hover:border-indigo-400 hover:shadow-lg transition-all cursor-pointer">
+                <!-- Header -->
+                <div class="flex items-center justify-between mb-3">
+                  <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+                      <ion-icon name="receipt-outline" class="text-indigo-600 text-lg"></ion-icon>
+                    </div>
+                    <div>
+                      <div class="font-semibold text-slate-800">JV-{{ jv.id }}</div>
+                      <div class="text-xs text-slate-500">{{ (jv.createdAt | date:'medium') || 'Date not available' }}</div>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold border border-indigo-200">
+                      <ion-icon name="checkmark-circle-outline" class="text-sm"></ion-icon>
+                      {{ jv.transactionType }}
+                    </span>
+                    <ion-icon name="chevron-forward-outline" class="text-slate-400"></ion-icon>
+                  </div>
+                </div>
+
+                <!-- Description -->
+                <div class="mb-3 ml-12">
+                  <p class="text-sm text-slate-600" style="overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-clamp: 2;">{{ jv.description || 'No description' }}</p>
+                </div>
+
+                <!-- Amount -->
+                <div class="ml-12 text-sm font-bold text-indigo-600">
+                  ₹{{ (jv.amount | number:'1.2-2') || '0.00' }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Selected JV Details -->
+            <div *ngIf="selectedJV" class="mt-8 pt-6 border-t border-slate-200">
+              <h3 class="font-bold text-lg text-slate-800 mb-4">Entry Details</h3>
+              
+              <!-- JV ID & Date -->
+              <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="bg-white rounded-xl p-4 border border-slate-200">
+                  <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">JV ID</div>
+                  <div class="font-mono font-bold text-slate-800">JV-{{ selectedJV.id }}</div>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-slate-200">
+                  <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Created Date</div>
+                  <div class="font-semibold text-slate-800">{{ (selectedJV.createdAt | date:'medium') || 'N/A' }}</div>
+                </div>
+              </div>
+
+              <!-- Description Display -->
+              <div class="bg-white rounded-xl p-4 border border-slate-200 mb-4">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Description</div>
+                <div class="text-slate-700">{{ selectedJV.description }}</div>
+              </div>
+
+              <!-- Amount Display -->
+              <div class="bg-gradient-to-br from-indigo-50 to-indigo-100/50 rounded-xl p-4 border border-indigo-200 mb-4">
+                <div class="text-xs font-bold text-indigo-500 uppercase tracking-widest mb-2">Transaction Amount</div>
+                <div class="text-3xl font-bold text-indigo-700">₹{{ (selectedJV.amount | number:'1.2-2') || '0.00' }}</div>
+                <div class="text-xs text-indigo-600 mt-2">Transaction Type: <span class="font-bold">{{ selectedJV.transactionType }}</span></div>
+              </div>
+            </div>
+          </div>
+        </ion-content>
+
+        <!-- Modal Footer -->
+        <div class="border-t border-slate-200 bg-white p-4 flex gap-3">
+          <button (click)="closeJVListModal()"
+            class="flex-1 px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold text-sm transition-all">
+            Close
+          </button>
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- Transaction Details Modal -->
+  <ion-modal [isOpen]="isDetailsModalOpen" (didDismiss)="isDetailsModalOpen = false" class="modal-sm items-center" [backdropDismiss]="false">
+    <ng-template>
+      <div class="detail-modal-wrap bg-white rounded-2xl shadow-2xl overflow-hidden max-w-md w-full m-auto">
+        <!-- Modal Header -->
+        <div class="detail-modal-header relative overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600"></div>
+          <div class="absolute top-0 right-0 -mr-8 -mt-8 w-40 h-40 rounded-full bg-white/10 blur-2xl"></div>
+          <div class="absolute bottom-0 left-0 -ml-8 -mb-8 w-32 h-32 rounded-full bg-emerald-300/15 blur-2xl"></div>
+          <div class="relative p-6 pb-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <ion-icon name="receipt-outline" class="text-white text-xl"></ion-icon>
+                </div>
+                <h2 class="text-lg font-bold text-white tracking-tight">Transaction Details</h2>
+              </div>
+              <button (click)="isDetailsModalOpen = false"
+                class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-all">
+                <ion-icon name="close-outline" class="text-white text-xl"></ion-icon>
+              </button>
+            </div>
+            <!-- Reference badge in header -->
+            <div *ngIf="selectedTransaction" class="flex items-center gap-3 flex-wrap">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-lg text-white text-sm font-mono font-semibold border border-white/20">
+                <ion-icon name="document-text-outline" class="text-sm"></ion-icon>
+                {{ selectedTransaction.reference }}
+              </span>
+              <span [class]="getTransactionTypeConfig(selectedTransaction.type).className"
+                class="px-3 py-1.5 rounded-lg text-xs font-bold border inline-flex items-center gap-1 bg-white/90 shadow-sm">
+                <ion-icon [name]="getTransactionTypeConfig(selectedTransaction.type).icon"></ion-icon>
+                {{ getTransactionTypeConfig(selectedTransaction.type).label }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Body -->
+        <div class="p-6 space-y-5" *ngIf="selectedTransaction">
+          <!-- Description Card -->
+          <div class="bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-xl p-4 border border-slate-200">
+            <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Description</div>
+            <div class="font-semibold text-slate-800 text-[15px] leading-relaxed">{{ selectedTransaction.description }}</div>
+          </div>
+
+          <!-- Date & Category Row -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <ion-icon name="calendar-outline" class="text-blue-500 text-sm"></ion-icon>
+                </div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date</span>
+              </div>
+              <div class="font-semibold text-slate-800 text-sm">{{ formatDate(selectedTransaction.date) }}</div>
+            </div>
+            <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
+                  <ion-icon name="folder-open-outline" class="text-violet-500 text-sm"></ion-icon>
+                </div>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Category</span>
+              </div>
+              <div class="font-semibold text-slate-800 text-sm">{{ selectedTransaction.category }}</div>
+            </div>
+          </div>
+
+          <!-- Financial Summary Card -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 bg-gradient-to-r from-slate-50 to-slate-100/50 border-b border-slate-200">
+              <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Financial Summary</span>
+            </div>
+            <div class="p-4 space-y-3">
+              <div class="flex justify-between items-center py-2 px-3 rounded-lg hover:bg-red-50/50 transition-colors">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center">
+                    <ion-icon name="arrow-down-outline" class="text-red-500 rotate-45"></ion-icon>
+                  </div>
+                  <span class="text-slate-600 font-medium text-sm">Debit</span>
+                </div>
+                <span [class]="selectedTransaction.debit > 0 ? 'text-red-600 font-bold text-base' : 'text-slate-400 text-sm'">
+                  {{ selectedTransaction.debit > 0 ? formatCurrency(selectedTransaction.debit) : '—' }}
+                </span>
+              </div>
+              <div class="flex justify-between items-center py-2 px-3 rounded-lg hover:bg-emerald-50/50 transition-colors">
+                <div class="flex items-center gap-2.5">
+                  <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                    <ion-icon name="arrow-up-outline" class="text-emerald-500 rotate-45"></ion-icon>
+                  </div>
+                  <span class="text-slate-600 font-medium text-sm">Credit</span>
+                </div>
+                <span [class]="selectedTransaction.credit > 0 ? 'text-emerald-600 font-bold text-base' : 'text-slate-400 text-sm'">
+                  {{ selectedTransaction.credit > 0 ? formatCurrency(selectedTransaction.credit) : '—' }}
+                </span>
+              </div>
+              <div class="border-t border-dashed border-slate-200 pt-3 mt-1">
+                <div class="flex justify-between items-center px-3">
+                  <span class="font-bold text-slate-800 text-sm">Resulting Balance</span>
+                  <span class="text-xl font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                    {{ formatCurrency(selectedTransaction.balance) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notes -->
+          <div *ngIf="selectedTransaction.notes" class="bg-amber-50/60 rounded-xl p-4 border border-amber-200/60">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                <ion-icon name="create-outline" class="text-amber-600 text-sm"></ion-icon>
+              </div>
+              <span class="text-[10px] font-bold text-amber-500 uppercase tracking-widest">Notes</span>
+            </div>
+            <div class="text-sm text-slate-600 leading-relaxed italic">{{ selectedTransaction.notes }}</div>
+          </div>
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="p-5 border-t border-slate-100 bg-slate-50/50 flex items-center gap-3">
+          <button *appAcl="{ feature: FEATURE, action: 'delete' }" (click)="handleDeleteTransaction()"
+            class="flex items-center justify-center gap-2 px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-semibold transition-all border border-red-200 hover:border-red-300">
+            <ion-icon name="trash-outline" class="text-base"></ion-icon>
+            Delete
+          </button>
+          <div class="flex-1"></div>
+          <button (click)="isDetailsModalOpen = false"
+            class="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-sm font-semibold transition-all shadow-md hover:shadow-lg">
+            Close
+          </button>
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- Delete Confirmation Modal -->
+  <ion-modal [isOpen]="isConfirmDeleteOpen" (didDismiss)="cancelDelete()" class="modal-sm items-center" [backdropDismiss]="false">
+    <ng-template>
+      <div class="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-sm w-full m-auto">
+        <div class="p-8 text-center">
+          <div class="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-5">
+            <ion-icon name="warning-outline" class="text-red-500 text-3xl"></ion-icon>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800 mb-2">Delete Transaction?</h3>
+          <p class="text-sm text-slate-500 leading-relaxed mb-1">
+            Are you sure you want to delete this transaction?
+          </p>
+          <p *ngIf="selectedTransaction" class="text-xs font-mono bg-slate-50 inline-block px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 mb-6">
+            {{ selectedTransaction.reference }}
+          </p>
+          <div class="flex gap-3">
+            <button (click)="cancelDelete()"
+              class="flex-1 px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-semibold transition-all">
+              Cancel
+            </button>
+            <button (click)="confirmDeleteTransaction()"
+              class="flex-1 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-all shadow-md">
+              <ion-icon name="trash-outline" class="mr-1"></ion-icon>
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- Pending Payments Modal -->
+  <ion-modal [isOpen]="isPendingPaymentsModalOpen" (didDismiss)="isPendingPaymentsModalOpen = false" class="modal-xl" [backdropDismiss]="false">
+    <ng-template>
+      <div class="txn-modal-wrap bg-white h-full flex flex-col">
+        <!-- Modal Header -->
+        <div class="txn-modal-header relative overflow-hidden">
+          <div class="absolute inset-0 bg-gradient-to-br from-blue-500 via-blue-600 to-indigo-700"></div>
+          <div class="absolute top-0 right-0 -mr-10 -mt-10 w-44 h-44 rounded-full bg-white/10 blur-2xl"></div>
+          <div class="absolute bottom-0 left-0 -ml-10 -mb-10 w-36 h-36 rounded-full bg-blue-300/15 blur-2xl"></div>
+          <div class="relative p-5 pb-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-sm">
+                  <ion-icon name="wallet-outline" class="text-white text-xl"></ion-icon>
+                </div>
+                <div>
+                  <h2 class="text-lg font-bold text-white tracking-tight">Pending Payments</h2>
+                  <p class="text-blue-100 text-xs mt-0.5">Review and approve pending payment requests</p>
+                </div>
+              </div>
+              <button (click)="isPendingPaymentsModalOpen = false"
+                class="txn-modal-close-btn w-9 h-9 rounded-full bg-white/25 hover:bg-white/40 flex items-center justify-center transition-all shadow-md border border-white/30 backdrop-blur-sm">
+                <ion-icon name="close-outline" class="text-white text-xl"></ion-icon>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ion-content class="bg-slate-50/70">
+          <!-- Loading State -->
+          <div *ngIf="isLoadingPayments" class="p-6 flex items-center justify-center">
+            <ion-spinner name="circles" color="primary"></ion-spinner>
+          </div>
+
+          <!-- Empty State -->
+          <div *ngIf="!isLoadingPayments && pendingPayments.length === 0" class="p-6 text-center">
+            <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-4">
+              <ion-icon name="checkmark-circle-outline" class="text-3xl text-blue-600"></ion-icon>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-2">No Pending Payments</h3>
+            <p class="text-sm text-slate-500">All payments have been approved or there are no pending requests.</p>
+          </div>
+
+          <!-- Payments List -->
+          <div *ngIf="!isLoadingPayments && pendingPayments.length > 0" class="p-6 space-y-4">
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+              <div class="flex items-center gap-2">
+                <ion-icon name="information-circle-outline" class="text-blue-600 text-lg"></ion-icon>
+                <span class="text-sm font-semibold text-blue-700">{{ pendingPayments.length }} pending payment(s)</span>
+              </div>
+            </div>
+
+            <div *ngFor="let payment of pendingPayments; let i = index" 
+              class="bg-white rounded-xl border border-slate-200 p-4 hover:shadow-md transition-all">
+              
+              <!-- Payment Info -->
+              <div class="space-y-3">
+                <!-- Status Badge -->
+                <div class="flex items-center justify-between">
+                  <span class="text-xs font-bold text-slate-600 uppercase tracking-wide">Payment #{{ payment.id }}</span>
+                  <span class="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-semibold">
+                    <ion-icon name="time-outline" class="text-sm"></ion-icon>
+                    {{ payment.status }}
+                  </span>
+                </div>
+
+                <!-- Payment Details Grid -->
+                <div class="grid grid-cols-2 gap-3">
+                  <!-- Distributor Name -->
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Distributor</label>
+                    <p class="text-sm font-bold text-slate-800">{{ payment.distributorName }}</p>
+                  </div>
+
+                  <!-- Amount -->
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Amount</label>
+                    <p class="text-sm font-bold text-emerald-600">₹{{ payment.amount | number: '1.2-2' }}</p>
+                  </div>
+
+                  <!-- Transaction Type -->
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Type</label>
+                    <p class="text-sm font-medium text-slate-700">{{ payment.transactionType }}</p>
+                  </div>
+
+                  <!-- Date Created -->
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-500 mb-1">Created</label>
+                    <p class="text-sm text-slate-600">{{ payment.createdAt | date: 'MMM dd, yyyy' }}</p>
+                  </div>
+                </div>
+
+                <!-- Description -->
+                <div *ngIf="payment.description">
+                  <label class="block text-xs font-semibold text-slate-500 mb-1">Description</label>
+                  <p class="text-sm text-slate-700 bg-slate-50 p-2 rounded-lg">{{ payment.description }}</p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div *appAcl="{ feature: FEATURE, action: 'update' }" class="flex gap-2 pt-2 border-t border-slate-100">
+                  <button (click)="approveSinglePayment(payment)"
+                    class="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all">
+                    <ion-icon name="checkmark-circle-outline" class="text-lg"></ion-icon>
+                    Approve
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Buttons at Bottom -->
+            <div class="sticky bottom-0 flex gap-3 pt-4 mt-6 border-t border-slate-200 bg-white">
+              <button (click)="isPendingPaymentsModalOpen = false"
+                class="flex-1 px-4 py-3 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl text-sm font-semibold transition-all">
+                <ion-icon name="close-outline" class="mr-1"></ion-icon>
+                Close
+              </button>
+              <button *appAcl="{ feature: FEATURE, action: 'update' }" (click)="approveAllPayments()" [disabled]="pendingPayments.length === 0"
+                class="flex-1 px-4 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300 text-white rounded-xl text-sm font-semibold transition-all">
+                <ion-icon name="checkmark-circle-outline" class="mr-1"></ion-icon>
+                Approve All
+              </button>
+            </div>
+          </div>
+        </ion-content>
+      </div>
+    </ng-template>
+  </ion-modal>
+
+  <!-- ═══════════════════════════════════════════════════
+       ADD CREDIT MODAL
+       ═══════════════════════════════════════════════════ -->
+  <ion-modal [isOpen]="isAddCreditModalOpen" (didDismiss)="isAddCreditModalOpen = false" class="modal-xl" [backdropDismiss]="false">
+    <ng-template>
+      <div class="txn-modal-wrap bg-white h-full flex flex-col">
+
+        <!-- ── Sticky Header ── -->
+        <div class="txn-modal-header relative overflow-hidden flex-shrink-0">
+          <div class="absolute inset-0 bg-gradient-to-br from-violet-500 via-purple-600 to-indigo-600"></div>
+          <div class="absolute top-0 right-0 -mr-16 -mt-16 w-56 h-56 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
+          <div class="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 rounded-full bg-violet-300/20 blur-3xl pointer-events-none"></div>
+          <div class="absolute top-1/2 right-1/4 w-40 h-40 rounded-full bg-indigo-400/10 blur-2xl pointer-events-none"></div>
+
+          <div class="relative p-6 pb-5">
+            <!-- Title row -->
+            <div class="flex items-center justify-between mb-5">
+              <div class="flex items-center gap-4">
+                <div class="relative flex-shrink-0">
+                  <div class="absolute inset-0 rounded-2xl bg-white/20 blur-md scale-125 pointer-events-none"></div>
+                  <div class="relative w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shadow-xl border border-white/30">
+                    <ion-icon name="trending-up-outline" class="text-white text-3xl"></ion-icon>
+                  </div>
+                </div>
+                <div>
+                  <h2 class="text-2xl font-bold text-white tracking-tight leading-tight">Add Credit</h2>
+                  <p class="text-violet-200 text-sm mt-0.5 font-medium">Increase distributor's credit limit</p>
+                </div>
+              </div>
+              <button (click)="isAddCreditModalOpen = false"
+                class="txn-modal-close-btn w-10 h-10 rounded-full bg-white/25 hover:bg-white/40 flex items-center justify-center transition-all duration-200 shadow-md border border-white/30 backdrop-blur-sm active:scale-95">
+                <ion-icon name="close-outline" class="text-white text-xl"></ion-icon>
+              </button>
+            </div>
+
+            <!-- Account info strip -->
+            <div *ngIf="selectedAccount" class="flex items-center gap-3 p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
+              <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                <ion-icon name="business-outline" class="text-white text-lg"></ion-icon>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-white font-bold text-sm truncate">{{ selectedAccount.name }}</div>
+                <div class="text-violet-200 text-xs font-mono">{{ selectedAccount.accountCode }}</div>
+              </div>
+              <div class="flex-shrink-0 text-right">
+                <div class="text-[10px] text-violet-200 uppercase tracking-widest">Current Limit</div>
+                <div class="text-white font-bold text-sm">₹{{ (selectedAccount.distributorCreditAmount || 0) | number:'1.0-0' }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Scrollable Body ── -->
+        <ion-content class="bg-slate-50">
+          <div class="p-6 space-y-6">
+
+            <!-- ─ Credit Stats Cards ─ -->
+            <div>
+              <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Current Credit Status</p>
+              <div class="grid grid-cols-3 gap-4">
+
+                <div class="bg-white rounded-2xl p-4 border border-violet-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-xl bg-violet-100 flex items-center justify-center">
+                      <ion-icon name="card-outline" class="text-violet-600 text-base"></ion-icon>
+                    </div>
+                    <span class="text-[10px] font-bold text-violet-400 uppercase tracking-widest">Total Limit</span>
+                  </div>
+                  <div class="text-xl font-extrabold text-violet-700">
+                    ₹{{ (selectedAccount?.distributorCreditAmount || 0) | number:'1.0-0' }}
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-1">Sanctioned credit</div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-4 border border-red-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-xl bg-red-100 flex items-center justify-center">
+                      <ion-icon name="trending-down-outline" class="text-red-500 text-base"></ion-icon>
+                    </div>
+                    <span class="text-[10px] font-bold text-red-400 uppercase tracking-widest">Utilized</span>
+                  </div>
+                  <div class="text-xl font-extrabold text-red-600">
+                    ₹{{ creditUtilized | number:'1.0-0' }}
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-1">Outstanding balance</div>
+                </div>
+
+                <div class="bg-white rounded-2xl p-4 border border-emerald-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div class="flex items-center gap-2 mb-3">
+                    <div class="w-8 h-8 rounded-xl bg-emerald-100 flex items-center justify-center">
+                      <ion-icon name="wallet-outline" class="text-emerald-600 text-base"></ion-icon>
+                    </div>
+                    <span class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Available</span>
+                  </div>
+                  <div class="text-xl font-extrabold text-emerald-600">
+                    ₹{{ creditAvailable | number:'1.0-0' }}
+                  </div>
+                  <div class="text-[10px] text-slate-400 mt-1">Remaining credit</div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- ─ Utilization Bar ─ -->
+            <div *ngIf="(selectedAccount?.distributorCreditAmount || 0) > 0"
+              class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-semibold text-slate-600">Credit Utilization</span>
+                <span class="text-sm font-extrabold px-3 py-1 rounded-full"
+                  [class]="creditUsagePercent > 80 ? 'bg-red-100 text-red-600' : creditUsagePercent > 50 ? 'bg-amber-100 text-amber-600' : 'bg-emerald-100 text-emerald-700'">
+                  {{ creditUsagePercent }}%
+                </span>
+              </div>
+              <div class="h-3 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full rounded-full transition-all duration-700"
+                  [style.width.%]="creditUsagePercent"
+                  [class]="creditUsagePercent > 80 ? 'bg-gradient-to-r from-red-400 to-red-500' : creditUsagePercent > 50 ? 'bg-gradient-to-r from-amber-400 to-amber-500' : 'bg-gradient-to-r from-emerald-400 to-emerald-500'">
+                </div>
+              </div>
+              <div class="flex justify-between mt-2 text-[10px] text-slate-400">
+                <span>₹0</span>
+                <span>₹{{ (selectedAccount?.distributorCreditAmount || 0) | number:'1.0-0' }}</span>
+              </div>
+            </div>
+
+            <!-- ─ Amount Input ─ -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+              <label class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">
+                <div class="w-5 h-5 rounded-md bg-violet-100 flex items-center justify-center">
+                  <ion-icon name="add-circle-outline" class="text-violet-500 text-xs"></ion-icon>
+                </div>
+                Credit Amount to Add
+                <span class="text-red-400 normal-case font-normal tracking-normal text-xs">(required)</span>
+              </label>
+
+              <div class="relative group">
+                <div class="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xl select-none pointer-events-none transition-colors group-focus-within:text-violet-500">₹</div>
+                <input
+                  type="number"
+                  [(ngModel)]="addCreditAmount"
+                  min="1"
+                  step="1"
+                  placeholder="0"
+                  class="w-full pl-10 pr-5 py-5 border-2 border-slate-200 hover:border-violet-300 focus:border-violet-500 focus:ring-4 focus:ring-violet-100 rounded-2xl text-slate-800 font-extrabold text-3xl outline-none transition-all duration-200 bg-white placeholder-slate-200"
+                >
+              </div>
+              <p class="text-xs text-slate-400 mt-3 pl-1">This amount will be <strong class="text-slate-500">added</strong> to the existing credit limit — not replace it.</p>
+            </div>
+
+            <!-- ─ New Limit Preview ─ -->
+            <div *ngIf="addCreditAmount && +addCreditAmount > 0"
+              class="bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 rounded-2xl p-5 border border-violet-200 shadow-sm">
+              <div class="flex items-center gap-2 mb-4">
+                <div class="w-7 h-7 rounded-xl bg-violet-200 flex items-center justify-center">
+                  <ion-icon name="checkmark-circle-outline" class="text-violet-600"></ion-icon>
+                </div>
+                <span class="text-xs font-bold text-violet-500 uppercase tracking-widest">New Credit Limit Preview</span>
+              </div>
+
+              <div class="flex items-center justify-between gap-2">
+                <!-- Current -->
+                <div class="flex-1 bg-white rounded-xl p-3 border border-violet-100 text-center shadow-sm">
+                  <div class="text-[9px] text-slate-400 uppercase tracking-widest mb-1">Current</div>
+                  <div class="text-base font-bold text-slate-700">₹{{ (selectedAccount?.distributorCreditAmount || 0) | number:'1.0-0' }}</div>
+                </div>
+
+                <!-- Plus -->
+                <div class="flex flex-col items-center gap-1 flex-shrink-0">
+                  <div class="w-8 h-8 rounded-full bg-violet-200 flex items-center justify-center shadow-sm">
+                    <ion-icon name="add-outline" class="text-violet-600 font-bold"></ion-icon>
+                  </div>
+                </div>
+
+                <!-- Adding -->
+                <div class="flex-1 bg-violet-100 rounded-xl p-3 border border-violet-200 text-center shadow-sm">
+                  <div class="text-[9px] text-violet-400 uppercase tracking-widest mb-1">Adding</div>
+                  <div class="text-base font-bold text-violet-700">₹{{ +addCreditAmount | number:'1.0-0' }}</div>
+                </div>
+
+                <!-- Arrow -->
+                <div class="flex flex-col items-center gap-1 flex-shrink-0">
+                  <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shadow-sm">
+                    <ion-icon name="arrow-forward-outline" class="text-emerald-600"></ion-icon>
+                  </div>
+                </div>
+
+                <!-- New Limit -->
+                <div class="flex-1 bg-gradient-to-br from-violet-500 to-indigo-500 rounded-xl p-3 text-center shadow-md">
+                  <div class="text-[9px] text-violet-200 uppercase tracking-widest mb-1">New Limit</div>
+                  <div class="text-lg font-extrabold text-white">₹{{ newCreditLimit | number:'1.0-0' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ─ Info Callout ─ -->
+            <div class="flex items-start gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
+              <div class="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <ion-icon name="information-circle-outline" class="text-amber-500 text-xl"></ion-icon>
+              </div>
+              <div>
+                <p class="text-sm font-semibold text-amber-800 mb-1">Credit Limit Policy</p>
+                <p class="text-xs text-amber-700 leading-relaxed">
+                  Credit limits can only be <strong class="text-amber-900">increased</strong>. The amount you enter will be
+                  <strong class="text-amber-900">added</strong> to the existing credit limit. This change takes effect immediately upon submission.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </ion-content>
+
+        <!-- ── Sticky Footer ── -->
+        <div class="flex-shrink-0 px-6 py-4 flex items-center gap-3 border-t border-slate-100 bg-white shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+          <button (click)="isAddCreditModalOpen = false"
+            class="flex-1 flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-semibold transition-all duration-200 border border-slate-200 active:scale-95">
+            <ion-icon name="close-outline" class="text-base"></ion-icon>
+            Cancel
+          </button>
+          <button
+            (click)="submitAddCredit()"
+            [disabled]="isSubmittingCredit || !addCreditAmount || +addCreditAmount <= 0"
+            class="flex-2 flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 disabled:from-slate-300 disabled:to-slate-300 disabled:cursor-not-allowed text-white rounded-xl text-sm font-bold transition-all duration-200 shadow-lg hover:shadow-violet-200/60 hover:shadow-xl active:scale-95">
+            <ion-icon name="trending-up-outline" class="text-lg"></ion-icon>
+            {{ isSubmittingCredit ? 'Updating...' : 'Add Credit' }}
+          </button>
+        </div>
+
+      </div>
+    </ng-template>
+  </ion-modal>
+
+</ion-content>

@@ -1,0 +1,518 @@
+<!-- Order Details - Modern Interactive Timeline -->
+<ion-header class="ion-no-border">
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+    </ion-buttons>
+    <ion-title class="text-white font-bold tracking-tight text-xl">
+      <span class="text-emerald-400">Order</span> Details
+    </ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="loadOrders()" [disabled]="isLoading">
+        <ion-icon name="refresh-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="page-wrapper">
+
+    <!-- ========== HERO BANNER ========== -->
+    <div class="hero-banner">
+      <div class="hero-bg"></div>
+      <div class="hero-content">
+        <div class="hero-text">
+          <h1 class="hero-title">
+            <span class="text-light">Order</span>
+            <span class="text-white"> Tracking</span>
+          </h1>
+          <div class="hero-badge">
+            <ion-icon name="shield-checkmark-outline" class="badge-icon"></ion-icon>
+            <span>Track and manage all distributor orders</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== SEARCH + FILTERS ========== -->
+    <div class="controls-section">
+      <!-- Search Bar -->
+      <div class="search-wrapper">
+        <ion-icon name="search-outline" class="search-icon"></ion-icon>
+        <input 
+          (input)="onSearchChange($event)" 
+          [value]="searchQuery" 
+          class="search-input" 
+          placeholder="Search orders or distributors..." 
+          type="text"
+        />
+      </div>
+
+      <!-- Filter Chips -->
+      <div class="filter-chips">
+        <button 
+          *ngFor="let f of [
+            { key: 'all', label: 'All', icon: 'cube-outline' },
+            { key: 'pending', label: 'In Progress', icon: 'time-outline' },
+            { key: 'completed', label: 'Completed', icon: 'checkmark-circle' },
+            { key: 'cancelled', label: 'Cancelled', icon: 'close-circle' }
+          ]"
+          (click)="onFilterChange(f.key)" 
+          [class.active]="filterStatus === f.key"
+          [attr.data-filter]="f.key"
+          class="filter-chip"
+          [style.background]="filterStatus === f.key ? 'rgba(56,189,248,0.15)' : (isDarkMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)')"
+          [style.border]="filterStatus === f.key ? '1px solid rgba(56,189,248,0.3)' : (isDarkMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.12)')"
+          [style.color]="filterStatus === f.key ? '#38bdf8' : (isDarkMode ? '#94a3b8' : '#475569')">
+          <ion-icon [name]="f.icon"></ion-icon>
+          <span>{{ f.label }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ========== STAT CARDS ========== -->
+    <div class="stats-grid">
+      <div class="stat-card stat-total">
+        <div class="stat-icon-wrap">
+          <ion-icon name="cart-outline"></ion-icon>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Total Orders</span>
+          <span class="stat-value">{{ totalOrders }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card stat-progress">
+        <div class="stat-icon-wrap">
+          <ion-icon name="time-outline"></ion-icon>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">In Progress</span>
+          <span class="stat-value">{{ pendingOrders }}</span>
+        </div>
+      </div>
+
+      <div class="stat-card stat-done">
+        <div class="stat-icon-wrap">
+          <ion-icon name="checkmark-done-circle-outline"></ion-icon>
+        </div>
+        <div class="stat-info">
+          <span class="stat-label">Completed</span>
+          <span class="stat-value">{{ completedOrders }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== ORDER CARDS ========== -->
+    <div class="orders-list">
+
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="empty-state">
+        <div class="empty-icon-wrap">
+          <ion-spinner name="crescent" style="width:48px;height:48px;color:var(--ion-color-primary)"></ion-spinner>
+        </div>
+        <h3>Loading Orders...</h3>
+        <p>Fetching latest order tracking data</p>
+      </div>
+
+      <!-- Error State -->
+      <div *ngIf="!isLoading && loadError" class="empty-state">
+        <div class="empty-icon-wrap">
+          <ion-icon name="close-circle" style="font-size:48px;color:#ef4444"></ion-icon>
+        </div>
+        <h3>Something went wrong</h3>
+        <p>{{ loadError }}</p>
+        <button class="filter-chip active" style="margin-top:12px" (click)="loadOrders()">
+          <ion-icon name="refresh-outline"></ion-icon>
+          <span>Retry</span>
+        </button>
+      </div>
+      <ng-container *ngIf="!isLoading && !loadError">
+        <div *ngFor="let order of filteredOrders; let i = index" 
+             class="order-card"
+             [class.expanded]="order.expanded"
+             [style.animation-delay]="i * 80 + 'ms'">
+
+          <!-- Card Header (clickable) -->
+          <div class="order-header" (click)="toggleOrder(order)">
+            <div class="order-header-left">
+              <div class="order-avatar" [attr.data-status]="getOrderStatus(order)">
+                <ion-icon name="cart-outline"></ion-icon>
+              </div>
+              <div class="order-meta">
+                <h3 class="order-number">{{ order.orderNumber }}</h3>
+                <span class="order-distributor">
+                  <ion-icon name="business-outline"></ion-icon>
+                  {{ order.distributorName }}
+                </span>
+              </div>
+            </div>
+            <div class="order-header-right">
+              <span class="status-badge" [attr.data-status]="getOrderStatus(order)">
+                <span class="status-badge-full">{{ getOrderStatus(order) }}</span>
+                <span class="status-badge-short">{{ getShortStatus(order) }}</span>
+              </span>
+              <ion-icon 
+                [name]="order.expanded ? 'chevron-up-outline' : 'chevron-down-outline'" 
+                class="expand-icon">
+              </ion-icon>
+            </div>
+          </div>
+
+          <!-- Mini Info Bar -->
+          <div class="order-info-bar">
+            <div class="info-item">
+              <ion-icon name="calendar-outline"></ion-icon>
+              <span>{{ order.orderDate }}</span>
+            </div>
+            <div class="info-item">
+              <ion-icon name="cash-outline"></ion-icon>
+              <span class="amount">₹{{ order.totalAmount | number }}</span>
+            </div>            <div *ngIf="order.deliveryBy" class="info-item delivery-by-pill"
+                 [style.color]="order.deliveryBy === 'Company' ? '#10b981' : '#3b82f6'">
+              <ion-icon [name]="order.deliveryBy === 'Company' ? 'business-outline' : 'car-outline'"></ion-icon>
+              <span>{{ order.deliveryBy }}</span>
+            </div>            <div class="info-item progress-info">
+              <div class="mini-progress-bar">
+                <div class="mini-progress-fill" [style.width.%]="getProgressPercentage(order)"
+                     [attr.data-status]="getOrderStatus(order)"></div>
+              </div>
+              <span class="progress-text">{{ getProgressPercentage(order) }}%</span>
+            </div>
+          </div>
+
+          <!-- ========== TIMELINE (Expandable) ========== -->
+          <div class="timeline-container" *ngIf="order.expanded">
+            <div class="timeline">
+              <div *ngFor="let step of order.steps; let si = index; let last = last" 
+                   class="timeline-step"
+                   [attr.data-status]="step.status"
+                   [style.animation-delay]="si * 60 + 'ms'">
+
+                <!-- Step Indicator -->
+                <div class="step-indicator">
+                  <div class="step-dot" [attr.data-status]="step.status">
+                    <ion-icon [name]="getStepIcon(step)"></ion-icon>
+                  </div>
+                  <div *ngIf="!last" class="step-connector" [attr.data-status]="step.status"></div>
+                </div>
+
+                <!-- Step Content -->
+                <div class="step-content">
+                  <div class="step-header">
+                    <div class="step-label-wrap">
+                      <ion-icon [name]="getStepLabelIcon(step)" class="step-label-icon" [attr.data-status]="step.status"></ion-icon>
+                      <h4 class="step-label">{{ step.label }}</h4>
+                    </div>
+                    <span *ngIf="step.date" class="step-date">{{ step.date }}</span>
+                  </div>
+                  <!-- Hide raw remarks for on-the-way steps — driver card shows the parsed info instead -->
+                  <p *ngIf="step.remarks && !step.label.toLowerCase().includes('on the way')" class="step-remarks">{{ step.remarks }}</p>
+
+                  <!-- Delivered By Badge (shown on Order Placed step) -->
+                  <div *ngIf="step.deliveryBy"
+                       class="delivery-by-badge"
+                       [style.background]="step.deliveryBy === 'Company' ? 'rgba(16,185,129,0.1)' : 'rgba(59,130,246,0.1)'"
+                       [style.border]="step.deliveryBy === 'Company' ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(59,130,246,0.25)'">
+                    <ion-icon
+                      [name]="step.deliveryBy === 'Company' ? 'business-outline' : 'car-outline'"
+                      [style.color]="step.deliveryBy === 'Company' ? '#10b981' : '#3b82f6'"
+                      class="delivery-by-icon"></ion-icon>
+                    <div class="delivery-by-text">
+                      <span class="delivery-by-label">Delivered by</span>
+                      <span class="delivery-by-value"
+                            [style.color]="step.deliveryBy === 'Company' ? '#10b981' : '#3b82f6'">
+                        {{ step.deliveryBy }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Assigned Person Info (shown for non-OnTheWay steps) -->
+                  <div *ngIf="step.assignedPerson && !step.label.toLowerCase().includes('on the way')" class="step-person-info" [attr.data-status]="step.status">
+                    <div class="person-header">
+                      <ion-icon name="person-outline" class="person-icon"></ion-icon>
+                      <span class="person-label">Assigned To</span>
+                    </div>
+                    <div class="person-details">
+                      <div class="person-name">{{ step.assignedPerson.name }}</div>
+                      <div *ngIf="step.assignedPerson.role" class="person-role">{{ step.assignedPerson.role }}</div>
+                      <div *ngIf="step.assignedPerson.contact || step.assignedPerson.email" class="person-contact-row">
+                        <span *ngIf="step.assignedPerson.contact" class="person-contact">
+                          <ion-icon name="call-outline"></ion-icon>
+                          {{ step.assignedPerson.contact }}
+                        </span>
+                        <span *ngIf="step.assignedPerson.email" class="person-email">
+                          <ion-icon name="mail-outline"></ion-icon>
+                          {{ step.assignedPerson.email }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Driver Details Card (shown for Order is On the Way step) -->
+                  <ng-container *ngIf="step.label.toLowerCase().includes('on the way') && getOnTheWayDriverInfo(step) as driverDetails">
+                    <div class="driver-info-card" [attr.data-status]="step.status">
+                      <div class="driver-info-header">
+                        <ion-icon name="car-outline" class="driver-info-hdr-icon"></ion-icon>
+                        <span class="driver-info-hdr-label">Driver Details</span>
+                      </div>
+                      <div class="driver-info-row">
+                        <span class="driver-info-row-label">Driver's Name</span>
+                        <span class="driver-info-row-sep">-</span>
+                        <span class="driver-info-row-value">{{ driverDetails.driverName }}</span>
+                      </div>
+                      <div class="driver-info-row">
+                        <span class="driver-info-row-label">Vehicle Number</span>
+                        <span class="driver-info-row-sep">-</span>
+                        <span class="driver-info-row-value">{{ driverDetails.vehicleNumber }}</span>
+                      </div>
+                    </div>
+                    <div class="driver-call-btn-wrap">
+                      <a *ngIf="driverDetails.contact; else callDisabled"
+                         [href]="'tel:' + driverDetails.contact"
+                         class="driver-call-btn-block">
+                        <div class="driver-call-btn-icon">
+                          <ion-icon name="call-outline"></ion-icon>
+                        </div>
+                        <div class="driver-call-btn-text">
+                          <span class="driver-call-btn-label">Call Driver</span>
+                          <span class="driver-call-btn-number">{{ driverDetails.contact }}</span>
+                        </div>
+                        <ion-icon name="chevron-forward-outline" class="driver-call-btn-arrow"></ion-icon>
+                      </a>
+                      <ng-template #callDisabled>
+                        <div class="driver-call-btn-block driver-call-btn-disabled">
+                          <div class="driver-call-btn-icon">
+                            <ion-icon name="call-outline"></ion-icon>
+                          </div>
+                          <div class="driver-call-btn-text">
+                            <span class="driver-call-btn-label">Call Driver</span>
+                            <span class="driver-call-btn-number">Contact not available</span>
+                          </div>
+                        </div>
+                      </ng-template>
+                    </div>
+                  </ng-container>
+
+                  <!-- Download GDN Button -->
+                  <button *ngIf="step.label === 'GDN Generated' && step.status === 'completed'"
+                          class="step-download-btn"
+                          [disabled]="downloadingGdnOrderId === order.id"
+                          (click)="downloadGdnForOrder(order)">
+                    <ion-icon name="download-outline"></ion-icon>
+                    <span>{{ downloadingGdnOrderId === order.id ? 'Downloading...' : 'Download GDN' }}</span>
+                  </button>
+
+                  <!-- Download Proforma Invoice Button -->
+                  <button *ngIf="step.label === 'Proforma Invoice Generated' && step.status === 'completed'"
+                          class="step-download-btn"
+                          [disabled]="downloadingProformaInvoiceOrderId === order.id"
+                          (click)="onDownloadDocument(step, order)">
+                    <ion-icon name="download-outline"></ion-icon>
+                    <span>{{ downloadingProformaInvoiceOrderId === order.id ? 'Downloading...' : 'Download Proforma Invoice' }}</span>
+                  </button>
+
+                  <!-- Order Received Action Button -->
+                  <div *ngIf="step.hasAction && step.status !== 'cancelled' && step.status !== 'completed' && step.actionResponse === null && isOnTheWayCompleted(order)"
+                       class="step-action-buttons">
+                    <button class="action-btn action-yes" (click)="onOrderReceivedAction(order, 'yes')">
+                      <ion-icon name="checkmark-circle"></ion-icon>
+                      Confirm Order Received
+                    </button>
+                  </div>
+
+                  <span class="step-status-tag" [attr.data-status]="step.status">
+                    <ion-icon [name]="getStepIcon(step)" class="tag-icon"></ion-icon>
+                    {{ step.status === 'in-progress' ? 'In Progress' : (step.status | titlecase) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Download Invoice Button (shown when all steps are completed) -->
+            <div *ngIf="isOrderComplete(order)" class="px-4 pb-4 pt-2">
+              <button class="step-download-btn w-full justify-center"
+                      style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none;"
+                      [disabled]="downloadingInvoiceOrderId === order.id"
+                      (click)="downloadInvoiceForOrder(order)">
+                <ion-icon name="document-text-outline"></ion-icon>
+                <span>{{ downloadingInvoiceOrderId === order.id ? 'Downloading...' : 'Download Invoice' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="filteredOrders.length === 0" class="empty-state">
+          <div class="empty-icon-wrap">
+            <ion-icon name="cart-outline"></ion-icon>
+          </div>
+          <h3>No Orders Found</h3>
+          <p>{{ searchQuery ? 'Try adjusting your search query' : 'No orders available' }}</p>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- ========== PAGINATION ========== -->
+    <div *ngIf="!isLoading && !loadError && orders.length > 0" class="pagination">
+      <button class="page-btn" [disabled]="isFirstPage" (click)="previousPage()">
+        <ion-icon name="chevron-back-outline"></ion-icon>
+        <span>Previous</span>
+      </button>
+      <span class="page-indicator">Page {{ currentPage }}</span>
+      <button class="page-btn" [disabled]="isLastPage" (click)="nextPage()">
+        <span>Next</span>
+        <ion-icon name="chevron-forward-outline"></ion-icon>
+      </button>
+    </div>
+
+  </div>
+</ion-content>
+
+<!-- Confirm Order Received Modal -->
+<ion-modal [isOpen]="showConfirmModal" (didDismiss)="closeConfirmModal()" [backdropDismiss]="false">
+  <ng-template>
+    <div class="flex flex-col bg-slate-900 rounded-t-3xl overflow-hidden" style="max-height: 90vh;">
+
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-600 px-6 py-5 flex items-center justify-between flex-shrink-0">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center border border-white/30">
+            <ion-icon name="checkbox-outline" class="text-xl text-white"></ion-icon>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white">Confirm Order Received</h2>
+            <p *ngIf="confirmingOrder" class="text-xs text-teal-100">{{ confirmingOrder.orderNumber }}</p>
+          </div>
+        </div>
+        <button (click)="closeConfirmModal()" class="p-2 bg-white/20 rounded-xl hover:bg-white/30 transition-colors border border-white/30">
+          <ion-icon name="close-outline" class="text-white text-xl"></ion-icon>
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-4">
+
+        <!-- Order ID (read-only) -->
+        <div class="bg-slate-800 rounded-xl p-4 border border-slate-700">
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Order ID</p>
+          <p class="text-lg font-bold text-slate-100">{{ confirmingOrder ? confirmingOrder.cartId : '' }}</p>
+        </div>
+
+        <!-- Order Items -->
+        <div>
+          <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Order Items</p>
+
+          <!-- Loading -->
+          <div *ngIf="isLoadingOrderItems" class="flex items-center gap-2 py-3 text-slate-400 text-sm">
+            <ion-spinner name="dots" style="width:18px;height:18px;"></ion-spinner>
+            <span>Loading items...</span>
+          </div>
+
+          <!-- No items -->
+          <div *ngIf="!isLoadingOrderItems && confirmOrderItems.length === 0"
+               class="text-sm text-slate-400 py-2">No items found for this order.</div>
+
+          <!-- Items list -->
+          <div *ngIf="!isLoadingOrderItems && confirmOrderItems.length > 0"
+               class="space-y-3">
+            <div *ngFor="let item of confirmOrderItems; let i = index"
+                 class="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-3">
+
+              <!-- Item header -->
+              <div class="flex items-start justify-between">
+                <div>
+                  <p class="text-sm font-semibold text-slate-100">{{ item.itemName }}</p>
+                  <p class="text-xs text-slate-400 mt-0.5">SKU: {{ item.itemSku }}</p>
+                </div>
+                <span class="text-xs bg-slate-700 text-slate-300 px-2 py-1 rounded-lg font-medium">
+                  Dispatched: {{ item.dispatchedQuantity }}
+                </span>
+              </div>
+
+              <!-- Received Qty + Condition -->
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Received Qty</label>
+                  <input type="number" min="0"
+                         [(ngModel)]="item.receivedQuantity"
+                         [name]="'receivedQty_' + i"
+                         readonly
+                         class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 text-sm opacity-80 cursor-not-allowed focus:outline-none" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 mb-1">Condition</label>
+                  <select [(ngModel)]="item.condition"
+                          [name]="'condition_' + i"
+                          class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+                    <option value="GOOD">GOOD</option>
+                    <option value="DAMAGED">DAMAGED</option>
+                    <option value="PARTIAL">PARTIAL</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Item Remarks -->
+              <div>
+                <label class="block text-xs font-medium text-slate-400 mb-1">Item Remarks</label>
+                <input type="text"
+                       [(ngModel)]="item.itemRemarks"
+                       [name]="'itemRemarks_' + i"
+                       placeholder="Optional remarks for this item"
+                       class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 placeholder-slate-500" />
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Status</label>
+          <select [(ngModel)]="confirmForm.status"
+                  class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40">
+            <option value="RECEIVED_COMPLETE">RECEIVED_COMPLETE</option>
+            <option value="RECEIVED_PARTIAL">RECEIVED_PARTIAL</option>
+            <option value="NOT_RECEIVED">NOT_RECEIVED</option>
+          </select>
+        </div>
+
+        <!-- Feedback -->
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Feedback</label>
+          <input type="text"
+                 [(ngModel)]="confirmForm.feedback"
+                 placeholder="Enter your feedback"
+                 class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 placeholder-slate-500" />
+        </div>
+
+        <!-- Remarks -->
+        <div>
+          <label class="block text-sm font-medium text-slate-300 mb-1">Remarks</label>
+          <textarea [(ngModel)]="confirmForm.remarks"
+                    rows="3"
+                    placeholder="Enter any remarks"
+                    class="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/40 resize-none placeholder-slate-500"></textarea>
+        </div>
+
+      </div>
+
+      <!-- Footer Buttons -->
+      <div class="flex gap-3 p-5 border-t border-slate-800 flex-shrink-0">
+        <button (click)="closeConfirmModal()"
+                class="flex-1 py-3 bg-slate-700 text-slate-200 rounded-xl font-medium hover:bg-slate-600 transition-colors">
+          Cancel
+        </button>
+        <button (click)="submitConfirmOrder()"
+                [disabled]="isConfirming"
+                class="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+          <ion-spinner *ngIf="isConfirming" name="dots" class="w-4 h-4"></ion-spinner>
+          <ion-icon *ngIf="!isConfirming" name="checkmark-circle"></ion-icon>
+          {{ isConfirming ? 'Confirming...' : 'Confirm' }}
+        </button>
+      </div>
+
+    </div>
+  </ng-template>
+</ion-modal>
