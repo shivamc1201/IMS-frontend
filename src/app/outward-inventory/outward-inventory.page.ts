@@ -38,7 +38,8 @@ import { DistributorDto, DistributorService } from '../services/distributor.serv
 import { SalesHierarchyService } from '../services/sales-hierarchy.service';
 import { Toast } from '../services/toast';
 import { DownloadService } from '../services/download.service';
-import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { HapticService } from '../services/haptic.service';
 import { KeyboardService } from '../services/keyboard.service';
 import { User } from '../models/user.model';
@@ -1614,64 +1615,111 @@ export class OutwardInventoryPage implements OnInit {
   trackByIssuedTo(_: number, g: OutwardIssuedGroup) { return g.issuedTo; }
 
   /**
-   * Download one promotional-issue card as an Excel sheet laid out like the Promotional Slip
-   * (promotional.html): company/title block, recipient + reference, then the item table with a
-   * total row and blank receiver/deliverer signature lines. Covers every date on the card.
+   * Download one promotional-issue card as a PDF laid out like the Promotional Slip
+   * (promotional.html / GDN style): company header, title, recipient + reference fields,
+   * bordered item table with a total, remark and blank receiver/deliverer signature lines.
+   * Covers every date on the card.
    */
-  async downloadGroupExcel(g: OutwardIssuedGroup): Promise<void> {
+  async downloadGroupPdf(g: OutwardIssuedGroup): Promise<void> {
     try {
       const fmt = (iso?: string): string => {
         const d = (iso || '').slice(0, 10).split('-');
         return d.length === 3 ? `${d[2]}-${d[1]}-${d[0]}` : '';
       };
-      const dates = this.getGroupDates(g);
-      const lastDate = fmt(g.createdAt);
+      const address = '360 K, Shiv Parwati Nagar, Block Road No-2, Ward No 16, Kahalgaon, Bhagalpur Bihar-813203';
       const remarks = Array.from(new Set(g.items.map(i => (i.comments || '').trim()).filter(Boolean))).join('; ');
 
-      const rows: (string | number)[][] = [
-        ['Nectar Origin Private Limited'],
-        ['360 K, Shiv Parwati Nagar, Block Road No-2, Ward No 16, Kahalgaon, Bhagalpur Bihar-813203'],
-        ['PROMOTIONAL SLIP'],
-        [],
-        ['Issued To :', g.issuedTo, '', 'Reference No :', g.referenceNumber || ''],
-        ['Dispatch From :', '360 K, Shiv Parwati Nagar, Block Road No-2, Ward No 16, Kahalgaon, Bhagalpur Bihar-813203'],
-        ['Last Issued On :', lastDate, '', 'Total Items :', g.items.length],
-        [],
-        ['Sr No', 'Date Issued', 'Item Code', 'Item Description', 'Unit', 'Qty Issued', 'Remark']
-      ];
-
-      let sr = 1;
+      const body: (string | number)[][] = [];
       let totalQty = 0;
-      for (const d of dates) {
+      let sr = 1;
+      for (const d of this.getGroupDates(g)) {
         for (const item of d.items) {
-          rows.push([sr++, fmt(item.createdAt), item.matCode, item.matName, this.getUnitLabel(item.unit), item.quantity, item.comments || '']);
+          body.push([sr++, fmt(item.createdAt), `${item.matName}\n${item.matCode}`, this.getUnitLabel(item.unit), item.quantity]);
           totalQty += Number(item.quantity) || 0;
         }
       }
 
-      rows.push(['', '', '', 'Total', '', totalQty, '']);
-      rows.push([]);
-      rows.push(['Remark :', remarks]);
-      rows.push([]);
-      rows.push(['Name of Person Receiving :', '', '', 'Signature of Person Receiving :', '']);
-      rows.push(['Name of Person Delivering :', '', '', 'Signature of Person Delivering :', '']);
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageW = doc.internal.pageSize.getWidth();
+      const left = 10;
+      const right = pageW - 10;
 
-      const ws = XLSX.utils.aoa_to_sheet(rows);
-      ws['!cols'] = [{ wch: 28 }, { wch: 18 }, { wch: 18 }, { wch: 38 }, { wch: 30 }, { wch: 12 }, { wch: 30 }];
-      ws['!merges'] = [0, 1, 2].map(r => ({ s: { r, c: 0 }, e: { r, c: 6 } }));
+      doc.setTextColor(0);
+      doc.setFont('helvetica', 'bolditalic');
+      doc.setFontSize(16);
+      doc.text('Nectar Origin Private Limited', pageW / 2, 14, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(address, pageW / 2, 20, { align: 'center', maxWidth: 140 });
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text('CHALLAN / ACCOUNT /', right, 14, { align: 'right' });
+      doc.text('SITE / VENDOR', right, 18, { align: 'right' });
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Promotional Slip');
-      const buffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      doc.setFontSize(13);
+      const title = 'PROMOTIONAL SLIP';
+      doc.text(title, pageW / 2, 32, { align: 'center' });
+      const tw = doc.getTextWidth(title);
+      doc.line(pageW / 2 - tw / 2, 33.2, pageW / 2 + tw / 2, 33.2);
+
+      const field = (label: string, value: string, x: number, y: number, maxWidth: number) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text(label, x, y);
+        const lw = doc.getTextWidth(label) + 2;
+        doc.setFont('helvetica', 'normal');
+        doc.text((value || '').toUpperCase(), x + lw, y, { maxWidth: maxWidth - lw });
+        doc.setLineDashPattern([0.4, 0.8], 0);
+        doc.line(x + lw, y + 1.5, x + maxWidth, y + 1.5);
+        doc.setLineDashPattern([], 0);
+      };
+
+      const half = (right - left) / 2;
+      field('Reference No :', g.referenceNumber || '', left, 42, half - 4);
+      field('Date :', fmt(g.createdAt), left + half + 4, 42, half - 4);
+      field('Issued To :', g.issuedTo, left, 50, right - left);
+      field('Dispatch From :', address, left, 58, right - left);
+
+      autoTable(doc, {
+        startY: 64,
+        head: [['Sr No', 'Date Issued', 'Item Description', 'Unit', 'No of Units Issued']],
+        body,
+        foot: [['', '', 'Total', '', totalQty]],
+        theme: 'grid',
+        styles: { textColor: 0, lineColor: 0, lineWidth: 0.2, fontSize: 9, cellPadding: 2.5, valign: 'middle' },
+        headStyles: { fillColor: [249, 249, 249], textColor: 0, fontStyle: 'bold', halign: 'center' },
+        footStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 16 },
+          1: { halign: 'center', cellWidth: 28 },
+          2: { halign: 'left' },
+          3: { halign: 'center', cellWidth: 24 },
+          4: { halign: 'center', cellWidth: 36 }
+        },
+        margin: { left, right: 10, bottom: 50 }
+      });
+
+      let y = ((doc as any).lastAutoTable?.finalY ?? 70) + 8;
+      // keep the remark + signature block together on one page
+      if (y > doc.internal.pageSize.getHeight() - 50) {
+        doc.addPage();
+        y = 20;
+      }
+      field('Remark :', remarks, left, y, right - left);
+      y += 18;
+      field('Name of Person Receiving :', '', left, y, half - 4);
+      field('Signature of Person Receiving :', '', left + half + 4, y, half - 4);
+      y += 12;
+      field('Name of Person Delivering :', '', left, y, half - 4);
+      field('Signature of Person Delivering :', '', left + half + 4, y, half - 4);
 
       const safe = (s: string) => s.replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      const name = `Promotional-Slip-${safe(g.issuedTo) || 'issue'}${g.referenceNumber ? '-' + safe(g.referenceNumber) : ''}-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      await this.downloadService.downloadBlob(blob, name);
-      this.toast.present('Excel downloaded successfully', 'success');
+      const name = `Promotional-Slip-${safe(g.issuedTo) || 'issue'}${g.referenceNumber ? '-' + safe(g.referenceNumber) : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      await this.downloadService.downloadBlob(doc.output('blob'), name);
+      this.toast.present('PDF downloaded successfully', 'success');
     } catch (err) {
-      console.error('Promotional Excel export failed', err);
-      this.toast.present('Failed to export Excel', 'danger');
+      console.error('Promotional PDF export failed', err);
+      this.toast.present('Failed to export PDF', 'danger');
     }
   }
 }
