@@ -1,7 +1,8 @@
 ﻿import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, NgIf, NgFor, NgClass, DatePipe } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
+import { firstValueFrom, forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { Auth } from '../services/auth';
 import { environment } from '../../environments/environment';
 import {
@@ -1614,6 +1615,79 @@ export class OutwardInventoryPage implements OnInit {
 
   trackByIssuedTo(_: number, g: OutwardIssuedGroup) { return g.issuedTo; }
 
+  /** Cached recipient lists (loaded on first PDF download) used to look up a recipient's address. */
+  private recipientDirectory?: { users: any[]; distributors: any[]; salespersons: any[] };
+
+  private async loadRecipientDirectory(): Promise<{ users: any[]; distributors: any[]; salespersons: any[] }> {
+    if (this.recipientDirectory) return this.recipientDirectory;
+
+    const toList = (resp: any): any[] =>
+      Array.isArray(resp) ? resp
+        : Array.isArray(resp?.data) ? resp.data
+          : Array.isArray(resp?.data?.content) ? resp.data.content
+            : [];
+
+    const [users, distributors, salespersons] = await Promise.all([
+      firstValueFrom(this.userService.getAllUsers().pipe(catchError(() => of([])))),
+      firstValueFrom(this.distributorService.getAllDistributors().pipe(catchError(() => of([])))),
+      firstValueFrom(this.salesHierarchyService.getAllSalesPersons().pipe(catchError(() => of([]))))
+    ]);
+
+    this.recipientDirectory = { users: toList(users), distributors: toList(distributors), salespersons: toList(salespersons) };
+    return this.recipientDirectory;
+  }
+
+  /**
+   * Shipping address of whoever received the items. The record only stores the recipient's id
+   * (referenceNumber) and name (issuedTo), not the recipient type, so an address is used only when
+   * BOTH the id and the name match one employee, distributor or salesperson. Otherwise blank.
+   */
+  private async resolveShippingAddress(g: OutwardIssuedGroup): Promise<string> {
+    const refId = Number(g.referenceNumber);
+    const name = (g.issuedTo || '').trim().toLowerCase();
+    if (!name || !Number.isFinite(refId)) return '';
+
+    try {
+      const dir = await this.loadRecipientDirectory();
+      const same = (v: unknown) => String(v ?? '').split(' - ')[0].trim().toLowerCase() === name;
+      const join = (...parts: unknown[]) => parts.map(p => String(p ?? '').trim()).filter(Boolean).join(', ');
+
+      const distributor = dir.distributors.find(d => Number(d?.id) === refId && (same(d.firmName) || same(d.name)));
+      if (distributor) return join(distributor.address, distributor.district, distributor.state, distributor.pinCode);
+
+      const salesperson = dir.salespersons.find(p => {
+        const full = p?.name || `${p?.firstName || ''} ${p?.lastName || ''}`;
+        return Number(p?.id) === refId && same(full);
+      });
+      if (salesperson) return join(salesperson.completeAddress, salesperson.city, salesperson.country, salesperson.zip);
+
+      const user = dir.users.find(u => {
+        const full = `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u?.username;
+        return Number(u?.id) === refId && same(full);
+      });
+      if (user) return join(user.completeAddress, user.city, user.country, user.zip);
+    } catch (err) {
+      console.warn('Could not look up recipient address', err);
+    }
+    return '';
+  }
+
+  /** Single promo cards that can print a slip: items given out (not returns). Legacy records have no recipient. */
+  canDownloadRecordPdf(r: OutwardRecord): boolean {
+    return r.itemType === 'promotional_items' && r.section === 'outward_giving';
+  }
+
+  /** Download the Promotional Slip for a single outward-giving record (same layout as a recipient card). */
+  downloadRecordPdf(r: OutwardRecord): Promise<void> {
+    return this.downloadGroupPdf({
+      issuedTo: r.issuedTo || '',
+      referenceNumber: r.referenceNumber,
+      createdAt: r.createdAt,
+      comments: r.comments,
+      items: [r]
+    });
+  }
+
   /** Loads an image URL and returns it as a PNG data URI with its pixel size (null if it fails to load). */
   private loadImageAsDataUrl(url: string): Promise<{ data: string; w: number; h: number } | null> {
     return new Promise(resolve => {
@@ -1649,7 +1723,10 @@ export class OutwardInventoryPage implements OnInit {
       };
       const address = '360 K, Shiv Parwati Nagar, Block Road No-2, Ward No 16, Kahalgaon, Bhagalpur Bihar-813203';
       const remarks = Array.from(new Set(g.items.map(i => (i.comments || '').trim()).filter(Boolean))).join('; ');
-      const logo = await this.loadImageAsDataUrl('assets/images/nectar-logo.png');
+      const [logo, shippingAddress] = await Promise.all([
+        this.loadImageAsDataUrl('assets/images/nectar-logo.png'),
+        this.resolveShippingAddress(g)
+      ]);
 
       const body: (string | number)[][] = [];
       const units = new Set<string>();
@@ -1701,16 +1778,24 @@ export class OutwardInventoryPage implements OnInit {
         doc.text(label, x, y);
         const lw = doc.getTextWidth(label) + 2;
         doc.setFont('helvetica', 'normal');
-        doc.text((value || '').toUpperCase(), x + lw, y, { maxWidth: w - lw });
+        // shrink long values (e.g. full addresses) to stay on the one line, down to 6.5pt
+        const text = (value || '').toUpperCase();
+        let size = 9;
+        while (size > 6.5 && doc.getTextWidth(text) > w - lw) {
+          size -= 0.5;
+          doc.setFontSize(size);
+        }
+        doc.text(text, x + lw, y, { maxWidth: w - lw });
+        doc.setFontSize(9);
         doc.setLineDashPattern([0.4, 0.8], 0);
         doc.line(x + lw, y + 1.5, x + w, y + 1.5);
         doc.setLineDashPattern([], 0);
       };
 
-      field('Delivery Note No :', g.referenceNumber || '', left, 48, half - 4);
+      field('Delivery Note No :', g.issuedTo || g.referenceNumber || '', left, 48, half - 4);
       field('Date :', fmt(g.createdAt), left + half + 4, 48, half - 4);
       field('Dispatch From :', address, left, 56, width);
-      field('Shipping Address :', '', left, 64, width);
+      field('Shipping Address :', shippingAddress, left, 64, width);
 
       // Transport box
       const boxY = 70;
@@ -1735,7 +1820,7 @@ export class OutwardInventoryPage implements OnInit {
       cell('Transport Name :', '', left, boxY + rowH, third);
       cell('Driver Name :', '', left + third, boxY + rowH, third);
       cell('Mobile No :', '', left + 2 * third, boxY + rowH, third);
-      cell('Total No. of Package :', '', left, boxY + 2 * rowH, half);
+      cell('Total No. of Package :', String(totalQty), left, boxY + 2 * rowH, half);
       cell('Total Weight :', '', left + half, boxY + 2 * rowH, half);
 
       // Item table, inside a tall bordered box like the template
@@ -1803,7 +1888,8 @@ export class OutwardInventoryPage implements OnInit {
       field('Signature of Person Delivering :', '', left + half + 4, y, half - 4);
 
       const safe = (s: string) => s.replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      const name = `Promotional-Slip-${safe(g.issuedTo) || 'issue'}${g.referenceNumber ? '-' + safe(g.referenceNumber) : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      const who = safe(g.issuedTo) || (g.items.length === 1 ? `record-${g.items[0].id}` : 'issue');
+      const name = `Promotional-Slip-${who}${g.referenceNumber ? '-' + safe(g.referenceNumber) : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
       await this.downloadService.downloadBlob(doc.output('blob'), name);
       this.toast.present('PDF downloaded successfully', 'success');
     } catch (err) {
