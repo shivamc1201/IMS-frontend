@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { PaymentSubmissionPayload } from '../../services/accountsLedger.service';
 
 export interface PaymentRequest {
   distributorId: string;
@@ -47,33 +48,40 @@ export interface PendingPayment {
 })
 export class PaymentService {
   private readonly apiUrl: string;
+  private readonly submitUrl: string;
   private readonly ledgerPaymentsUrl: string;
   private readonly pendingPaymentsUrl: string;
 
   constructor(private readonly http: HttpClient) {
     this.apiUrl = `${environment.apiUrl}/accounts/update-balance-with-salesperson`;
+    this.submitUrl = `${environment.apiUrl}/accounts/update-balance`;
     this.ledgerPaymentsUrl = `${environment.apiUrl}/accounts/ledger-updated-payments`;
     this.pendingPaymentsUrl = `${environment.apiUrl}/accounts/pending-payments`;
   }
 
+  /**
+   * POST /api/accounts/update-balance with a JSON body (PaymentSubmissionRequest).
+   * The backend rejects query-param / empty-body submissions with 400.
+   */
   submitPayment(paymentData: PaymentRequest, salespersonId: number): Observable<PaymentResponse> {
-    const distributorId = parseInt(paymentData.distributorId);
-    const transactionType = paymentData.balanceType === 'credit' ? 'CREDIT' : 'DEBIT';
-    const description = paymentData.description || 'Payment';
+    const mode = (paymentData.paymentMethod || '').toUpperCase() as PaymentSubmissionPayload['paymentMode'];
 
-    const params: any = {
-      distributorId: distributorId.toString(),
-      salespersonId: salespersonId.toString(),
-      amount: paymentData.amount.toString(),
-      transactionType: transactionType,
-      description: description
+    const payload: PaymentSubmissionPayload = {
+      distributorId: parseInt(paymentData.distributorId, 10),
+      salespersonId,
+      amount: paymentData.amount,
+      transactionType: paymentData.balanceType === 'credit' ? 'CREDIT' : 'DEBIT',
+      description: (paymentData.description || 'Payment').trim(),
+      date: paymentData.date || '',
+      paymentMode: mode,
+      ...(mode === 'RTGS' || mode === 'NEFT' ? { utrNumber: (paymentData.utrNumber || '').trim() } : {}),
+      ...(mode === 'CHEQUE'
+        ? { chequeNumber: (paymentData.chequeNumber || '').trim(), bankName: (paymentData.bankName || '').trim() }
+        : {}),
+      ...(mode === 'IMPS' || mode === 'UPI' ? { transactionNumber: (paymentData.transactionNumber || '').trim() } : {}),
     };
 
-    if (paymentData.date) {
-      params['date'] = paymentData.date;
-    }
-
-    return this.http.post<PaymentResponse>(this.apiUrl, {}, { params });
+    return this.http.post<PaymentResponse>(this.submitUrl, payload);
   }
 
   getPaymentStatus(paymentId: string): Observable<PaymentResponse> {

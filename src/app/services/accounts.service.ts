@@ -40,6 +40,16 @@ export class AccountsService {
   }
 
   /**
+   * GET /api/accounts/payment-received-logs
+   * Returns all payment received logs (all parties, all payment modes).
+   */
+  getPaymentReceivedLogs(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/payment-received-logs`, {
+      headers: this.getAuthHeaders(),
+    });
+  }
+
+  /**
    * POST /api/accounts/payment-approval/{paymentId}?approvedBy={userId}
    */
   approvePayment(paymentId: number, approvedBy: number): Observable<any> {

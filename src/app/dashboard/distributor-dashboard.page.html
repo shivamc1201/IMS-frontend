@@ -2698,7 +2698,7 @@
 
             <!-- Transaction Type -->
             <div>
-              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">TRANSACTION TYPE <span style="color: #334155; font-weight: 500;">(optional)</span></p>
+              <p class="text-[10px] font-bold tracking-widest mb-2" style="color: #475569;">TRANSACTION TYPE *</p>
               <div class="grid grid-cols-5 gap-2">
                 <button type="button" *ngFor="let pm of paymentMethods"
                   (click)="paymentForm.paymentMethod === pm.value ? paymentForm.paymentMethod = '' : paymentForm.paymentMethod = $any(pm.value)"

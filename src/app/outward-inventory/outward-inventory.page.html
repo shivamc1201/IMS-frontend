@@ -235,11 +235,18 @@
                 </div>
 
                 <!-- Footer: timestamp -->
-                <div class="flex items-center border-t border-slate-100 px-4 py-2.5 text-xs">
+                <div class="flex items-center justify-between gap-2 border-t border-slate-100 px-4 py-2.5 text-xs">
                   <span class="flex items-center gap-1.5 font-medium text-slate-500">
                     <ion-icon name="time-outline" class="text-sm"></ion-icon>
                     {{ g.createdAt | date:'dd MMM yyyy · h:mm a' }}
                   </span>
+                  <button type="button"
+                    class="inv-card__more flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
+                    title="Download as PDF"
+                    (click)="downloadGroupPdf(g)">
+                    <ion-icon name="download-outline" class="text-sm"></ion-icon>
+                    PDF
+                  </button>
                 </div>
               </article>
 
@@ -326,9 +333,19 @@
                     <ion-icon name="time-outline" class="text-sm"></ion-icon>
                     {{ r.createdAt | date:'dd MMM yyyy · h:mm a' }}
                   </span>
-                  <span class="inv-card__cta flex items-center gap-0.5 font-semibold text-slate-400">
-                    View details
-                    <ion-icon name="chevron-forward-outline" class="text-sm"></ion-icon>
+                  <span class="flex items-center gap-3">
+                    <button *ngIf="canDownloadRecordPdf(r)" type="button"
+                      class="inv-card__more flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
+                      title="Download as PDF"
+                      (click)="$event.stopPropagation(); downloadRecordPdf(r)"
+                      (keydown.enter)="$event.stopPropagation()">
+                      <ion-icon name="download-outline" class="text-sm"></ion-icon>
+                      PDF
+                    </button>
+                    <span class="inv-card__cta flex items-center gap-0.5 font-semibold text-slate-400">
+                      View details
+                      <ion-icon name="chevron-forward-outline" class="text-sm"></ion-icon>
+                    </span>
                   </span>
                 </div>
               </article>

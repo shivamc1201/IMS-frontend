@@ -1,7 +1,8 @@
 ﻿import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule, NgIf, NgFor, NgClass, DatePipe } from '@angular/common';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { forkJoin } from 'rxjs';
+import { firstValueFrom, forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { Auth } from '../services/auth';
 import { environment } from '../../environments/environment';
 import {
@@ -37,6 +38,9 @@ import { UserService } from '../services/user.service';
 import { DistributorDto, DistributorService } from '../services/distributor.service';
 import { SalesHierarchyService } from '../services/sales-hierarchy.service';
 import { Toast } from '../services/toast';
+import { DownloadService } from '../services/download.service';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { HapticService } from '../services/haptic.service';
 import { KeyboardService } from '../services/keyboard.service';
 import { User } from '../models/user.model';
@@ -220,6 +224,7 @@ export class OutwardInventoryPage implements OnInit {
   private distributorService = inject(DistributorService);
   private salesHierarchyService = inject(SalesHierarchyService);
   private toast = inject(Toast);
+  private downloadService = inject(DownloadService);
   private http = inject(HttpClient);
   private auth = inject(Auth);
   private haptic = inject(HapticService);
@@ -1609,6 +1614,289 @@ export class OutwardInventoryPage implements OnInit {
   }
 
   trackByIssuedTo(_: number, g: OutwardIssuedGroup) { return g.issuedTo; }
+
+  /** Cached recipient lists (loaded on first PDF download) used to look up a recipient's address. */
+  private recipientDirectory?: { users: any[]; distributors: any[]; salespersons: any[] };
+
+  private async loadRecipientDirectory(): Promise<{ users: any[]; distributors: any[]; salespersons: any[] }> {
+    if (this.recipientDirectory) return this.recipientDirectory;
+
+    const toList = (resp: any): any[] =>
+      Array.isArray(resp) ? resp
+        : Array.isArray(resp?.data) ? resp.data
+          : Array.isArray(resp?.data?.content) ? resp.data.content
+            : [];
+
+    const [users, distributors, salespersons] = await Promise.all([
+      firstValueFrom(this.userService.getAllUsers().pipe(catchError(() => of([])))),
+      firstValueFrom(this.distributorService.getAllDistributors().pipe(catchError(() => of([])))),
+      firstValueFrom(this.salesHierarchyService.getAllSalesPersons().pipe(catchError(() => of([]))))
+    ]);
+
+    this.recipientDirectory = { users: toList(users), distributors: toList(distributors), salespersons: toList(salespersons) };
+    return this.recipientDirectory;
+  }
+
+  /**
+   * Shipping address of whoever received the items. The record only stores the recipient's id
+   * (referenceNumber) and name (issuedTo), not the recipient type, so an address is used only when
+   * BOTH the id and the name match one employee, distributor or salesperson. Otherwise blank.
+   */
+  private async resolveShippingAddress(g: OutwardIssuedGroup): Promise<string> {
+    const refId = Number(g.referenceNumber);
+    const name = (g.issuedTo || '').trim().toLowerCase();
+    if (!name || !Number.isFinite(refId)) return '';
+
+    try {
+      const dir = await this.loadRecipientDirectory();
+      const same = (v: unknown) => String(v ?? '').split(' - ')[0].trim().toLowerCase() === name;
+      const join = (...parts: unknown[]) => parts.map(p => String(p ?? '').trim()).filter(Boolean).join(', ');
+
+      const distributor = dir.distributors.find(d => Number(d?.id) === refId && (same(d.firmName) || same(d.name)));
+      if (distributor) return join(distributor.address, distributor.district, distributor.state, distributor.pinCode);
+
+      const salesperson = dir.salespersons.find(p => {
+        const full = p?.name || `${p?.firstName || ''} ${p?.lastName || ''}`;
+        return Number(p?.id) === refId && same(full);
+      });
+      if (salesperson) return join(salesperson.completeAddress, salesperson.city, salesperson.country, salesperson.zip);
+
+      const user = dir.users.find(u => {
+        const full = `${u?.firstName || ''} ${u?.lastName || ''}`.trim() || u?.username;
+        return Number(u?.id) === refId && same(full);
+      });
+      if (user) return join(user.completeAddress, user.city, user.country, user.zip);
+    } catch (err) {
+      console.warn('Could not look up recipient address', err);
+    }
+    return '';
+  }
+
+  /** Single promo cards that can print a slip: items given out (not returns). Legacy records have no recipient. */
+  canDownloadRecordPdf(r: OutwardRecord): boolean {
+    return r.itemType === 'promotional_items' && r.section === 'outward_giving';
+  }
+
+  /** Download the Promotional Slip for a single outward-giving record (same layout as a recipient card). */
+  downloadRecordPdf(r: OutwardRecord): Promise<void> {
+    return this.downloadGroupPdf({
+      issuedTo: r.issuedTo || '',
+      referenceNumber: r.referenceNumber,
+      createdAt: r.createdAt,
+      comments: r.comments,
+      items: [r]
+    });
+  }
+
+  /** Loads an image URL and returns it as a PNG data URI with its pixel size (null if it fails to load). */
+  private loadImageAsDataUrl(url: string): Promise<{ data: string; w: number; h: number } | null> {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          canvas.getContext('2d')!.drawImage(img, 0, 0);
+          resolve({ data: canvas.toDataURL('image/png'), w: img.naturalWidth, h: img.naturalHeight });
+        } catch {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = url;
+    });
+  }
+
+  /**
+   * Download one promotional-issue card as a PDF laid out like the Promotional Slip
+   * (promotional.html / GDN): logo + address header, title, delivery note no / date, dispatch
+   * and shipping address, transport box, bordered item table, remark and signature lines.
+   * Covers every date on the card. Transport details are not captured for promo issues, so
+   * Delivery Method is "By company" and the other transport boxes are left blank to fill by hand.
+   */
+  async downloadGroupPdf(g: OutwardIssuedGroup): Promise<void> {
+    try {
+      const fmt = (iso?: string): string => {
+        const d = (iso || '').slice(0, 10).split('-');
+        return d.length === 3 ? `${d[2]}-${d[1]}-${d[0]}` : '';
+      };
+      const address = '360 K, Shiv Parwati Nagar, Block Road No-2, Ward No 16, Kahalgaon, Bhagalpur Bihar-813203';
+      const remarks = Array.from(new Set(g.items.map(i => (i.comments || '').trim()).filter(Boolean))).join('; ');
+      const [logo, shippingAddress] = await Promise.all([
+        this.loadImageAsDataUrl('assets/images/nectar-logo.png'),
+        this.resolveShippingAddress(g)
+      ]);
+
+      const body: (string | number)[][] = [];
+      const units = new Set<string>();
+      let totalQty = 0;
+      let sr = 1;
+      for (const d of this.getGroupDates(g)) {
+        for (const item of d.items) {
+          const unit = this.getUnitLabel(item.unit);
+          units.add(unit);
+          body.push([sr++, unit, `${item.matName}\n${item.matCode}  |  Issued: ${fmt(item.createdAt)}`, item.quantity]);
+          totalQty += Number(item.quantity) || 0;
+        }
+      }
+      // A grand total only makes sense when every row uses the same unit.
+      const hasTotal = units.size === 1;
+      if (hasTotal) body.push(['', '', 'Total', totalQty]);
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      const pageW = doc.internal.pageSize.getWidth();
+      const left = 10;
+      const right = pageW - 10;
+      const width = right - left;
+      const half = width / 2;
+
+      // Header
+      doc.setTextColor(0);
+      if (logo) {
+        const lw = 22;
+        doc.addImage(logo.data, 'PNG', left, 8, lw, (lw * logo.h) / logo.w);
+      }
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(address, pageW / 2, 13, { align: 'center', maxWidth: 120 });
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.text('CHALLAN / ACCOUNT /', right, 12, { align: 'right' });
+      doc.text('SITE / VENDOR', right, 16, { align: 'right' });
+
+      // Title
+      doc.setFontSize(13);
+      const title = 'PROMOTIONAL SLIP';
+      doc.text(title, pageW / 2, 38, { align: 'center' });
+      const tw = doc.getTextWidth(title);
+      doc.line(pageW / 2 - tw / 2, 39.2, pageW / 2 + tw / 2, 39.2);
+
+      const field = (label: string, value: string, x: number, y: number, w: number) => {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text(label, x, y);
+        const lw = doc.getTextWidth(label) + 2;
+        doc.setFont('helvetica', 'normal');
+        // shrink long values (e.g. full addresses) to stay on the one line, down to 6.5pt
+        const text = (value || '').toUpperCase();
+        let size = 9;
+        while (size > 6.5 && doc.getTextWidth(text) > w - lw) {
+          size -= 0.5;
+          doc.setFontSize(size);
+        }
+        doc.text(text, x + lw, y, { maxWidth: w - lw });
+        doc.setFontSize(9);
+        doc.setLineDashPattern([0.4, 0.8], 0);
+        doc.line(x + lw, y + 1.5, x + w, y + 1.5);
+        doc.setLineDashPattern([], 0);
+      };
+
+      field('Delivery Note No :', g.issuedTo || g.referenceNumber || '', left, 48, half - 4);
+      field('Date :', fmt(g.createdAt), left + half + 4, 48, half - 4);
+      field('Dispatch From :', address, left, 56, width);
+      field('Shipping Address :', shippingAddress, left, 64, width);
+
+      // Transport box
+      const boxY = 70;
+      const rowH = 8;
+      const cell = (label: string, value: string, x: number, y: number, w: number) => {
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.2);
+        doc.rect(x, y, w, rowH);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(68);
+        doc.text(label, x + 2, y + 5);
+        const lw = doc.getTextWidth(label) + 3;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.setTextColor(0);
+        doc.text(value, x + 2 + lw, y + 5, { maxWidth: w - lw - 4 });
+      };
+      cell('Delivery Method :', 'By company', left, boxY, half);
+      cell('Vehicle No :', '', left + half, boxY, half);
+      const third = width / 3;
+      cell('Transport Name :', '', left, boxY + rowH, third);
+      cell('Driver Name :', '', left + third, boxY + rowH, third);
+      cell('Mobile No :', '', left + 2 * third, boxY + rowH, third);
+      cell('Total No. of Package :', String(totalQty), left, boxY + 2 * rowH, half);
+      cell('Total Weight :', '', left + half, boxY + 2 * rowH, half);
+
+      // Item table, inside a tall bordered box like the template
+      const tableY = boxY + 3 * rowH + 4;
+      const colW = [16, 34, 100, 40];
+      autoTable(doc, {
+        startY: tableY,
+        head: [['SrNo', 'Unit Type\n(Caton,Place etc)', 'Item Description', 'No of Units Dispatch']],
+        body,
+        theme: 'grid',
+        rowPageBreak: 'avoid',
+        styles: { textColor: 0, lineColor: 0, lineWidth: 0.2, fontSize: 9, cellPadding: 2.5, valign: 'middle' },
+        headStyles: { fillColor: [249, 249, 249], textColor: 0, fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: colW[0] },
+          1: { halign: 'center', cellWidth: colW[1] },
+          2: { halign: 'left', cellWidth: colW[2] },
+          3: { halign: 'center', cellWidth: colW[3] }
+        },
+        didParseCell: data => {
+          if (data.section === 'body' && hasTotal && data.row.index === body.length - 1) {
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
+        margin: { left, right: 10, top: 15, bottom: 15 }
+      });
+
+      let y = (doc as any).lastAutoTable?.finalY ?? tableY + 10;
+      const pageH = doc.internal.pageSize.getHeight();
+      // Single-page slip: stretch the item box down to a fixed height so the vertical column
+      // lines run through the empty area, like the template.
+      if (doc.getNumberOfPages() === 1) {
+        const boxBottom = Math.max(y, tableY + 130);
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.2);
+        let x = left;
+        for (const w of colW) {
+          doc.line(x, y, x, boxBottom);
+          x += w;
+        }
+        doc.line(right, y, right, boxBottom);
+        doc.line(left, boxBottom, right, boxBottom);
+        y = boxBottom;
+      }
+
+      // Remark + signatures must stay together on one page
+      if (y + 45 > pageH - 10) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setDrawColor(0);
+      doc.setLineWidth(0.2);
+      doc.rect(left, y, width, 10);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.setTextColor(0);
+      doc.text('Remark :', left + 3, y + 6);
+      doc.setFont('helvetica', 'normal');
+      doc.text(remarks, left + 3 + doc.getTextWidth('Remark :') + 3, y + 6, { maxWidth: width - 30 });
+      y += 22;
+      field('Name of Person Receiving :', '', left, y, half - 4);
+      field('Signature of Person Receiving :', '', left + half + 4, y, half - 4);
+      y += 12;
+      field('Name of Person Delivering :', '', left, y, half - 4);
+      field('Signature of Person Delivering :', '', left + half + 4, y, half - 4);
+
+      const safe = (s: string) => s.replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const who = safe(g.issuedTo) || (g.items.length === 1 ? `record-${g.items[0].id}` : 'issue');
+      const name = `Promotional-Slip-${who}${g.referenceNumber ? '-' + safe(g.referenceNumber) : ''}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      await this.downloadService.downloadBlob(doc.output('blob'), name);
+      this.toast.present('PDF downloaded successfully', 'success');
+    } catch (err) {
+      console.error('Promotional PDF export failed', err);
+      this.toast.present('Failed to export PDF', 'danger');
+    }
+  }
 }
 
 
