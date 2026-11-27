@@ -1475,9 +1475,10 @@
                 <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 ml-1">Material Code</label>
                 <div class="relative bg-white rounded-xl border border-slate-200 hover:border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
                   <ion-item lines="none" class="bg-transparent rounded-xl" style="--background: transparent; --padding-start: 0; --inner-padding-end: 0;">
-                    <ion-input type="text" formControlName="materialCode" placeholder="e.g. MAT-001" class="px-4 py-3 text-slate-900 font-mono font-semibold"></ion-input>
+                    <ion-input type="text" formControlName="materialCode" [readonly]="isStockItem(selectedItem?.category)" placeholder="e.g. MAT-001" class="px-4 py-3 text-slate-900 font-mono font-semibold"></ion-input>
                   </ion-item>
                 </div>
+                <p *ngIf="isStockItem(selectedItem?.category)" class="text-xs text-slate-400 mt-1 ml-1">The item code cannot be changed here.</p>
               </div>
 
               <div class="group">

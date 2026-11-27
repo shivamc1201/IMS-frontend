@@ -289,7 +289,7 @@ export class SalespersonOnboardingPage implements OnInit {
       bloodGroup:         person.bloodGroup ?? '',
       status:             person.status ?? 'ACTIVE',
       username:           person.username ?? '',
-      password:           person.password ?? '',
+      password:           '', // the API never returns passwords; blank keeps the current one
       zone:               person.zone ?? '',
       region:             person.region ?? 'BIHAR',
       managerDesignation: managerDesignation,

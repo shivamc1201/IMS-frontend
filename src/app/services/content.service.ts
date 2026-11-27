@@ -75,14 +75,9 @@ export class ContentService {
     });
   }
 
-  updateOffer(id: number, data: Partial<Offer>, image?: File): Observable<Offer> {
-    const formData = new FormData();
-    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-    formData.append('data', blob);
-    if (image) {
-      formData.append('image', image);
-    }
-    return this.http.put<Offer>(`${this.offersUrl}/${id}`, formData, {
+  // The update route takes JSON and cannot change the image
+  updateOffer(id: number, data: Partial<Offer>): Observable<Offer> {
+    return this.http.put<Offer>(`${this.offersUrl}/${id}`, data, {
       headers: this.getHeaders(),
     });
   }
@@ -113,14 +108,9 @@ export class ContentService {
     });
   }
 
-  updateNotification(id: number, data: Partial<Notification>, image?: File): Observable<Notification> {
-    const formData = new FormData();
-    const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-    formData.append('data', blob);
-    if (image) {
-      formData.append('image', image);
-    }
-    return this.http.put<Notification>(`${this.notificationsUrl}/${id}`, formData, {
+  // The update route takes JSON and cannot change the image
+  updateNotification(id: number, data: Partial<Notification>): Observable<Notification> {
+    return this.http.put<Notification>(`${this.notificationsUrl}/${id}`, data, {
       headers: this.getHeaders(),
     });
   }

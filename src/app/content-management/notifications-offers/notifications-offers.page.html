@@ -339,8 +339,9 @@
               class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all">
           </div>
 
-          <!-- Image upload -->
-          <div>
+          <!-- Image upload (new items only: the update API cannot change an image) -->
+          <p *ngIf="isEditingOffer" class="text-xs text-slate-400">The image cannot be changed after creation.</p>
+          <div *ngIf="!isEditingOffer">
             <label class="block text-xs font-bold text-slate-600 mb-1.5">Offer Image</label>
 
             <div *ngIf="offerPreview" class="relative mb-2 rounded-xl overflow-hidden border border-slate-200 shadow-sm">
@@ -441,8 +442,9 @@
               class="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-800 focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 outline-none transition-all">
           </div>
 
-          <!-- Image upload -->
-          <div>
+          <!-- Image upload (new items only: the update API cannot change an image) -->
+          <p *ngIf="isEditingNotif" class="text-xs text-slate-400">The image cannot be changed after creation.</p>
+          <div *ngIf="!isEditingNotif">
             <label class="block text-xs font-bold text-slate-600 mb-1.5">Image <span class="text-slate-400 font-medium">(optional)</span></label>
 
             <div *ngIf="notifPreview" class="relative mb-2 rounded-xl overflow-hidden border border-slate-200 shadow-sm">

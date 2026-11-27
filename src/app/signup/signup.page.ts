@@ -102,7 +102,7 @@ export class SignupPage implements OnInit {
         zone: [''],
         region: [''],
 
-        password: ['', [Validators.required, Validators.minLength(6)]],
+        password: ['', [Validators.required, Validators.minLength(8)]], // backend minimum
         confirmPassword: ['', [Validators.required]],
       },
       { validators: this.passwordsMatchValidator }
@@ -191,7 +191,7 @@ export class SignupPage implements OnInit {
         firstName: v.firstName,
         lastName: v.lastName,
         contactNo: v.contactNo,
-        alternateContactNo: v.alternateContactNo,
+        alternateContactNo: v.alternateContactNo || undefined,
         bloodGroup: v.bloodGroup || 'O+',
         completeAddress: v.completeAddress,
         city: v.city,
@@ -212,7 +212,7 @@ export class SignupPage implements OnInit {
         firstName: v.firstName,
         lastName: v.lastName,
         contactNo: v.contactNo,
-        alternateContactNo: v.alternateContactNo,
+        alternateContactNo: v.alternateContactNo || undefined,
         bloodGroup: v.bloodGroup || 'B+',
         completeAddress: v.completeAddress,
         city: v.city,

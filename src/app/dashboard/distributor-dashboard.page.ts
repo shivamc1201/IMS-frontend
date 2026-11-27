@@ -1322,10 +1322,7 @@ export class DistributorDashboardPage implements OnInit {
   loadDealerPlacedOrders(dealerId: number): void {
     this.isLoadingDealerPlacedOrders = true;
     const headers = new HttpHeaders({ Authorization: `Bearer ${this.auth.getToken()}` });
-    this.http.get<any>(`${environment.apiUrl}/dealer-sales/orders`, {
-      headers,
-      params: { dealerId: String(dealerId), distributorId: String(this.distributorId ?? this.auth.getUserId()) }
-    }).subscribe({
+    this.http.get<any>(`${environment.apiUrl}/dealer-sales/orders/dealer/${dealerId}`, { headers }).subscribe({
       next: (res) => {
         this.dealerPlacedOrders = Array.isArray(res) ? res : (res?.data ?? res?.orders ?? []);
         this.isLoadingDealerPlacedOrders = false;

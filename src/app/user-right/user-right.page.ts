@@ -52,6 +52,7 @@ export class UserRightPage implements OnInit {
   // UI State
   isLoading = true;
   isLoadingPermissions = false;
+  permissionsLoadFailed = false; // saving is blocked, or it would overwrite what could not be read
   isSaving = false;
   searchQuery = '';
   roleFilter = 'ALL';
@@ -304,6 +305,7 @@ export class UserRightPage implements OnInit {
 
   private loadRolePermissions(user: User) {
     this.isLoadingPermissions = true;
+    this.permissionsLoadFailed = false;
 
     // Build one GET per feature using the known featureIdMap
     const featureEntries = Object.entries(this.featureIdMap);
@@ -328,8 +330,10 @@ export class UserRightPage implements OnInit {
         this.isLoadingPermissions = false;
       },
       error: () => {
+        this.permissionsLoadFailed = true;
         this.snapshotPermissions();
         this.isLoadingPermissions = false;
+        this.toast.present('Could not load this user\'s permissions. Saving is turned off.', 'danger');
       }
     });
   }
@@ -349,7 +353,8 @@ export class UserRightPage implements OnInit {
 
   /** Map CRUD booleans from API → AccessLevel */
   private crudToAccess(p: RoleFeaturePermission): AccessLevel {
-    if (p.canCreate && p.canUpdate) return 'EDIT';
+    // The backend stores and returns only canRead and canUpdate
+    if (p.canUpdate) return 'EDIT';
     if (p.canRead) return 'READ';
     return 'NONE';
   }
@@ -358,7 +363,7 @@ export class UserRightPage implements OnInit {
   private accessToPayload(access: AccessLevel): PermissionPayload {
     switch (access) {
       case 'READ': return { canCreate: false, canRead: true,  canUpdate: false, canDelete: false };
-      case 'EDIT': return { canCreate: true,  canRead: false, canUpdate: true,  canDelete: false };
+      case 'EDIT': return { canCreate: true,  canRead: true,  canUpdate: true,  canDelete: false };
       case 'NONE': return { canCreate: false, canRead: false, canUpdate: false, canDelete: true  };
     }
   }
@@ -418,6 +423,11 @@ export class UserRightPage implements OnInit {
     if (!this.selectedUser) return;
     this.haptic.medium();
 
+    if (this.permissionsLoadFailed) {
+      this.toast.present('Permissions did not load, so they cannot be saved. Select the user again.', 'danger');
+      return;
+    }
+
     const alert = await this.alertController.create({
       header: 'Save Permissions',
       message: `Update access rights for ${this.selectedUser.firstName} ${this.selectedUser.lastName}?`,
@@ -462,7 +472,7 @@ export class UserRightPage implements OnInit {
       },
       error: () => {
         this.isSaving = false;
-        this.toast.present('Failed to save permissions', 'danger');
+        this.toast.present('Some permissions were not saved. Select the user again to see what is stored.', 'danger');
       }
     });
   }

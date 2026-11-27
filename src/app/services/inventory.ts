@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, forkJoin, of } from 'rxjs';
-import { map, catchError } from 'rxjs/operators';
+import { map, catchError, switchMap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
 export interface InventoryItem {
@@ -293,6 +293,31 @@ export class InventoryService {
   }
 
   // =======================================
+  // 🔹 SPARE PARTS, PROMOTIONAL ITEMS AND SCRAP
+  // =======================================
+  /** Each of these has its own table and ids repeat between tables, so the category must pick the route. */
+  private stockItemUrl(id: number, category: InventoryItem['category']): string {
+    if (category === 'promotional_items') return `${this.promotionalItemsUrl}/${id}`;
+    if (category === 'scrap_material') return `${this.scrapItemsUrl}/${id}`;
+    return `${this.machinePartsUrl}/${id}`;
+  }
+
+  /**
+   * Their PUT routes replace every field, and the edit form shows only some of them.
+   * So load the stored record, apply just the changed fields, and send the whole record back.
+   */
+  updateStockItem(
+    id: number,
+    category: InventoryItem['category'],
+    changes: Record<string, unknown>
+  ): Observable<InventoryItem> {
+    const url = this.stockItemUrl(id, category);
+    return this.http.get<Record<string, unknown>>(url).pipe(
+      switchMap(current => this.http.put<InventoryItem>(url, { ...current, ...changes }))
+    );
+  }
+
+  // =======================================
   // 🔹 DELETE RECORD
   // =======================================
   deleteItem(id: number, category: InventoryItem['category']): Observable<void> {
@@ -308,9 +333,7 @@ export class InventoryService {
       );
     }
 
-    return this.http.delete<void>(
-      `${this.machinePartsUrl}/${id}`
-    );
+    return this.http.delete<void>(this.stockItemUrl(id, category));
   }
 
   // =======================================

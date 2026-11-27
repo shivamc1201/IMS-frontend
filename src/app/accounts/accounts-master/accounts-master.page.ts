@@ -403,6 +403,20 @@ export class AccountsMasterPage implements OnInit {
     });
   }
 
+  private refreshCreditBalance(distributorId: number) {
+    this.ledgerService.getCreditBalance(distributorId).subscribe({
+      next: ({ creditBalance }) => {
+        // The account selector is rebuilt from the distributor list, so update that too
+        const distributor = this.distributors.find(d => d.id === distributorId);
+        if (distributor) distributor.creditBalance = creditBalance;
+        if (this.selectedAccount?.distributorId === distributorId) {
+          this.selectedAccount.distributorCreditBalance = creditBalance;
+        }
+      },
+      error: () => this.showToast('Reload the page to see the updated credit balance', 'warning')
+    });
+  }
+
   mapPaymentHistoryToTransactions(payments: any[]): Transaction[] {
     let runningBalance = this.selectedAccount?.openingBalance || 0;
 
@@ -1156,21 +1170,30 @@ export class AccountsMasterPage implements OnInit {
     }
 
     console.log('💰 Approving all payments by user:', userId);
-    let approvedCount = 0;
-    const totalPayments = this.pendingPayments.length;
+    const toApprove = [...this.pendingPayments];
+    let approved = 0;
+    let failed = 0;
+    const report = () => {
+      if (approved + failed < toApprove.length) return;
+      if (failed === 0) {
+        this.showToast(`All ${approved} payments approved successfully`, 'success');
+        this.isPendingPaymentsModalOpen = false;
+      } else {
+        this.showToast(`${failed} of ${toApprove.length} payments could not be approved`, 'danger');
+      }
+    };
 
-    this.pendingPayments.forEach(payment => {
+    toApprove.forEach(payment => {
       this.ledgerService.approvePayment(payment.id, Number(userId)).subscribe({
         next: () => {
-          approvedCount++;
-          if (approvedCount === totalPayments) {
-            this.showToast(`All ${totalPayments} payments approved successfully`, 'success');
-            this.pendingPayments = [];
-            this.isPendingPaymentsModalOpen = false;
-          }
+          approved++;
+          // remove only what was really approved, so failed ones stay in the list
+          this.pendingPayments = this.pendingPayments.filter(p => p.id !== payment.id);
+          report();
         },
         error: () => {
-          this.showToast('Error approving some payments', 'danger');
+          failed++;
+          report();
         }
       });
     });
@@ -1486,6 +1509,8 @@ export class AccountsMasterPage implements OnInit {
         this.isSubmittingJV = false;
         // Reload payment history for the same distributor
         this.loadPaymentHistory(distributorId!);
+        // A JV credit can restore the credit balance
+        this.refreshCreditBalance(distributorId!);
       },
       error: (error) => {
         console.error('❌ Create JV Error:', error);

@@ -125,10 +125,11 @@ export class UnitService {
   }
 
   /**
-   * Delete unit by ID
+   * Delete unit by ID. Ids are only unique per category (raw materials and finished
+   * products live in separate tables), so the category is required.
    */
-  deleteUnit(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.baseUrl}/${id}`);
+  deleteUnit(id: number, category: Unit['category']): Observable<void> {
+    return this.http.delete<void>(`${this.baseUrl}/${id}`, { params: { category } });
   }
 
   /**

@@ -280,10 +280,20 @@ export class UnitMasterPage implements OnInit {
     }
   }
 
+  /** The required fields differ per category; hidden fields must not keep the form invalid. */
+  private applyCategoryValidators(form: FormGroup, category: 'Raw Material' | 'Finished Product') {
+    const isRaw = category === 'Raw Material';
+    const nameRules = [Validators.required, Validators.minLength(2)];
+    form.get('unitName')!.setValidators(isRaw ? nameRules : []);
+    form.get('name')!.setValidators(isRaw ? [] : nameRules);
+    form.get('sku')!.setValidators(isRaw ? [] : [Validators.required]);
+    ['unitName', 'name', 'sku'].forEach(field => form.get(field)!.updateValueAndValidity());
+  }
+
   onCategoryChange(category: 'Raw Material' | 'Finished Product') {
     this.selectedCategory = category;
     this.addForm.patchValue({ category });
-    this.editForm.patchValue({ category });
+    this.applyCategoryValidators(this.addForm, category);
     // Reset category-specific fields
     if (category === 'Raw Material') {
       this.addForm.patchValue({ sku: '', price: 0, name: '', quantity: 0, minimumThreshold: 0 });
@@ -357,9 +367,10 @@ export class UnitMasterPage implements OnInit {
       this.editForm.patchValue({
         category: 'Raw Material',
         unitName: rawMat.unitName || rawMat.name || '',
-        unitCode: rawMat.unitCode || 1000,
-        unitType: rawMat.unitType || rawMat.unit || 'KG',
-        productSize: rawMat.productSize || 'small',
+        // Leave missing values blank so saving does not invent them
+        unitCode: rawMat.unitCode || '',
+        unitType: rawMat.unitType || '',
+        productSize: rawMat.productSize || '',
         description: unit.description || '',
         status: rawMat.status || (unit.active ? 'ACTIVE' : 'INACTIVE')
       });
@@ -376,6 +387,7 @@ export class UnitMasterPage implements OnInit {
         status: product.status || (unit.active ? 'ACTIVE' : 'INACTIVE')
       });
     }
+    this.applyCategoryValidators(this.editForm, unit.category as 'Raw Material' | 'Finished Product');
     this.isEditModalOpen = true;
   }
 
@@ -417,10 +429,13 @@ export class UnitMasterPage implements OnInit {
         status: formValue.status || 'ACTIVE'
       };
     } else if (formValue.category === 'Finished Product') {
+      // POST /api/units calls the product name and SKU "unitName" and "unitCode"
       payload = {
         category: 'Finished Product',
-        name: formValue.name,
-        sku: formValue.sku,
+        unitName: formValue.name,
+        unitCode: String(formValue.sku).trim(),
+        unitType: 'PIECE',
+        productSize: 'small',
         price: formValue.price || 0,
         quantity: formValue.quantity || 0,
         description: formValue.description || '',
@@ -442,7 +457,7 @@ export class UnitMasterPage implements OnInit {
       },
       error: (err) => {
         console.error('Failed to create unit:', err);
-        const errorMsg = err.error?.message || err.message || 'Failed to create unit';
+        const errorMsg = err.error?.error || err.error?.message || err.message || 'Failed to create unit';
         this.showToast(errorMsg, 'danger');
       }
     });
@@ -461,9 +476,10 @@ export class UnitMasterPage implements OnInit {
       payload = {
         category: 'Raw Material',
         unitName: formValue.unitName,
-        unitCode: formValue.unitCode || 1000,
-        unitType: formValue.unitType || 'KG',
-        productSize: formValue.productSize || 'small',
+        // undefined is left out of the request, so the stored value stays as it is
+        unitCode: formValue.unitCode ? String(formValue.unitCode) : undefined,
+        unitType: formValue.unitType || undefined,
+        productSize: formValue.productSize || undefined,
         description: formValue.description || '',
         status: formValue.status || 'ACTIVE'
       };
@@ -482,7 +498,10 @@ export class UnitMasterPage implements OnInit {
 
     this.unitService.updateUnit(this.selectedUnit.id, payload).subscribe({
       next: (updated) => {
-        const index = this.units.findIndex(u => u.id === this.selectedUnit!.id);
+        // ids repeat across categories, so match on both
+        const index = this.units.findIndex(
+          u => u.id === this.selectedUnit!.id && u.category === this.selectedUnit!.category
+        );
         if (index !== -1) {
           this.units[index] = updated;
         }
@@ -491,25 +510,26 @@ export class UnitMasterPage implements OnInit {
       },
       error: (err) => {
         console.error(err);
-        const errorMsg = err.error?.message || err.message || 'Failed to update unit';
+        const errorMsg = err.error?.error || err.error?.message || err.message || 'Failed to update unit';
         this.showToast(errorMsg, 'danger');
       }
     });
   }
 
   /* ---------- DELETE UNIT ---------- */
-  deleteUnit(id: number) {
+  deleteUnit(unit: Unit) {
     this.haptic.heavy();
     if (!confirm('Are you sure you want to delete this unit?')) return;
 
-    this.unitService.deleteUnit(id).subscribe({
+    this.unitService.deleteUnit(unit.id, unit.category).subscribe({
       next: () => {
-        this.units = this.units.filter(u => u.id !== id);
+        // ids repeat across categories, so match on both
+        this.units = this.units.filter(u => !(u.id === unit.id && u.category === unit.category));
         this.showSuccessAlert('Unit deleted successfully!', 'Unit Deleted');
         this.resetPagination();
       },
       error: (err) => {
-        const errorMsg = err.error?.message || err.message || 'Failed to delete unit';
+        const errorMsg = err.error?.error || err.error?.message || err.message || 'Failed to delete unit';
         this.showToast(errorMsg, 'danger');
       }
     });
