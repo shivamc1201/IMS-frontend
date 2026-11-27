@@ -297,8 +297,7 @@ export class HrDepartmentPage implements OnInit {
           gender: user.gender,
           bloodGroup: user.bloodGroup,
           completeAddress: user.completeAddress,
-          createdOn: user.createdOn,
-          password: user.password || null
+          createdOn: user.createdOn
         }));
         this.isLoading = false;
       },
@@ -764,7 +763,7 @@ export class HrDepartmentPage implements OnInit {
       roleType: employee.roleType || '',
       completeAddress: employee.completeAddress || '',
       status: apiStatus,
-      password: employee.password || ''
+      password: '' // the API never returns passwords; blank keeps the current one
     });
     this.showEditPassword = false;
 
@@ -809,6 +808,7 @@ export class HrDepartmentPage implements OnInit {
 
       const formValue = this.employeeForm.value;
       const payload: CreateUserRequest = {
+        userOnboardingType: 'USER', // required by the backend
         firstName: formValue.firstName,
         lastName: formValue.lastName,
         username: formValue.username,
@@ -915,9 +915,8 @@ export class HrDepartmentPage implements OnInit {
         roleType: formValue.roleType
       };
 
-      // Only include password if admin changed it from the original
-      const originalPassword = this.selectedEmployee.password || '';
-      if (this.isAdmin && formValue.password && formValue.password !== originalPassword) {
+      // Only include password if the admin typed a new one
+      if (this.isAdmin && formValue.password) {
         payload.password = formValue.password;
       }
 

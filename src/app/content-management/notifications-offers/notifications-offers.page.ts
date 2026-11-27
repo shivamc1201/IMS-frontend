@@ -154,7 +154,7 @@ export class NotificationsOffersPage implements OnInit {
 
     if (this.isEditingOffer && this.editingOfferId != null) {
       this.contentService
-        .updateOffer(this.editingOfferId, payload, this.offerImageFile || undefined)
+        .updateOffer(this.editingOfferId, payload)
         .subscribe({
           next: () => done('Offer updated'),
           error: () => fail('Failed to update offer'),
@@ -246,7 +246,7 @@ export class NotificationsOffersPage implements OnInit {
 
     if (this.isEditingNotif && this.editingNotifId != null) {
       this.contentService
-        .updateNotification(this.editingNotifId, payload, this.notifImageFile || undefined)
+        .updateNotification(this.editingNotifId, payload)
         .subscribe({
           next: () => done('Notification updated'),
           error: () => fail('Failed to update notification'),

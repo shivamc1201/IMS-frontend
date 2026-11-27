@@ -58,10 +58,9 @@ export class UserRightsService {
   }
 
   /** GET /api/role-feature-permissions/role/{roleId}/feature/{featureId} */
-  getFeaturePermission(roleId: number, featureId: number): Observable<RoleFeaturePermission | null> {
+  getFeaturePermission(roleId: number, featureId: number): Observable<RoleFeaturePermission> {
     return this.http
-      .get<RoleFeaturePermission>(`${this.base}/role/${roleId}/feature/${featureId}`, { headers: this.getHeaders() })
-      .pipe(catchError(() => of(null)));
+      .get<RoleFeaturePermission>(`${this.base}/role/${roleId}/feature/${featureId}`, { headers: this.getHeaders() });
   }
 
   /** PUT /api/role-feature-permissions/role/{roleId}/feature/{featureId} */
@@ -69,10 +68,9 @@ export class UserRightsService {
     roleId: number,
     featureId: number,
     payload: PermissionPayload
-  ): Observable<RoleFeaturePermission | null> {
+  ): Observable<RoleFeaturePermission> {
     return this.http
-      .put<RoleFeaturePermission>(`${this.base}/role/${roleId}/feature/${featureId}`, payload, { headers: this.getHeaders() })
-      .pipe(catchError(() => of(null)));
+      .put<RoleFeaturePermission>(`${this.base}/role/${roleId}/feature/${featureId}`, payload, { headers: this.getHeaders() });
   }
 
 }

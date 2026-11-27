@@ -71,7 +71,8 @@ export class HierarchyOrdersPage implements OnInit {
   filterZone = '';
   filterStatus = '';
   filterSearch = '';
-  zones = ['S BIHAR', 'N BIHAR'];
+  zones: string[] = [];
+  otherOrders: OrderWithSalesPerson[] = [];
   statuses = ['pending', 'approved', 'completed', 'rejected'];
 
   // Summary
@@ -132,7 +133,8 @@ export class HierarchyOrdersPage implements OnInit {
         if (personsLoaded) this.buildGroupedData();
       },
       error: () => {
-        // Orders API might not exist yet — use empty list
+        // Show the failure instead of letting it look like there are no orders
+        this.errorMessage = 'Failed to load orders. Pull down to retry.';
         this.allOrders = [];
         ordersLoaded = true;
         if (personsLoaded) this.buildGroupedData();
@@ -148,64 +150,59 @@ export class HierarchyOrdersPage implements OnInit {
   buildGroupedData() {
     this.isLoading = false;
     const filtered = this.getFilteredOrders();
-    this.totalOrders = filtered.length;
-    this.totalAmount = filtered.reduce((s, o) => s + (o.amount ?? 0), 0);
+    const sumAmount = (list: OrderWithSalesPerson[]) => list.reduce((s, o) => s + (o.amount ?? 0), 0);
 
-    const ssms = this.salesPersons.filter(p => p.role === 'SSM');
-    const rsms = this.salesPersons.filter(p => p.role === 'RSM');
-    const asms = this.salesPersons.filter(p => p.role === 'ASM');
-    const ses = this.salesPersons.filter(p => p.role === 'SALES_EXECUTIVE');
+    const byId = new Map(this.salesPersons.map(p => [p.id, p]));
+    const reportsOf = (managerId: number) => this.salesPersons.filter(p => p.managerId === managerId);
 
-    // Get distinct zones
-    const allZones = [...new Set([
-      ...this.salesPersons.filter(p => p.zone).map(p => p.zone!),
-      ...this.zones
-    ])];
+    // Everyone below a person, at any depth (e.g. Sales Officers and their Sales Executives).
+    const teamOf = (managerId: number, seen = new Set<number>([managerId])): SalesPerson[] =>
+      reportsOf(managerId)
+        .filter(p => !seen.has(p.id))
+        .reduce<SalesPerson[]>((team, p) => {
+          seen.add(p.id);
+          return team.concat(p, teamOf(p.id, seen));
+        }, []);
 
-    const zoneFilter = this.filterZone;
-    const zonesToProcess = zoneFilter ? [zoneFilter] : allZones;
+    // A regional manager belongs to exactly one zone (own, else a manager's), so nothing is counted twice.
+    const zoneOf = (person: SalesPerson): string => {
+      const seen = new Set<number>();
+      let current: SalesPerson | undefined = person;
+      while (current && !seen.has(current.id)) {
+        if (current.zone) return current.zone;
+        seen.add(current.id);
+        current = current.managerId != null ? byId.get(current.managerId) : undefined;
+      }
+      return 'No Zone';
+    };
+
+    const rsms = this.salesPersons.filter(p => p.role === 'REGIONAL_SALES_MGR');
+    this.zones = [...new Set(rsms.map(zoneOf))].sort();
+
+    const zonesToProcess = this.filterZone ? [this.filterZone] : this.zones;
+    const placed = new Set<number>();
+
+    const toMemberGroup = (member: SalesPerson): SeGroup => {
+      const orders = filtered.filter(o => o.salespersonId === member.id);
+      orders.forEach(o => placed.add(o.orderId));
+      return { se: member, seName: member.name, orders, totalAmount: sumAmount(orders), isExpanded: false };
+    };
 
     this.groupedData = zonesToProcess.map(zone => {
-      const zoneRsms = rsms.filter(r => !r.zone || r.zone === zone);
+      const rsmGroups: RsmGroup[] = rsms.filter(r => zoneOf(r) === zone).map(rsm => {
+        const asmGroups: AsmGroup[] = reportsOf(rsm.id)
+          .filter(p => p.role === 'AREA_SALES_MGR')
+          .map(asm => {
+            const executives = teamOf(asm.id).map(toMemberGroup);
 
-      const rsmGroups: RsmGroup[] = zoneRsms.map(rsm => {
-        const rsmAsms = asms.filter(a => a.managerId === rsm.id);
+            // Orders owned by the area manager directly
+            const own = toMemberGroup(asm);
+            if (own.orders.length > 0) executives.unshift(own);
 
-        const asmGroups: AsmGroup[] = rsmAsms.map(asm => {
-          const asmSes = ses.filter(se => se.managerId === asm.id);
-
-          const seGroups: SeGroup[] = asmSes.map(se => {
-            const seOrders = filtered.filter(o => o.salespersonId === se.id);
-            return {
-              se,
-              seName: se.name,
-              orders: seOrders,
-              totalAmount: seOrders.reduce((s, o) => s + (o.amount ?? 0), 0),
-              isExpanded: false
-            };
+            const totalOrders = executives.reduce((s, g) => s + g.orders.length, 0);
+            const totalAmount = executives.reduce((s, g) => s + g.totalAmount, 0);
+            return { asm, asmName: asm.name, executives, totalOrders, totalAmount, isExpanded: true };
           });
-
-          // Unassigned orders under this ASM
-          const assignedSeIds = asmSes.map(se => se.id);
-          const unassignedOrders = filtered.filter(o =>
-            o.salespersonId && asms.find(a => a.id === asm.id) &&
-            !assignedSeIds.includes(o.salespersonId!)
-          );
-
-          if (unassignedOrders.length > 0) {
-            seGroups.push({
-              se: null,
-              seName: 'Unassigned',
-              orders: unassignedOrders,
-              totalAmount: unassignedOrders.reduce((s, o) => s + (o.amount ?? 0), 0),
-              isExpanded: false
-            });
-          }
-
-          const totalOrders = seGroups.reduce((s, g) => s + g.orders.length, 0);
-          const totalAmount = seGroups.reduce((s, g) => s + g.totalAmount, 0);
-          return { asm, asmName: asm.name, executives: seGroups, totalOrders, totalAmount, isExpanded: true };
-        });
 
         const totalOrders = asmGroups.reduce((s, g) => s + g.totalOrders, 0);
         const totalAmount = asmGroups.reduce((s, g) => s + g.totalAmount, 0);
@@ -216,6 +213,15 @@ export class HierarchyOrdersPage implements OnInit {
       const totalAmount = rsmGroups.reduce((s, g) => s + g.totalAmount, 0);
       return { zone, rsms: rsmGroups, totalOrders, totalAmount };
     }).filter(z => z.rsms.length > 0);
+
+    // Orders that do not fit the tree (no salesperson, or owner outside any area team) stay visible.
+    this.otherOrders = filtered.filter(o =>
+      !placed.has(o.orderId) && (!this.filterZone || o.zone === this.filterZone)
+    );
+
+    const shown = [...filtered.filter(o => placed.has(o.orderId)), ...this.otherOrders];
+    this.totalOrders = shown.length;
+    this.totalAmount = sumAmount(shown);
   }
 
   /**

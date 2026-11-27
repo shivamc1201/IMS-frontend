@@ -173,7 +173,7 @@ export class HrKraKpiPage implements OnInit {
   editingAssignmentKpiId: number | null = null;
 
   salesPersons: SalesPerson[] = [];
-  measurementUnits: string[] = ['AMOUNT', 'PERCENTAGE', 'COUNT', 'HOURS', 'DAYS'];
+  measurementUnits: string[] = ['AMOUNT', 'PERCENTAGE', 'COUNT', 'VISITS']; // backend KPIMeasurementUnit
   frequencies: string[] = ['MONTHLY'];
 
   currentPage = 1;

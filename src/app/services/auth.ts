@@ -48,6 +48,7 @@ export interface LoginResponse {
 
 // ---------------- SIGNUP MODELS ----------------
 export interface CreateUserRequest {
+  userOnboardingType?: 'USER' | 'SALES';
   username: string;
   email: string;
   password: string;

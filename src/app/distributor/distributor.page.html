@@ -605,7 +605,7 @@
               <ion-input
                 formControlName="password"
                 [type]="showPassword ? 'text' : 'password'"
-                placeholder="Enter password"
+                [placeholder]="isEditing ? 'Leave blank to keep current password' : 'Enter password'"
                 class="custom-input"
               ></ion-input>
               <div *ngIf="distributorForm.get('password')?.invalid && distributorForm.get('password')?.touched" 
@@ -1516,7 +1516,7 @@
             </div>
             <div>
               <label class="block text-sm font-medium text-slate-600 mb-1">Password</label>
-              <ion-input formControlName="password" [type]="showPassword ? 'text' : 'password'" placeholder="Enter password" class="custom-input">
+              <ion-input formControlName="password" [type]="showPassword ? 'text' : 'password'" [placeholder]="isEditing ? 'Leave blank to keep current password' : 'Enter password'" class="custom-input">
                 <ion-button slot="end" fill="clear" (click)="showPassword = !showPassword">
                   <ion-icon [name]="showPassword ? 'eye-off-outline' : 'eye-outline'" class="text-slate-400"></ion-icon>
                 </ion-button>

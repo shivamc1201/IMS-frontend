@@ -390,7 +390,7 @@ export class DispatchPage implements OnInit {
     this.haptic.heavy();
     if (this.orderBeingRejected) {
       this.isLoading = true;
-      this.dispatchService.dismissOrder(this.orderBeingRejected.id).subscribe({
+      this.dispatchService.dismissOrder(this.orderBeingRejected.id, this.rejectRemarks.trim()).subscribe({
         next: async (response) => {
           console.log('Order rejected:', this.orderBeingRejected?.id);
           

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable, of, throwError } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 
@@ -104,6 +104,16 @@ export class LedgerService {
         );
     }
 
+    /** Puts the server's message in error.message, also for routes read as plain text. */
+    private readableError(error: any, fallback: string) {
+        let body = error?.error;
+        if (typeof body === 'string') {
+            try { body = JSON.parse(body); } catch { body = { message: body }; }
+        }
+        const message = body?.message || body?.error || fallback;
+        return { status: error?.status, message, error: { message } };
+    }
+
     updateBalance(
         distributorId: number,
         amount: number,
@@ -118,16 +128,9 @@ export class LedgerService {
         if (date) {
             url += `&date=${encodeURIComponent(date)}`;
         }
+        // Failures must reach the caller: never report an unsaved ledger entry as saved.
         return this.http.post<ApiResponse<any>>(url, {}).pipe(
-            catchError(error => {
-                console.error('Update Balance Error:', error);
-                // If JSON parsing fails or network error, treat as success since backend confirmed it
-                return of({
-                    success: true,
-                    message: error.statusText || 'Balance updated successfully',
-                    data: null
-                });
-            })
+            catchError(error => throwError(() => this.readableError(error, 'Failed to update balance')))
         );
     }
 
@@ -187,6 +190,10 @@ export class LedgerService {
         );
     }
 
+    getCreditBalance(distributorId: number): Observable<{ creditBalance: number }> {
+        return this.http.get<{ creditBalance: number }>(`${this.apiUrl}/accounts/credit-balance/${distributorId}`);
+    }
+
     createJournalVoucher(payload: any, distributorId: number): Observable<ApiResponse<any>> {
         console.log('🔄 API Request - POST /api/accounts/journal-voucher');
         console.log('📤 Request Payload:', payload);
@@ -204,16 +211,7 @@ export class LedgerService {
                     data: null
                 };
             }),
-            catchError(error => {
-                console.error('❌ API Error Response:', error);
-                console.error('Error Status:', error.status);
-                console.error('Error Details:', error.error);
-                return of({
-                    success: false,
-                    message: error?.error?.message || error?.message || 'Failed to create journal voucher',
-                    data: null
-                });
-            })
+            catchError(error => throwError(() => this.readableError(error, 'Failed to create journal voucher')))
         );
     }
 
@@ -328,14 +326,7 @@ export class LedgerService {
                     data: null
                 };
             }),
-            catchError(error => {
-                console.error('❌ API Error Response:', error);
-                return of({
-                    success: false,
-                    message: error?.error?.message || error?.message || 'Failed to approve payment',
-                    data: null
-                });
-            })
+            catchError(error => throwError(() => this.readableError(error, 'Failed to approve payment')))
         );
     }
 

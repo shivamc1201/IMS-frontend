@@ -458,7 +458,6 @@ export class DistributorPage implements OnInit {
       ifsc: (dto.ifsc || (dto as any).IFSC || ''),
       accountName: dto.accountName || '',
       username: dto.username || '',
-      password: dto.password || '',
       createdAt: dto.createdOn
     };
   }
@@ -764,7 +763,7 @@ export class DistributorPage implements OnInit {
           bankGuaranteeNumber: dist.bankGuaranteeNumber || '',
           bankGuaranteeExpiryDate: dist.bgExpiryDate || '',
           username: dist.username || '',
-          password: dist.password || '',
+          password: '', // the API never returns passwords; blank keeps the current one
           pincode: dist.pinCode || '',
           isActive: dist.status === 'ACTIVE' || !dist.status
         });

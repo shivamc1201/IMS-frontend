@@ -505,7 +505,7 @@
             formControlName="password" placeholder="Enter password" type="password" />
           <p *ngIf="employeeForm.get('password')?.invalid && employeeForm.get('password')?.touched"
             class="text-red-500 text-xs mt-1 font-medium">
-            Password is required (minimum 6 characters)
+            Password is required (minimum 8 characters)
           </p>
         </div>
         <!-- Contact -->
@@ -939,7 +939,8 @@
               class="w-full px-4 py-3 pr-12 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
               formControlName="password"
               [type]="showEditPassword ? 'text' : 'password'"
-              autocomplete="off" />
+              placeholder="Leave blank to keep current password"
+              autocomplete="new-password" />
             <button type="button"
               (click)="showEditPassword = !showEditPassword"
               class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors outline-none border-0 bg-transparent">

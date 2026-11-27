@@ -574,7 +574,7 @@ export class SalesDashboardPage implements OnInit, OnDestroy {
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     });
     this.http.get<any>(
-      `${environment.apiUrl}/dealers/salesperson/${this.salespersonId}`,
+      `${environment.apiUrl}/dealers/analytics/salesperson/${this.salespersonId}`,
       { headers }
     ).subscribe({
       next: (res) => {

@@ -137,7 +137,9 @@ export class MasterInventoryPage implements OnInit {
     { value: 'scrap_material',    label: 'Scrap Material',    dot: 'bg-slate-400' },
     { value: 'damaged',           label: 'Damaged Products',  dot: 'bg-rose-400' },
     { value: 'bom',               label: 'Bill of Material',  dot: 'bg-teal-400' },
-    { value: 'inward_approvals',  label: 'Inward Approvals',  dot: 'bg-amber-400' }
+    { value: 'inward_approvals',  label: 'Inward Approvals',  dot: 'bg-amber-400' },
+    // Not a stock category: opens the separate Unit Master page (see onActiveTabChange)
+    { value: 'unit_master',       label: 'Unit Master',       dot: 'bg-indigo-400' }
   ];
 
   /* ---------- INWARD APPROVALS STATE ---------- */
@@ -825,8 +827,16 @@ export class MasterInventoryPage implements OnInit {
           ...commonFields
         };
         break;
+      case 'spare_parts':
+        payload = {
+          name,
+          partNumber: materialCode || undefined,
+          unit: unit || 'KG',
+          ...commonFields
+        };
+        break;
       default:
-        // spare_parts, promotional_items, scrap_material → itemCode
+        // promotional_items, scrap_material → itemCode
         payload = {
           name,
           itemCode: materialCode || undefined,
@@ -876,7 +886,9 @@ export class MasterInventoryPage implements OnInit {
     this.selectedItem = item;
     this.editForm.patchValue({
       name: item.name,
-      materialCode: item.materialCode || '',
+      materialCode: this.isStockItem(item.category)
+        ? (item as any).itemCode || (item as any).partNumber || ''
+        : item.materialCode || '',
       hsn: (item as any).hsn || '',
       taxRateCode: (item as any).taxRateCode || '',
       unit: item.unit || 'KG',
@@ -891,6 +903,7 @@ export class MasterInventoryPage implements OnInit {
     });
     this.editPreviewImage = item.imageUrl || null;
     this.editSelectedImageFile = null;
+    this.editForm.markAsPristine(); // only fields the user changes are saved for stock items
     this.isEditModalOpen = true;
   }
 
@@ -917,7 +930,9 @@ export class MasterInventoryPage implements OnInit {
     const formVal = this.editForm.value;
     let payload: Record<string, any>;
 
-    if (this.selectedItem.category === 'finished_product') {
+    if (this.isStockItem(this.selectedItem.category)) {
+      payload = this.changedStockFields();
+    } else if (this.selectedItem.category === 'finished_product') {
       payload = {
         category: 'finished_product',
         name: formVal.name,
@@ -957,16 +972,18 @@ export class MasterInventoryPage implements OnInit {
       fileName: this.editSelectedImageFile?.name
     });
 
-    const request$ = hasNewImage
-      ? this.inventoryService.updateItemWithImage(this.selectedItem.id, this.selectedItem.category, payload, this.editSelectedImageFile!)
-      : this.inventoryService.updateItem(this.selectedItem.id, payload);
+    const request$ = this.isStockItem(this.selectedItem.category)
+      ? this.inventoryService.updateStockItem(this.selectedItem.id, this.selectedItem.category, payload)
+      : hasNewImage
+        ? this.inventoryService.updateItemWithImage(this.selectedItem.id, this.selectedItem.category, payload, this.editSelectedImageFile!)
+        : this.inventoryService.updateItem(this.selectedItem.id, payload);
 
     request$.subscribe({
       next: (updated) => {
         console.log('✅ Item updated successfully:', updated);
         this.closeEditModal();
 
-        const categoryLabel = this.selectedItem!.category === 'finished_product' ? 'Finished Product' : 'Raw Material';
+        const categoryLabel = this.getCategoryLabel(this.selectedItem?.category as ItemCategory) || 'Item';
         const successMsg = hasNewImage
           ? `${categoryLabel} updated with new image!`
           : `${categoryLabel} updated successfully!`;
@@ -981,7 +998,7 @@ export class MasterInventoryPage implements OnInit {
         const errorMessage = this.extractErrorMessage(err);
         console.error('❌ Error updating item:', err);
 
-        const categoryLabel = this.selectedItem!.category === 'finished_product' ? 'finished product' : 'raw material';
+        const categoryLabel = (this.getCategoryLabel(this.selectedItem?.category as ItemCategory) || 'item').toLowerCase();
         const failureMsg = hasNewImage
           ? `Failed to update ${categoryLabel} image: ${errorMessage}`
           : `Failed to update ${categoryLabel}: ${errorMessage}`;
@@ -992,12 +1009,31 @@ export class MasterInventoryPage implements OnInit {
     });
   }
 
+  isStockItem(category: unknown): boolean {
+    return category === 'spare_parts' || category === 'promotional_items' || category === 'scrap_material';
+  }
+
+  /** The fields the user changed on a spare part, promotional item or scrap item. */
+  private changedStockFields(): Record<string, any> {
+    const changes: Record<string, any> = {};
+    const fields: Record<string, string> = {
+      name: 'name', price: 'price', unit: 'unit', quantity: 'quantity',
+      minimumThreshold: 'minimumThreshold', hsn: 'hsn', taxRateCode: 'taxRate'
+    };
+    Object.entries(fields).forEach(([control, field]) => {
+      const input = this.editForm.get(control);
+      if (input?.dirty) changes[field] = input.value;
+    });
+    return changes;
+  }
+
   deleteItem(id: number, category: ItemCategory) {
     this.haptic.heavy();
     this.openConfirmDialog('Are you sure you want to delete this item?', () => {
       this.inventoryService.deleteItem(id, category).subscribe({
         next: () => {
-          this.inventory = this.inventory.filter(i => i.id !== id);
+          // ids repeat across categories, so match on both
+          this.inventory = this.inventory.filter(i => !(i.id === id && i.category === category));
           this.showMessage('success', 'Item deleted successfully!');
         },
         error: () => this.showMessage('error', 'Delete failed')
@@ -1112,8 +1148,13 @@ export class MasterInventoryPage implements OnInit {
     this.confirmCallback = null;
   }
 
-  onActiveTabChange(tab: 'all' | 'raw_material' | 'finished_product' | 'bom' | 'spare_parts' | 'promotional_items' | 'scrap_material' | 'inward_approvals' | 'damaged') {
+  onActiveTabChange(tab: 'all' | 'raw_material' | 'finished_product' | 'bom' | 'spare_parts' | 'promotional_items' | 'scrap_material' | 'inward_approvals' | 'damaged' | 'unit_master') {
     this.haptic.selectionChanged();
+    if (tab === 'unit_master') {
+      // Unit Master is its own page, not a filter of this list: keep the current tab and navigate.
+      this.router.navigate(['/unit-master']);
+      return;
+    }
     this.activeTab = tab;
     this.resetPagination();
     if (tab === 'bom') {
