@@ -917,10 +917,11 @@
                   <div>
                     <label class="block text-xs font-bold text-slate-600 mb-1.5">Account Number *</label>
                     <input type="text" [(ngModel)]="entry.accountNumber" [name]="'accountNumber_' + i" required
-                      placeholder="e.g., 1001"
-                      [readonly]="i === 0"
-                      [class]="i === 0 ? 'w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold text-sm cursor-default' : 'w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all text-sm'">
-                    <p *ngIf="i === 0" class="text-[10px] text-slate-400 mt-1">Prefilled from selected distributor</p>
+                      placeholder="No account number"
+                      readonly
+                      class="w-full px-4 py-2.5 border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-semibold text-sm cursor-default">
+                    <p *ngIf="selectedAccount?.accountCode" class="text-[10px] text-slate-400 mt-1">Prefilled from selected distributor</p>
+                    <p *ngIf="!selectedAccount?.accountCode" class="text-xs text-red-500 mt-1">This distributor has no account number. Add it on the Distributor page before creating a JV.</p>
                   </div>
 
                   <!-- Account Name -->

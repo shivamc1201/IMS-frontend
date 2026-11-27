@@ -1404,7 +1404,8 @@ export class AccountsMasterPage implements OnInit {
 
   addJVEntry() {
     this.jvFormData.entries.push({
-      accountNumber: '',
+      // every line of a voucher belongs to the selected distributor's account
+      accountNumber: this.selectedAccount?.accountCode || '',
       accountName: '',
       description: '',
       debit: '',
