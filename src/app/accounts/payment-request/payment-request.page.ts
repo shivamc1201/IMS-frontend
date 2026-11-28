@@ -468,12 +468,12 @@ export class PaymentRequestPage implements OnInit {
             if (!stillPending) {
               this.showToast(`${payment.paymentRequestNo} approved successfully`, 'success');
             } else {
-              this.showToast(err?.error?.message || 'Failed to approve payment. Please try again.', 'danger');
+              this.showToast(err?.error?.message || err?.error?.error || 'Failed to approve payment. Please try again.', 'danger');
             }
           },
           error: () => {
             this.isLoading = false;
-            this.showToast(err?.error?.message || 'Failed to approve payment. Please try again.', 'danger');
+            this.showToast(err?.error?.message || err?.error?.error || 'Failed to approve payment. Please try again.', 'danger');
           },
         });
       },
