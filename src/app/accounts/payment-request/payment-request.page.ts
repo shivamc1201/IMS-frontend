@@ -8,6 +8,8 @@ import { Auth } from '../../services/auth';
 import { HapticService } from '../../services/haptic.service';
 import { Toast } from '../../services/toast';
 import { AclDirective } from '../../acl/acl.directive';
+import { DownloadService } from '../../services/download.service';
+import { exportRowsToExcel } from '../../reports/report-shared';
 import { addIcons } from 'ionicons';
 import {
   walletOutline,
@@ -41,6 +43,7 @@ import {
   shieldCheckmarkOutline,
   chatboxEllipsesOutline,
   sparklesOutline,
+  downloadOutline,
 } from 'ionicons/icons';
 
 export interface PaymentRequest {
@@ -141,6 +144,8 @@ export class PaymentRequestPage implements OnInit {
   errorMessage = '';
 
   private haptic = inject(HapticService);
+  private downloadService = inject(DownloadService);
+  isExporting = false;
 
   constructor(
     private toast: Toast,
@@ -155,7 +160,7 @@ export class PaymentRequestPage implements OnInit {
       chevronDownOutline, chevronUpOutline, funnelOutline, receiptOutline,
       trendingUpOutline, alertCircleOutline, ellipsisVerticalOutline, eyeOutline,
       swapVerticalOutline, phonePortraitOutline, banOutline,
-      shieldCheckmarkOutline, chatboxEllipsesOutline, sparklesOutline,
+      shieldCheckmarkOutline, chatboxEllipsesOutline, sparklesOutline, downloadOutline,
     });
   }
 
@@ -259,6 +264,50 @@ export class PaymentRequestPage implements OnInit {
     }
     this.filteredLogs = result;
     this.logsPage = 1;
+  }
+
+  /** Downloads every payment log with all its fields, ignoring the tab, search, method filter and page. */
+  async exportLogsToExcel() {
+    if (this.isExporting) return;
+    this.haptic.medium();
+    if (!this.logsLoaded || this.isLogsLoading || this.logsErrorMessage) {
+      this.showToast('Payment logs are not loaded yet. Refresh and try again.', 'warning');
+      return;
+    }
+    if (this.allLogs.length === 0) {
+      this.showToast('There are no payment logs to export', 'warning');
+      return;
+    }
+
+    const dateTime = (value?: string | null) => (value ? this.formatDateTime(value) : '');
+    const rows = this.allLogs.map(log => ({
+      'Payment ID': log.paymentId,
+      'Distributor ID': log.distributorId,
+      'Party': log.partyName || '',
+      'Amount': Number(log.amount) || 0, // a number, so it can be totalled in Excel
+      'Type': log.transactionType || '',
+      'Mode': log.paymentMode || '',
+      'UTR No.': log.utrNumber || '',
+      'Cheque No.': log.chequeNumber || '',
+      'Bank Name': log.bankName || '',
+      'Transaction No.': log.transactionNumber || '',
+      'Description': log.description || '',
+      'Status': this.getLogStatusLabel(log.status),
+      'Added By': log.addedByName || '',
+      'Date': dateTime(log.createdAt),
+      'Approved / Rejected At': dateTime(log.approvedAt),
+    }));
+
+    this.isExporting = true;
+    try {
+      await exportRowsToExcel(rows, 'Payment Logs', this.downloadService, this.toast, undefined,
+        [12, 14, 28, 14, 10, 10, 20, 16, 20, 20, 36, 18, 28, 22, 22]);
+    } catch (error) {
+      console.error('Failed to export payment logs:', error);
+      this.showToast('Failed to download the Excel file', 'danger');
+    } finally {
+      this.isExporting = false;
+    }
   }
 
   /** Each log carries exactly one of UTR / cheque / transaction no. — show only what exists. */

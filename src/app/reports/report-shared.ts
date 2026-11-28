@@ -242,9 +242,11 @@ export async function exportRowsToExcel(
   title: string,
   downloadService: DownloadService,
   toast: Toast,
-  subtitle?: string
+  subtitle?: string,
+  columnWidths?: number[]
 ): Promise<void> {
   const worksheet = XLSX.utils.json_to_sheet(jsonRows);
+  if (columnWidths) worksheet['!cols'] = columnWidths.map(wch => ({ wch }));
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, title.slice(0, 31));
   const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
